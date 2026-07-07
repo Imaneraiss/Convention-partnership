@@ -11,3 +11,4 @@ groq
 apscheduler
 python-dotenv
 alembic
+pydantic[email]
