@@ -2,6 +2,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import conventions
+from backend.app import auth
+from backend.app.routers import alertes, budget, comites, fichiers, reunions, users
 
 app = FastAPI(
     title="Convention Partnership API",
@@ -19,8 +21,14 @@ app.add_middleware(
 )
 
 # Inclusion des routers
+app.include_router(auth.router)
 app.include_router(conventions.router)
-
+app.include_router(users.router)
+app.include_router(comites.router)
+app.include_router(reunions.router)
+app.include_router(alertes.router)
+app.include_router(budget.router)
+app.include_router(fichiers.router)
 @app.get("/")
 def root():
-    return {"message": "API Convention Partnership — UM5 ✅"}
+    return {"message": "API Convention Partnership — UM5 "}
