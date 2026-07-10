@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import conventions
 from backend.app import auth
 from backend.app.routers import alertes, budget, comites, fichiers, reunions, users
+from app.middleware.logging_middleware import LoggingMiddleware
 
 app = FastAPI(
     title="Convention Partnership API",
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 
 # Inclusion des routers
+app.add_middleware(LoggingMiddleware)
 app.include_router(auth.router)
 app.include_router(conventions.router)
 app.include_router(users.router)
