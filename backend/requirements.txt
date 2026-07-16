@@ -12,3 +12,7 @@ apscheduler
 python-dotenv
 alembic
 pydantic[email]
+pytesseract
+Pillow
+pdfplumber
+PyMuPDF
