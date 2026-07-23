@@ -4,14 +4,25 @@ from typing import List
 from uuid import UUID
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate, UserResponse
-from app.auth import hash_password, require_admin
+from app.schemas.user import ChangePasswordSchema, UserCreate, UserUpdate, UserResponse
+from app.auth import get_current_user, hash_password, require_admin
 
 router = APIRouter(prefix="/api/users", tags=["Utilisateurs"])
 
 @router.get("/", response_model=List[UserResponse])
 def get_users(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return db.query(User).all()
+
+@router.get("/{user_id}", response_model=UserResponse)
+def get_user(user_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Utilisateur non trouvé"
+        )
+
+    return user
 
 @router.post("/", response_model=UserResponse)
 def create_user(data: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
@@ -41,6 +52,30 @@ def update_user(user_id: UUID, data: UserUpdate, db: Session = Depends(get_db), 
     db.commit()
     db.refresh(user)
     return user
+@router.put("/{user_id}/password")
+def update_password(
+    user_id: UUID,
+    data: ChangePasswordSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Utilisateur non trouvé"
+        )
+
+    user.mot_de_passe = hash_password(data.nouveau_mot_de_passe)
+    user.premiere_connexion = False
+
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "message": "Mot de passe modifié avec succès"
+    }
 
 @router.delete("/{user_id}")
 def delete_user(user_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):

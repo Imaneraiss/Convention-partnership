@@ -30,6 +30,16 @@ def create_alerte(data: AlerteCreate, db: Session = Depends(get_db), current_use
     db.refresh(alerte)
     return alerte
 
+@router.get("/convention/{convention_id}", response_model=List[AlerteResponse])
+def get_alertes_by_convention(
+    convention_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return db.query(Alerte)\
+             .filter(Alerte.convention_id == convention_id)\
+             .all()
+
 @router.put("/{alerte_id}", response_model=AlerteResponse)
 def update_alerte(alerte_id: UUID, data: AlerteUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role("CHARGE"))):
     alerte = db.query(Alerte).filter(Alerte.id == alerte_id).first()
@@ -51,3 +61,4 @@ def traiter_alerte(alerte_id: UUID, db: Session = Depends(get_db), current_user:
     alerte.traitee = True
     db.commit()
     return {"message": "Alerte marquée comme traitée"}
+

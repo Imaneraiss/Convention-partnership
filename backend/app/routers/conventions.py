@@ -5,6 +5,7 @@ from sqlalchemy import extract
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+from fastapi.responses import FileResponse
 
 from app.database import get_db
 from app.models.convention import Convention
@@ -17,13 +18,13 @@ router = APIRouter(
     tags=["Conventions"]
 )
 
-# ✅ GET — Liste toutes les conventions
+#   GET — Liste toutes les conventions
 @router.get("/", response_model=List[ConventionResponse])
 def get_conventions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     conventions = db.query(Convention).all()
     return conventions
 
-# ✅ GET — Détail d'une convention
+#   GET — Détail d'une convention
 @router.get("/{convention_id}", response_model=ConventionResponse)
 def get_convention(convention_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     convention = db.query(Convention).filter(Convention.id == convention_id).first()
@@ -31,7 +32,7 @@ def get_convention(convention_id: UUID, db: Session = Depends(get_db), current_u
         raise HTTPException(status_code=404, detail="Convention non trouvée")
     return convention
 
-# ✅ POST — Créer une convention numérotée
+#   POST — Créer une convention numérotée
 @router.post("/", response_model=ConventionResponse)
 def create_convention(data: ConventionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     annee = datetime.now().year
@@ -48,7 +49,7 @@ def create_convention(data: ConventionCreate, db: Session = Depends(get_db), cur
     db.refresh(convention)
     return convention
 
-# ✅ PUT — Modifier une convention
+#   PUT — Modifier une convention
 @router.put("/{convention_id}", response_model=ConventionResponse)
 def update_convention(convention_id: UUID, data: ConventionUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     convention = db.query(Convention).filter(Convention.id == convention_id).first()
@@ -60,7 +61,7 @@ def update_convention(convention_id: UUID, data: ConventionUpdate, db: Session =
     db.refresh(convention)
     return convention
 
-# ✅ DELETE — Supprimer une convention
+#   DELETE — Supprimer une convention
 @router.delete("/{convention_id}")
 def delete_convention(convention_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     convention = db.query(Convention).filter(Convention.id == convention_id).first()
@@ -69,3 +70,32 @@ def delete_convention(convention_id: UUID, db: Session = Depends(get_db), curren
     db.delete(convention)
     db.commit()
     return {"message": "Convention supprimée avec succès"}
+
+
+@router.get("/export/{format}")
+def export_conventions(
+    format: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conventions = db.query(Convention).all()
+
+    if format == "pdf":
+        # génération PDF
+        return FileResponse(
+            "exports/conventions.pdf",
+            filename="conventions.pdf",
+            media_type="application/pdf"
+        )
+
+    elif format == "excel":
+        return FileResponse(
+            "exports/conventions.xlsx",
+            filename="conventions.xlsx",
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    raise HTTPException(
+        status_code=400,
+        detail="Format non supporté"
+    )
