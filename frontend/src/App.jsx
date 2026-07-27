@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ROLES } from './utils/constants'
 
@@ -11,17 +11,23 @@ import Alertes from './pages/Alertes'
 import Historique from './pages/Historique'
 import GestionComptes from './pages/GestionComptes'
 import Statistiques from './pages/Statistiques'
+import ChangePassword from './pages/ChangePassword'
 // Layout
 import Layout from './components/layout/Layout'
+
 
 // Route protégée — redirige vers login si pas connecté
 function PrivateRoute({ children, allowedRoles, adminOnly }) {
     const { isAuthenticated, user, loading } = useAuth()
+    const location = useLocation()
 
     if (loading) return <div>Chargement...</div>
 
     if (!isAuthenticated) return <Navigate to="/login" />
-
+    
+    if (user?.premiere_connexion && location.pathname !== "/change-password") {
+        return <Navigate to="/change-password" replace />;
+    }
     // Vérifie le rôle
     if (allowedRoles && !allowedRoles.includes(user?.role)) {
         return <Navigate to="/dashboard" />
@@ -50,48 +56,51 @@ function AppRoutes() {
                     <Layout />
                 </PrivateRoute>
             }>
-                {/* Dashboard — tous les rôles */}
-                <Route index element={<Navigate to="/dashboard" />} />
-                <Route path="dashboard" element={<Dashboard />} />
-              
-                {/* Statistiques — Chargé + Président */}
-                <Route path="statistiques" element={
-                    <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
-                        <Statistiques />
-                    </PrivateRoute>
-                } />
-                {/* Conventions — Chargé + Président */}
-                <Route path="conventions" element={
-                    <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
-                        <ConventionsList />
-                    </PrivateRoute>
-                } />
-                <Route path="conventions/:id" element={
-                    <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
-                        <ConventionDetail />
-                    </PrivateRoute>
-                } />
+            {/* Dashboard — tous les rôles */}
+            <Route index element={<Navigate to="/dashboard" />} />
 
-                {/* Alertes — Chargé uniquement */}
-                <Route path="alertes" element={
-                    <PrivateRoute allowedRoles={[ROLES.CHARGE]}>
-                        <Alertes />
-                    </PrivateRoute>
-                } />
+            <Route path="dashboard" element={<Dashboard />} />
+            
+            <Route path="change-password" element={<ChangePassword />} />
+            
+            {/* Statistiques — Chargé + Président */}
+            <Route path="statistiques" element={
+                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
+                    <Statistiques />
+                </PrivateRoute>
+            } />
+            {/* Conventions — Chargé + Président */}
+            <Route path="conventions" element={
+                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
+                    <ConventionsList />
+                </PrivateRoute>
+            } />
+            <Route path="conventions/:id" element={
+                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
+                    <ConventionDetail />
+                </PrivateRoute>
+            } />
 
-                {/* Historique — Admin uniquement */}
-                <Route path="historique" element={
-                    <PrivateRoute adminOnly={true}>
-                        <Historique />
-                    </PrivateRoute>
-                } />
+            {/* Alertes — Chargé uniquement */}
+            <Route path="alertes" element={
+                <PrivateRoute allowedRoles={[ROLES.CHARGE]}>
+                    <Alertes />
+                </PrivateRoute>
+            } />
 
-                {/* Gestion comptes — Admin uniquement */}
-                <Route path="gestion-comptes" element={
-                    <PrivateRoute adminOnly={true}>
-                        <GestionComptes />
-                    </PrivateRoute>
-                } />
+            {/* Historique — Admin uniquement */}
+            <Route path="historique" element={
+                <PrivateRoute adminOnly={true}>
+                    <Historique />
+                </PrivateRoute>
+            } />
+
+            {/* Gestion comptes — Admin uniquement */}
+            <Route path="gestion-comptes" element={
+                <PrivateRoute adminOnly={true}>
+                    <GestionComptes />
+                </PrivateRoute>
+            } />
             </Route>
 
             {/* Redirection par défaut */}

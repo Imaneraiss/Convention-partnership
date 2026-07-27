@@ -17,3 +17,4 @@ class User(Base):
     
     conventions = relationship("Convention", back_populates="user")
     historique = relationship("Historique", back_populates="user")
+        
