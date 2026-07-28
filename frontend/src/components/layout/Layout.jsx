@@ -16,7 +16,7 @@ export default function Layout() {
                 <Header />
 
                 {/* Contenu de la page courante */}
-                <main style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
+                <main className="flex-1 p-10 border-l border-gray-200" >
                     <Outlet />
                 </main>
 

@@ -2,8 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import conventions
-from backend.app import auth
-from backend.app.routers import alertes, budget, comites, fichiers, reunions, users
+from app.routers import alertes, budget, comites, fichiers, reunions, users, auth
 from app.middleware.logging_middleware import LoggingMiddleware 
 from app.routers import historique
 app = FastAPI(

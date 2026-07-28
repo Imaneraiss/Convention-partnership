@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
         }))
 
         setToken(data.access_token)
-        setUser({ role: data.role, premiere_connexion: data.premiere_connexion })
+        setUser({ role: data.role, is_admin: data.is_admin, premiere_connexion: data.premiere_connexion })
         setIsAuthenticated(true)
 
         return data

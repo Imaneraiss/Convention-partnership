@@ -26,13 +26,15 @@ def login(data: LoginSchema, db: Session = Depends(get_db)):
             "access_token": token,
             "token_type": "bearer",
             "premiere_connexion": True,
-            "role": user.role
+            "role": user.role,
+            "is_admin": user.is_admin
         }
     return {
         "access_token": token,
         "token_type": "bearer",
         "premiere_connexion": False,
-        "role": user.role
+        "role": user.role,
+        "is_admin": user.is_admin
     }
 
 @router.post("/change-password")

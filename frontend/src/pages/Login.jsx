@@ -21,7 +21,7 @@ export default function Login() {
         e.preventDefault()
         setLoading(true)
         try {
-            const data = await login(email, motDePasse)
+            const data = await login(email, password)
             
             // Redirection selon le rôle
             if (data.premiere_connexion) {
@@ -41,7 +41,7 @@ export default function Login() {
     return (
         <div className="flex bg-[#f5f3ef]">
             <section className="left-panel bg-[#003087] text-white h-screen flex flex-col gap-3 justify-between p-20 w-1/3 ">
-                <div className=" bg-[#154399] w-fit   "><img src={um5_logo} alt="Logo de l'Université Mohammed V" className="bg-white w-30 h-20 m-5  "  /></div>
+                <div className=" bg-[#154399] w-fit"><img src={um5_logo} alt="Logo de l'Université Mohammed V" className="bg-white w-30 h-20 m-5  "  /></div>
                 
                 <span className="border-t w-10 border-gray-400"></span>
                 <h1 className="text-4xl">Gestion des Conventions de Partenariat</h1>

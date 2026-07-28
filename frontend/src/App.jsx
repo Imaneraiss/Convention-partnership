@@ -49,6 +49,8 @@ function AppRoutes() {
         <Routes>
             {/* Route publique */}
             <Route path="/login" element={<Login />} />
+            
+            <Route path="change-password" element={<ChangePassword />} />
 
             {/* Routes privées — avec Layout */}
             <Route path="/" element={
@@ -61,7 +63,7 @@ function AppRoutes() {
 
             <Route path="dashboard" element={<Dashboard />} />
             
-            <Route path="change-password" element={<ChangePassword />} />
+            
             
             {/* Statistiques — Chargé + Président */}
             <Route path="statistiques" element={
