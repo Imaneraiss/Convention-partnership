@@ -6,7 +6,8 @@ import { ROLES } from './utils/constants'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import ConventionsList from './pages/Conventions/ConventionsList'
-import ConventionDetail from './pages/Conventions/ConventionDetail'
+import ConventionUpload from './pages/Conventions/ConventionUpload'
+import ConventionEditor from './pages/Conventions/ConventionForm'
 import Alertes from './pages/Alertes'
 import Historique from './pages/Historique'
 import GestionComptes from './pages/GestionComptes'
@@ -14,8 +15,7 @@ import Statistiques from './pages/Statistiques'
 import ChangePassword from './pages/ChangePassword'
 // Layout
 import Layout from './components/layout/Layout'
-
-
+import ConventionForm from './pages/Conventions/ConventionForm'
 // Route protégée — redirige vers login si pas connecté
 function PrivateRoute({ children, allowedRoles, adminOnly }) {
     const { isAuthenticated, user, loading } = useAuth()
@@ -73,16 +73,23 @@ function AppRoutes() {
             } />
             {/* Conventions — Chargé + Président */}
             <Route path="conventions" element={
-                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
+                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT, , ROLES.SG]}>
                     <ConventionsList />
                 </PrivateRoute>
             } />
-            <Route path="conventions/:id" element={
-                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT]}>
-                    <ConventionDetail />
+          
+            <Route path="conventions/new" element={
+                <PrivateRoute allowedRoles={[ROLES.CHARGE]}>
+                    <ConventionUpload />
                 </PrivateRoute>
-            } />
-
+                }
+            />          
+            <Route path="conventions/form" element={
+                <PrivateRoute allowedRoles={[ROLES.CHARGE]}>
+                    <ConventionForm/>
+                </PrivateRoute>
+                }
+            />
             {/* Alertes — Chargé uniquement */}
             <Route path="alertes" element={
                 <PrivateRoute allowedRoles={[ROLES.CHARGE]}>

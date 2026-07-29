@@ -78,7 +78,7 @@ export default function Sidebar() {
     })
     return (
         <div>
-            <div className="flex flex-col justify-between h-3/4 ">
+            <div className="flex flex-col justify-between h-3/4">
                 <img src={um5_logo} alt="Logo de l'Université Mohammed V" className="bg-white w-30 h-20 m-5  "  />
                 <ul >
                     {filteredItems.map((item) => {
