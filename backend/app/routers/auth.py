@@ -6,7 +6,7 @@ from app.schemas.user import LoginSchema, ChangePasswordSchema, UserResponse
 from app.auth import hash_password, verify_password, create_access_token, get_current_user
 
 
-router = APIRouter(prefix="/auth", tags=["Authentification"])
+router = APIRouter(prefix="/api/auth", tags=["Authentification"])
 
 @router.post("/login")
 def login(data: LoginSchema, db: Session = Depends(get_db)):

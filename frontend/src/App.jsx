@@ -77,7 +77,11 @@ function AppRoutes() {
                     <ConventionsList />
                 </PrivateRoute>
             } />
-          
+            <Route path="conventions/:id" element={
+                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT, ROLES.SG]}>
+                    <ConventionForm />
+                </PrivateRoute>
+            } />
             <Route path="conventions/new" element={
                 <PrivateRoute allowedRoles={[ROLES.CHARGE]}>
                     <ConventionUpload />

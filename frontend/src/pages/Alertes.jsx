@@ -209,13 +209,10 @@ export default function Alertes() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Bell size={28} className="text-blue-600" />
-            Alertes
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl text-gray-500 flex items-center gap-2">
             Gérez toutes vos alertes en un seul endroit
-          </p>
+          </h1>
+        
         </div>
         <Button onClick={() => { resetForm(); setIsModalOpen(true); }} className='flex items-center'>
           <Plus size={16} className="mr-2" />

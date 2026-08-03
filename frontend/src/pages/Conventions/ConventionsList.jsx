@@ -107,7 +107,7 @@ export default function ConventionsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl text-gray-500">
             Suivi et gestion des conventions de partenariat
           </h1>
         </div>

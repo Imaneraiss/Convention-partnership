@@ -34,7 +34,12 @@ def get_convention(convention_id: UUID, db: Session = Depends(get_db), current_u
 
 #   POST — Créer une convention numérotée
 @router.post("/", response_model=ConventionResponse)
-def create_convention(data: ConventionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_convention(
+    data: ConventionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    
     annee = datetime.now().year
     derniere = db.query(Convention)\
         .filter(extract('year', Convention.date_signature) == annee)\
@@ -42,8 +47,13 @@ def create_convention(data: ConventionCreate, db: Session = Depends(get_db), cur
         .first()
     numero = 1 if not derniere else int(derniere.numero_reference.split('/')[0]) + 1
 
-    convention = Convention(**data.model_dump())
+    # ✅ Convertir en dictionnaire et ajouter user_id
+    data_dict = data.model_dump()
+    data_dict["user_id"] = current_user.id
+    
+    convention = Convention(**data_dict)
     convention.numero_reference = f"{numero:02d}/{annee}"
+    
     db.add(convention)
     db.commit()
     db.refresh(convention)
@@ -51,22 +61,34 @@ def create_convention(data: ConventionCreate, db: Session = Depends(get_db), cur
 
 #   PUT — Modifier une convention
 @router.put("/{convention_id}", response_model=ConventionResponse)
-def update_convention(convention_id: UUID, data: ConventionUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_convention(
+    convention_id: UUID,
+    data: ConventionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     convention = db.query(Convention).filter(Convention.id == convention_id).first()
     if not convention:
         raise HTTPException(status_code=404, detail="Convention non trouvée")
+    
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(convention, key, value)
+    
     db.commit()
     db.refresh(convention)
     return convention
 
 #   DELETE — Supprimer une convention
 @router.delete("/{convention_id}")
-def delete_convention(convention_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_convention(
+    convention_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     convention = db.query(Convention).filter(Convention.id == convention_id).first()
     if not convention:
         raise HTTPException(status_code=404, detail="Convention non trouvée")
+    
     db.delete(convention)
     db.commit()
     return {"message": "Convention supprimée avec succès"}
@@ -81,7 +103,6 @@ def export_conventions(
     conventions = db.query(Convention).all()
 
     if format == "pdf":
-        # génération PDF
         return FileResponse(
             "exports/conventions.pdf",
             filename="conventions.pdf",

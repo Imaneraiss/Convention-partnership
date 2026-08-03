@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict
 from datetime import date
 from uuid import UUID
 
@@ -10,9 +10,13 @@ class ConventionCreate(BaseModel):
     date_signature: date
     date_expiration: Optional[date] = None
     mode_renouvellement: Optional[str] = None
+    signataire_um5: str
+    signataire_um5_autre: Optional[str] = None
     avec_budget: bool = False
     validation_conseil: bool = False
     formation_continue: bool = False
+    mots_cles: Optional[List[str]] = []
+    articles: Optional[Dict] = {}
 
 # Schema pour modifier une convention
 class ConventionUpdate(BaseModel):
@@ -21,10 +25,15 @@ class ConventionUpdate(BaseModel):
     date_signature: Optional[date] = None
     date_expiration: Optional[date] = None
     mode_renouvellement: Optional[str] = None
+    signataire_um5: Optional[str] = None
+    signataire_um5_autre: Optional[str] = None
     avec_budget: Optional[bool] = None
     validation_conseil: Optional[bool] = None
     formation_continue: Optional[bool] = None
     statut: Optional[str] = None
+    mots_cles: Optional[List[str]] = None
+    articles: Optional[Dict] = None
+    # user_id n'est pas nécessaire dans l'update (on ne change pas le propriétaire)
 
 # Schema pour retourner une convention au frontend
 class ConventionResponse(BaseModel):
@@ -36,9 +45,14 @@ class ConventionResponse(BaseModel):
     date_expiration: Optional[date] = None
     statut: str
     mode_renouvellement: Optional[str] = None
+    signataire_um5: str
+    signataire_um5_autre: Optional[str] = None
     avec_budget: bool
     validation_conseil: bool
     formation_continue: bool
+    mots_cles: Optional[List[str]] = []
+    articles: Optional[Dict] = {}
+    user_id: UUID  # ✅ AJOUTER CETTE LIGNE (optionnel, mais utile)
 
     class Config:
         from_attributes = True

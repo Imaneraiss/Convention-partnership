@@ -5,6 +5,9 @@ from app.routers import conventions
 from app.routers import alertes, budget, comites, fichiers, reunions, users, auth
 from app.middleware.logging_middleware import LoggingMiddleware 
 from app.routers import historique
+from app.routers import statistiques
+from app.routers import partenaires
+
 app = FastAPI(
     title="Convention Partnership API",
     description="Application de gestion des conventions de partenariat - UM5",
@@ -31,6 +34,8 @@ app.include_router(alertes.router)
 app.include_router(budget.router)
 app.include_router(fichiers.router)
 app.include_router(historique.router)
+app.include_router(statistiques.router)
+app.include_router(partenaires.router)
 @app.get("/")
 def root():
     return {"message": "API Convention Partnership — UM5 "}

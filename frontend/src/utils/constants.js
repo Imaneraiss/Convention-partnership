@@ -30,8 +30,10 @@ export const STATUTS_COLORS = {
 // ─────────────────────────────────────────
 export const TYPES_CONVENTION = [
     "Convention cadre de partenariat",
-    "Convention spécifique",
+    "Convention cadre",
     "Convention de partenariat",
+    "Convention spécifique",
+    "Convention de coopération",
     "Entente",
     "Contrat",
     "Avenant",
@@ -44,7 +46,7 @@ export const TYPES_CONVENTION = [
 export const TYPES_PARTENAIRE = [
     "PUBLIC",
     "PRIVE",
-    "ONG",
+    "ASSOCIATION / ONG",
     "SEMI_PUBLIC"
 ]
 
@@ -54,6 +56,7 @@ export const TYPES_PARTENAIRE = [
 export const MODES_RENOUVELLEMENT = [
     "Tacitement",
     "Tacitement une fois pour la même période",
+    "Tacitement deux fois pour la même période",
     "Tacite dans la limite d'une durée totale de deux années consécutives",
     "Une fois d'une année",
     "Concertation des parties",
@@ -68,7 +71,8 @@ export const MODES_RENOUVELLEMENT = [
 export const TYPES_COMITE = [
     "PILOTAGE",
     "SUIVI",
-    "TECHNIQUE"
+    "TECHNIQUE",
+    "SCIENTIFIQUE",
 ]
 
 // ─────────────────────────────────────────
@@ -110,7 +114,6 @@ export const STATUTS_BUDGET = [
 // ÉTABLISSEMENTS UM5
 // ─────────────────────────────────────────
 export const ETABLISSEMENTS_UM5 = [
-    "UM5R",
     "FLSH",
     "FMD",
     "FMPH",
@@ -126,6 +129,14 @@ export const ETABLISSEMENTS_UM5 = [
     "EMI",
     "ENSIAS",
     "IS"
+]
+
+// ─────────────────────────────────────────
+// 🆕 SIGNATAIRES UM5 (Présidence + Établissements)
+// ─────────────────────────────────────────
+export const SIGNATAIRES_UM5 = [
+    { value: 'presidence', label: 'Présidence UM5' },
+    ...ETABLISSEMENTS_UM5.map(e => ({ value: e, label: e }))
 ]
 
 // ─────────────────────────────────────────
@@ -149,4 +160,4 @@ export const ACTIONS_HISTORIQUE = {
 // ─────────────────────────────────────────
 // CONFIG API
 // ─────────────────────────────────────────
-export const API_BASE_URL = "http://localhost:8000"
+export const API_BASE_URL = "http://localhost:8000/api"

@@ -1,4 +1,4 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Griffy&display=swap');@theme {
   --font-griffy: "Griffy", cursive;
 }
+@import "tailwindcss";

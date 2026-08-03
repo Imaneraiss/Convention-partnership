@@ -212,13 +212,10 @@ export default function Historique() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <History size={28} className="text-blue-600" />
-            Historique
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl text-gray-500 flex items-center gap-2">
             Suivez toutes les actions effectuées sur les conventions
-          </p>
+          </h1>
+         
         </div>
         <Button 
           variant="secondary" 

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../utils/constants';
 import { createConvention, updateConvention, getConvention } from '../../services/conventionService';
 import { createPartenaire } from '../../services/partenaireService';
 import { uploadFichier } from '../../services/fichierService';
@@ -21,15 +23,23 @@ export default function ConventionForm() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('general');
-  const [readOnly, setReadOnly] = useState(!!id);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [committees, setCommittees] = useState([]);
   const [budgetData, setBudgetData] = useState(null);
   const [alertsData, setAlertsData] = useState({ auto: [], manual: [] });
+
+  // ✅ Déterminer si l'utilisateur peut modifier
+  const canEdit = user?.role === ROLES.CHARGE;
+  const isExisting = !!id;
+  
+  // ✅ Lecture seule si : convention existante ET (pas CHARGE)
+  const [readOnly, setReadOnly] = useState(isExisting && !canEdit);
+  
   // Données du formulaire
   const [formData, setFormData] = useState({
     intitule: '',
@@ -40,18 +50,17 @@ export default function ConventionForm() {
     avec_budget: false,
     validation_conseil: false,
     formation_continue: false,
-    objet: '',
-    engagement_universite: '',
-    engagement_partenaire: '',
     mots_cles: [],
-    signataire: '',
-    statut: 'EN_COURS'
+    statut: 'EN_COURS',
+    signataire_um5: '',
+    signataire_um5_autre: '',
+    articles: {}
   });
 
+  // Partenaires avec signataire
   const [partenaires, setPartenaires] = useState([
-    { nom: '', type: '', ville: '', region: '', pays: 'Maroc' }
+    { nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }
   ]);
-
   const [file, setFile] = useState(null);
   const [motCle, setMotCle] = useState('');
 
@@ -74,11 +83,13 @@ export default function ConventionForm() {
           date_signature: extracted.date_signature || '',
           date_expiration: extracted.date_expiration || '',
           mode_renouvellement: extracted.mode_renouvellement || '',
-          objet: extracted.objet || '',
-          engagement_universite: extracted.engagement_universite || '',
-          engagement_partenaire: extracted.engagement_partenaire || '',
           avec_budget: extracted.avec_budget || false,
+          validation_conseil: extracted.validation_conseil || false,
+          formation_continue: extracted.formation_continue || false,
           mots_cles: extracted.mots_cles || [],
+          signataire_um5: extracted.signataire_um5 || '',
+          signataire_um5_autre: extracted.signataire_um5_autre || '',
+          articles: extracted.articles || {}
         }));
 
         if (extracted.partenaire_nom) {
@@ -86,8 +97,9 @@ export default function ConventionForm() {
             nom: extracted.partenaire_nom || '',
             type: extracted.partenaire_type || '',
             ville: extracted.partenaire_ville || '',
-            region: '',
+            region: extracted.partenaire_region || '',
             pays: extracted.partenaire_pays || 'Maroc',
+            signataire: extracted.partenaire_signataire || ''
           }]);
         }
       }
@@ -111,14 +123,18 @@ export default function ConventionForm() {
         avec_budget: data.avec_budget || false,
         validation_conseil: data.validation_conseil || false,
         formation_continue: data.formation_continue || false,
-        objet: data.objet || '',
-        engagement_universite: data.engagement_universite || '',
-        engagement_partenaire: data.engagement_partenaire || '',
         mots_cles: data.mots_cles || [],
-        signataire: data.signataire || '',
-        statut: data.statut || 'EN_COURS'
+        signataire_um5: data.signataire_um5 || '',
+        signataire_um5_autre: data.signataire_um5_autre || '',
+        statut: data.statut || 'EN_COURS',
+        articles: data.articles || {}
       });
-      setPartenaires(data.partenaires || [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc' }]);
+      setPartenaires(data.partenaires || [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]);
+      
+      // ✅ Si l'utilisateur n'est pas CHARGE, rester en lecture seule
+      if (!canEdit) {
+        setReadOnly(true);
+      }
     } catch (err) {
       console.error(err);
       setError('Erreur lors du chargement de la convention');
@@ -138,7 +154,7 @@ export default function ConventionForm() {
   };
 
   const addPartenaire = () => {
-    setPartenaires([...partenaires, { nom: '', type: '', ville: '', region: '', pays: 'Maroc' }]);
+    setPartenaires([...partenaires, { nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]);
   };
 
   const removePartenaire = (index) => {
@@ -167,16 +183,49 @@ export default function ConventionForm() {
     setSaving(true);
     setError(null);
 
+    // ✅ Validation des champs obligatoires
+    const requiredFields = [
+      { field: 'intitule', label: 'Intitulé de la convention' },
+      { field: 'type', label: 'Type de convention' },
+      { field: 'date_signature', label: 'Date de signature' },
+      { field: 'signataire_um5', label: 'Signataire UM5' }
+    ];
+
+    const missingFields = requiredFields.filter(f => !formData[f.field]);
+    
+    if (missingFields.length > 0) {
+      const fieldNames = missingFields.map(f => f.label).join(', ');
+      setError(`Veuillez remplir les champs obligatoires : ${fieldNames}`);
+      setSaving(false);
+      return;
+    }
+
+    // ✅ Construction des données
+    const dataToSend = {
+      intitule: formData.intitule,
+      type: formData.type,
+      date_signature: formData.date_signature,
+      date_expiration: formData.date_expiration || null,
+      mode_renouvellement: formData.mode_renouvellement || null,
+      signataire_um5: formData.signataire_um5,
+      signataire_um5_autre: formData.signataire_um5_autre || null,
+      avec_budget: formData.avec_budget || false,
+      validation_conseil: formData.validation_conseil || false,
+      formation_continue: formData.formation_continue || false,
+      mots_cles: formData.mots_cles || [],
+      articles: formData.articles || {}
+    };
+
+    console.log('📤 Données envoyées:', dataToSend);
+
     try {
       let conventionId;
 
       if (id) {
-        // Mise à jour
-        await updateConvention(id, formData);
+        await updateConvention(id, dataToSend);
         conventionId = id;
       } else {
-        // Création
-        const convResponse = await createConvention(formData);
+        const convResponse = await createConvention(dataToSend);
         conventionId = convResponse.data.id;
 
         // Création des partenaires
@@ -189,7 +238,7 @@ export default function ConventionForm() {
           }
         }
 
-        // Upload du fichier
+        // Upload du fichier original (si uploadé)
         if (file) {
           const formDataFile = new FormData();
           formDataFile.append('file', file);
@@ -200,15 +249,19 @@ export default function ConventionForm() {
 
       navigate(`/conventions/${conventionId}`);
     } catch (err) {
-      console.error(err);
-      setError("Erreur lors de l'enregistrement de la convention");
+      console.error('❌ Erreur:', err);
+      console.error('📋 Réponse:', err.response?.data);
+      setError(err.response?.data?.detail || "Erreur lors de l'enregistrement de la convention");
     } finally {
       setSaving(false);
     }
   };
 
   const handleEdit = () => {
-    setReadOnly(false);
+    // ✅ Seul CHARGE peut passer en mode édition
+    if (canEdit) {
+      setReadOnly(false);
+    }
   };
 
   const handleCancel = () => {
@@ -237,9 +290,14 @@ export default function ConventionForm() {
             {id ? `Convention ${formData.intitule || ''}` : 'Nouvelle convention'}
           </h1>
           {id && <p className="text-sm text-gray-500">Réf: {formData.numero_reference}</p>}
+          {readOnly && id && (
+            <p className="text-sm text-yellow-600 mt-1 flex items-center gap-1">
+              🔒 Consultation seule
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
-          {id && readOnly && (
+          {id && readOnly && canEdit && (
             <Button onClick={handleEdit}>Modifier</Button>
           )}
           {(!id || !readOnly) && (
@@ -256,7 +314,7 @@ export default function ConventionForm() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200  rounded ">
+        <div className="p-4 bg-red-50 border border-red-200 rounded">
           <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
@@ -301,33 +359,33 @@ export default function ConventionForm() {
               />
             )}
             {activeTab === 'committees' && (
-                <CommitteesTab 
+              <CommitteesTab 
                 readOnly={readOnly} 
                 initialCommittees={committees}
                 onChange={setCommittees}
-                />
+                conventionId={id}
+              />
             )}
             
             {activeTab === 'budget' && (
-                <BudgetTab 
+              <BudgetTab 
                 readOnly={readOnly} 
                 initialBudget={budgetData}
                 onChange={setBudgetData}
-                />
+              />
             )}
             
             {activeTab === 'alerts' && (
-                <AlertsTab 
+              <AlertsTab 
                 readOnly={readOnly}
                 conventionData={{
-                    date_expiration: formData.date_expiration,
-                    comites: committees,
-                    budget: budgetData
+                  date_expiration: formData.date_expiration,
+                  comites: committees,
+                  budget: budgetData
                 }}
                 onChange={setAlertsData}
-                />
+              />
             )}
-
           </form>
         </div>
       </Card>

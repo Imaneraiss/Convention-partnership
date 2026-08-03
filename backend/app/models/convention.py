@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Date, ForeignKey, Enum
+from sqlalchemy import Column, String, Boolean, Date, ForeignKey, Enum, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -21,6 +21,13 @@ class Convention(Base):
     date_expiration = Column(Date, nullable=True)
     statut = Column(String, default="EN_COURS")
     mode_renouvellement = Column(String, nullable=True)
+    
+    # 🆕 Nouveaux champs
+    signataire_um5 = Column(String, nullable=False)  # Obligatoire
+    signataire_um5_autre = Column(String, nullable=True)  # Optionnel
+    mots_cles = Column(JSON, default=[])  # Liste de mots-clés
+    articles = Column(JSON, default={})  # Articles de la convention
+    
     avec_budget = Column(Boolean, default=False)
     validation_conseil = Column(Boolean, default=False)
     formation_continue = Column(Boolean, default=False)

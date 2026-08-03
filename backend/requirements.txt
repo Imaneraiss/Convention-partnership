@@ -15,3 +15,6 @@ alembic
 pydantic[email]
 pdfplumber
 PyMuPDF
+pandas
+openpyxl
+reportlab
