@@ -61,7 +61,6 @@ def seed():
         db.commit()
 
         # ─────────────────────────────────────────
-        # 2 — CONVENTIONS
         # ─────────────────────────────────────────
         conv1 = Convention(
             id=uuid.uuid4(),
@@ -72,11 +71,23 @@ def seed():
             date_expiration=date(2029, 1, 15),
             statut="EN_COURS",
             mode_renouvellement="Tacitement",
+            mots_cles=["recherche", "international", "coopération"],
+            articles={
+                "objet": "Coopération académique et scientifique",
+                "objectif": "Renforcer les échanges entre les deux universités",
+                "engagement_um5": "Mise à disposition des laboratoires",
+                "engagement_partenaire": "Accueil des chercheurs marocains"
+            },
+            articles_personnalises=[
+                {"label": "Dispositions particulières", "contenu": "Clause de confidentialité"},
+                {"label": "Clause sociale", "contenu": "Égalité des chances"}
+            ],
             avec_budget=True,
             validation_conseil=True,
             formation_continue=False,
             user_id=charge_admin.id
         )
+        
         conv2 = Convention(
             id=uuid.uuid4(),
             numero_reference="02/2026",
@@ -86,11 +97,20 @@ def seed():
             date_expiration=date(2027, 2, 10),
             statut="EN_COURS",
             mode_renouvellement="Par avenant",
+            mots_cles=["recherche", "innovation", "CNRST"],
+            articles={
+                "objet": "Projets de recherche appliquée",
+                "objectif": "Développer des solutions innovantes",
+                "engagement_um5": "Mise à disposition des équipes de recherche",
+                "engagement_partenaire": "Financement des projets"
+            },
+            articles_personnalises=[],
             avec_budget=False,
             validation_conseil=True,
             formation_continue=True,
             user_id=charge_normal.id
         )
+        
         conv3 = Convention(
             id=uuid.uuid4(),
             numero_reference="03/2026",
@@ -100,11 +120,20 @@ def seed():
             date_expiration=date(2026, 6, 1),
             statut="EXPIREE",
             mode_renouvellement="Non renouvelable",
+            mots_cles=["ingénierie", "UM6P", "partenariat"],
+            articles={
+                "objet": "Coopération en ingénierie et innovation",
+                "objectif": "Former des ingénieurs de haut niveau",
+                "engagement_um5": "Échange d'enseignants-chercheurs",
+                "engagement_partenaire": "Stage et insertion professionnelle"
+            },
+            articles_personnalises=[],
             avec_budget=False,
             validation_conseil=False,
             formation_continue=False,
             user_id=charge_admin.id
         )
+        
         conv4 = Convention(
             id=uuid.uuid4(),
             numero_reference="04/2026",
@@ -114,11 +143,22 @@ def seed():
             date_expiration=date(2031, 3, 20),
             statut="EN_COURS",
             mode_renouvellement="Tacitement une fois pour la même période",
+            mots_cles=["industrie", "recherche", "OCP"],
+            articles={
+                "objet": "Partenariat stratégique avec l'OCP",
+                "objectif": "Développer la recherche en chimie des matériaux",
+                "engagement_um5": "Mise à disposition des laboratoires de recherche",
+                "engagement_partenaire": "Financement de projets de recherche"
+            },
+            articles_personnalises=[
+                {"label": "Propriété intellectuelle", "contenu": "Les résultats appartiennent aux deux parties"}
+            ],
             avec_budget=True,
             validation_conseil=True,
             formation_continue=True,
             user_id=charge_normal.id
         )
+        
         conv5 = Convention(
             id=uuid.uuid4(),
             numero_reference="05/2026",
@@ -128,6 +168,14 @@ def seed():
             date_expiration=date(2028, 4, 5),
             statut="EN_COURS",
             mode_renouvellement="Concertation des parties",
+            mots_cles=["emploi", "formation", "ANAPEC"],
+            articles={
+                "objet": "Insertion professionnelle des diplômés",
+                "objectif": "Faciliter l'accès à l'emploi",
+                "engagement_um5": "Accompagnement des étudiants",
+                "engagement_partenaire": "Offres de stages et d'emploi"
+            },
+            articles_personnalises=[],
             avec_budget=True,
             validation_conseil=True,
             formation_continue=False,
@@ -140,55 +188,54 @@ def seed():
         # ─────────────────────────────────────────
         # 3 — PARTENAIRES
         # ─────────────────────────────────────────
+
         partenaires = [
-            Partenaire(
-                id=uuid.uuid4(),
-                nom="Université Paris Saclay",
-                type="PUBLIC",
-                ville="Paris",
-                region="Île-de-France",
-                pays="France",
-                convention_id=conv1.id
-            ),
-            Partenaire(
-                id=uuid.uuid4(),
-                nom="CNRST",
-                type="PUBLIC",
-                ville="Rabat",
-                region="Rabat-Salé-Kénitra",
-                pays="Maroc",
-                convention_id=conv2.id
-            ),
-            Partenaire(
-                id=uuid.uuid4(),
-                nom="Université Mohammed VI Polytechnique",
-                type="PUBLIC",
-                ville="Ben Guerir",
-                region="Marrakech-Safi",
-                pays="Maroc",
-                convention_id=conv3.id
-            ),
-            Partenaire(
-                id=uuid.uuid4(),
-                nom="OCP Group",
-                type="SEMI_PUBLIC",
-                ville="Casablanca",
-                region="Casablanca-Settat",
-                pays="Maroc",
-                convention_id=conv4.id
-            ),
-            Partenaire(
-                id=uuid.uuid4(),
-                nom="ANAPEC",
-                type="PUBLIC",
-                ville="Rabat",
-                region="Rabat-Salé-Kénitra",
-                pays="Maroc",
-                convention_id=conv5.id
-            ),
-        ]
-        db.add_all(partenaires)
-        db.commit()
+    Partenaire(
+        id=uuid.uuid4(),
+        nom="Université Paris Saclay",
+        type="PUBLIC",
+        ville="Paris",
+        region="Île-de-France",
+        pays="France",
+        convention_id=conv1.id
+    ),
+    Partenaire(
+        id=uuid.uuid4(),
+        nom="CNRST",
+        type="PUBLIC",
+        ville="Rabat",
+        region="Rabat-Salé-Kénitra",
+        pays="Maroc",
+        convention_id=conv2.id
+    ),
+    Partenaire(
+        id=uuid.uuid4(),
+        nom="Université Mohammed VI Polytechnique",
+        type="PUBLIC",
+        ville="Ben Guerir",
+        region="Marrakech-Safi",
+        pays="Maroc",
+        convention_id=conv3.id
+    ),
+    Partenaire(
+        id=uuid.uuid4(),
+        nom="OCP Group",
+        type="SEMI_PUBLIC",
+        ville="Casablanca",
+        region="Casablanca-Settat",
+        pays="Maroc",
+        convention_id=conv4.id
+    ),
+    Partenaire(
+        id=uuid.uuid4(),
+        nom="ANAPEC",
+        type="PUBLIC",
+        ville="Rabat",
+        region="Rabat-Salé-Kénitra",
+        pays="Maroc",
+        convention_id=conv5.id
+    ),
+]
 
         # ─────────────────────────────────────────
         # 4 — BUDGETS
@@ -383,7 +430,7 @@ def seed():
         db.add_all(historique)
         db.commit()
 
-        print(" Seed terminé avec succès !")
+        print("✅ Seed terminé avec succès !")
         print(f"   - 4 utilisateurs créés")
         print(f"   - 5 conventions créées")
         print(f"   - 5 partenaires créés")
@@ -392,10 +439,15 @@ def seed():
         print(f"   - 3 réunions créées")
         print(f"   - 3 alertes créées")
         print(f"   - 4 historiques créés")
+        print(f"\n🔑 Identifiants de connexion:")
+        print(f"   imane@um5.ac.ma / password123 (Admin)")
+        print(f"   ahmed@um5.ac.ma / password123 (Chargé)")
+        print(f"   fatima@um5.ac.ma / password123 (SG)")
+        print(f"   president@um5.ac.ma / password123 (Président)")
 
     except Exception as e:
         db.rollback()
-        print(f"Erreur : {e}")
+        print(f"❌ Erreur : {e}")
         raise e
     finally:
         db.close()

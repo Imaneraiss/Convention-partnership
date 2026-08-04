@@ -10,7 +10,8 @@ import {
 import Button from '../components/common/Button'
 import Modal from '../components/common/Modal'
 import Card from '../components/common/Card'
-import { Settings, Plus, Trash2, Edit, RotateCcw } from 'lucide-react'
+import { Settings, Plus, Trash2, Edit, RotateCcw, Copy, Download, FileText } from 'lucide-react'
+import html2canvas from 'html2canvas'
 
 // Types de graphiques
 const CHART_TYPES = [
@@ -74,6 +75,8 @@ export default function Dashboard() {
     const [conventions, setConventions] = useState([])
     const [alertes, setAlertes] = useState([])
     const [loading, setLoading] = useState(true)
+    const [copyStatus, setCopyStatus] = useState({})
+    const [downloadStatus, setDownloadStatus] = useState({})
     const [stats, setStats] = useState({
         total: 0,
         enCours: 0,
@@ -82,7 +85,6 @@ export default function Dashboard() {
         renouvelees: 0
     })
 
-    // Widgets (défauts + personnalisés)
     const [widgets, setWidgets] = useState(() => {
         const saved = localStorage.getItem('dashboardWidgets')
         if (saved) {
@@ -357,6 +359,269 @@ export default function Dashboard() {
         }
     }
 
+    // Copier le graphique dans le presse-papiers
+    const copyChartToClipboard = async (widgetId) => {
+        const element = document.getElementById(`chart-${widgetId}`)
+        if (!element) {
+            alert('Graphique non trouvé')
+            return
+        }
+
+        setCopyStatus(prev => ({ ...prev, [widgetId]: 'loading' }))
+
+        try {
+            const canvas = await html2canvas(element, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                allowTaint: true,
+            })
+
+            canvas.toBlob(async (blob) => {
+                try {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            [blob.type]: blob
+                        })
+                    ])
+                    setCopyStatus(prev => ({ ...prev, [widgetId]: 'success' }))
+                    setTimeout(() => {
+                        setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
+                    }, 2000)
+                } catch (err) {
+                    console.error('Erreur copie:', err)
+                    setCopyStatus(prev => ({ ...prev, [widgetId]: 'error' }))
+                    setTimeout(() => {
+                        setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
+                    }, 2000)
+                }
+            }, 'image/png')
+        } catch (error) {
+            console.error('Erreur:', error)
+            setCopyStatus(prev => ({ ...prev, [widgetId]: 'error' }))
+            setTimeout(() => {
+                setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
+            }, 2000)
+        }
+    }
+
+    // Télécharger le graphique en PNG
+    const downloadChartAsPNG = async (widgetId, title) => {
+        const element = document.getElementById(`chart-${widgetId}`)
+        if (!element) {
+            alert('Graphique non trouvé')
+            return
+        }
+
+        setDownloadStatus(prev => ({ ...prev, [widgetId]: 'loading' }))
+
+        try {
+            const canvas = await html2canvas(element, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                allowTaint: true,
+            })
+
+            const link = document.createElement('a')
+            link.download = `${title || 'graphique'}.png`
+            link.href = canvas.toDataURL('image/png')
+            link.click()
+
+            setDownloadStatus(prev => ({ ...prev, [widgetId]: 'success' }))
+            setTimeout(() => {
+                setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
+            }, 2000)
+        } catch (error) {
+            console.error('Erreur:', error)
+            setDownloadStatus(prev => ({ ...prev, [widgetId]: 'error' }))
+            setTimeout(() => {
+                setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
+            }, 2000)
+        }
+    }
+
+    // ✅ Exporter le dashboard en Word (.doc)
+    // ✅ Exporter en Word avec les graphiques réels (capture des widgets)
+    const exportDashboardAsWord = async () => {
+        try {
+            // 1. Capturer chaque graphique individuellement
+            const chartImages = []
+            const chartTitles = []
+
+            for (const widget of widgets) {
+                const element = document.getElementById(`chart-${widget.id}`)
+                if (element) {
+                    // Capturer le graphique avec html2canvas
+                    const canvas = await html2canvas(element, {
+                        backgroundColor: '#ffffff',
+                        scale: 1.5,
+                        useCORS: true,
+                        logging: false,
+                        allowTaint: true,
+                        onclone: (doc) => {
+                            // Remplacer les couleurs oklch
+                            doc.querySelectorAll('*').forEach(el => {
+                                const computed = window.getComputedStyle(el)
+                                const bg = computed.backgroundColor
+                                if (bg && bg.includes('oklch')) {
+                                    el.style.backgroundColor = '#ffffff'
+                                }
+                            })
+                        }
+                    })
+                    chartImages.push(canvas.toDataURL('image/png'))
+                    chartTitles.push(widget.title)
+                }
+            }
+
+            // 2. Construire le document Word avec les images des graphiques
+            let chartsHtml = ''
+            chartImages.forEach((img, index) => {
+                chartsHtml += `
+                    <div style="page-break-inside: avoid; margin-bottom: 30px;">
+                        <h3 style="font-size: 16px; color: #1a56db; margin-bottom: 10px;">${chartTitles[index]}</h3>
+                        <img src="${img}" alt="${chartTitles[index]}" style="width: 100%; max-width: 1000px; display: block; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px;" />
+                    </div>
+                `
+            })
+
+            // 3. Construire le HTML complet
+            const html = `
+                <!DOCTYPE html>
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+                    xmlns:w='urn:schemas-microsoft-com:office:word' 
+                    xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Rapport Dashboard</title>
+                    <!--[if gte mso 9]>
+                    <xml>
+                        <w:WordDocument>
+                            <w:View>Print</w:View>
+                            <w:Zoom>100</w:Zoom>
+                        </w:WordDocument>
+                    </xml>
+                    <![endif]-->
+                    <style>
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            padding: 40px; 
+                            margin: 40px;
+                            background: white;
+                        }
+                        .header {
+                            text-align: center;
+                            border-bottom: 3px solid #1a56db;
+                            padding-bottom: 20px;
+                            margin-bottom: 30px;
+                        }
+                        .header h1 {
+                            font-size: 26px;
+                            color: #1a56db;
+                            margin: 0;
+                        }
+                        .header p {
+                            color: #666;
+                            font-size: 14px;
+                            margin: 5px 0 0;
+                        }
+                        .header .stats {
+                            margin-top: 10px;
+                            display: flex;
+                            justify-content: center;
+                            gap: 30px;
+                        }
+                        .header .stats span {
+                            font-weight: bold;
+                        }
+                        .stat-item {
+                            display: inline-block;
+                            padding: 5px 15px;
+                            border-radius: 4px;
+                        }
+                        .stat-total { background: #e5e7eb; }
+                        .stat-cours { background: #d1fae5; color: #0F6E56; }
+                        .stat-expire { background: #fecaca; color: #993C1D; }
+                        .stat-renouveler { background: #fef3c7; color: #BA7517; }
+                        h2 {
+                            font-size: 20px;
+                            color: #1a56db;
+                            margin-top: 30px;
+                            margin-bottom: 20px;
+                            border-bottom: 2px solid #e5e7eb;
+                            padding-bottom: 10px;
+                        }
+                        .footer {
+                            text-align: center;
+                            margin-top: 40px;
+                            padding-top: 20px;
+                            border-top: 1px solid #ddd;
+                            font-size: 11px;
+                            color: #999;
+                        }
+                        .page-break {
+                            page-break-before: always;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <!-- HEADER -->
+                    <div class="header">
+                        <h1> Rapport du Dashboard</h1>
+                        <p>Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+                       
+                    </div>
+
+                    <!-- GRAPHIQUES -->
+                    ${chartsHtml}
+
+                    <!-- ALERTES -->
+                    ${alertes.length > 0 ? `
+                    <h2>🔔 Dernières alertes</h2>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #1a56db; color: white;">
+                                <th style="padding: 8px 12px; text-align: left;">Niveau</th>
+                                <th style="padding: 8px 12px; text-align: left;">Message</th>
+                                <th style="padding: 8px 12px; text-align: center;">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${alertes.slice(0, 5).map(alerte => `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 6px 12px;">●</td>
+                                <td style="padding: 6px 12px;">${alerte.objet || alerte.type_alerte}</td>
+                                <td style="padding: 6px 12px; text-align: center;">${formatDate(alerte.date_declenchement)}</td>
+                            </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ` : ''}
+
+                    
+                </body>
+                </html>
+            `
+
+            // Télécharger en Word (.doc)
+            const blob = new Blob([html], { 
+                type: 'application/msword;charset=utf-8' 
+            })
+            const link = document.createElement('a')
+            link.download = `dashboard_${new Date().toISOString().split('T')[0]}.doc`
+            link.href = URL.createObjectURL(blob)
+            link.click()
+            URL.revokeObjectURL(link.href)
+
+        } catch (error) {
+            console.error('Erreur export Word:', error)
+            alert('Erreur lors de l\'export. Les graphiques sont trop complexes à capturer.')
+        }
+    }
+
     // Supprimer un widget
     const removeWidget = (id) => {
         setWidgets(widgets.filter(w => w.id !== id))
@@ -571,11 +836,20 @@ export default function Dashboard() {
     if (loading) return <div className="flex items-center justify-center h-64">Chargement...</div>
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+        <div id="dashboard-container" className="space-y-6">
+            {/* Header avec bouton Exporter Word */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                    <Button 
+                        variant="outline" 
+                        onClick={exportDashboardAsWord}
+                        className="flex items-center gap-2"
+                    >
+                        <FileText size={16} />
+                        Exporter Word
+                    </Button>
+                    
                     <Button variant="secondary" onClick={restoreDefaults} className="flex items-center gap-2">
                         <RotateCcw size={16} />
                         Restaurer les défauts
@@ -583,7 +857,7 @@ export default function Dashboard() {
                     <Button onClick={() => {
                         setEditingWidget(null)
                         setShowAddWidget(true)
-                    }}>
+                    }} className='flex justify-center'>
                         <Plus size={16} className="mr-2" />
                         Ajouter un graphique
                     </Button>
@@ -622,30 +896,72 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     {widgets.map((widget) => {
                         const data = getDataForVariable(widget.xAxis || 'statut')
+                        const copyStat = copyStatus[widget.id] || 'idle'
+                        const downloadStat = downloadStatus[widget.id] || 'idle'
+                        
                         return (
                             <Card key={widget.id} className="p-4">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-lg font-semibold text-gray-900">{widget.title}</h3>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-1">
+                                        {/* Bouton Télécharger */}
+                                        <button
+                                            onClick={() => downloadChartAsPNG(widget.id, widget.title)}
+                                            className={`transition-colors p-1 rounded ${
+                                                downloadStat === 'success' ? 'text-green-500' :
+                                                downloadStat === 'error' ? 'text-red-500' :
+                                                downloadStat === 'loading' ? 'text-yellow-500 animate-pulse' :
+                                                'text-gray-400 hover:text-green-600'
+                                            }`}
+                                            title="Télécharger en PNG"
+                                            disabled={downloadStat === 'loading'}
+                                        >
+                                            {downloadStat === 'success' ? '✅' :
+                                             downloadStat === 'loading' ? '⏳' :
+                                             <Download size={18} />}
+                                        </button>
+                                        
+                                        {/* Bouton Copier */}
+                                        <button
+                                            onClick={() => copyChartToClipboard(widget.id)}
+                                            className={`transition-colors p-1 rounded ${
+                                                copyStat === 'success' ? 'text-green-500' :
+                                                copyStat === 'error' ? 'text-red-500' :
+                                                copyStat === 'loading' ? 'text-yellow-500 animate-pulse' :
+                                                'text-gray-400 hover:text-blue-600'
+                                            }`}
+                                            title="Copier l'image"
+                                            disabled={copyStat === 'loading'}
+                                        >
+                                            {copyStat === 'success' ? '✅' :
+                                             copyStat === 'loading' ? '⏳' :
+                                             <Copy size={18} />}
+                                        </button>
+                                        
+                                        {/* Bouton Configurer */}
                                         <button
                                             onClick={() => setConfigModal(widget.id)}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                                            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
                                             title="Configurer"
                                         >
                                             <Settings size={18} />
                                         </button>
+                                        
+                                        {/* Bouton Supprimer */}
                                         <button
                                             onClick={() => removeWidget(widget.id)}
-                                            className="text-red-400 hover:text-red-600 transition-colors"
+                                            className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
                                             title="Supprimer"
                                         >
                                             <Trash2 size={18} />
                                         </button>
                                     </div>
                                 </div>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    {renderChart(data, widget)}
-                                </ResponsiveContainer>
+                                <div id={`chart-${widget.id}`}>
+                                    <ResponsiveContainer width="100%" height={280}>
+                                        {renderChart(data, widget)}
+                                    </ResponsiveContainer>
+                                </div>
                             </Card>
                         )
                     })}

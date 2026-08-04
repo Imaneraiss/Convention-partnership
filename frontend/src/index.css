@@ -2,3 +2,49 @@
   --font-griffy: "Griffy", cursive;
 }
 @import "tailwindcss";
+/* Couleurs personnalisées pour éviter oklch */
+.bg-custom-blue-500 {
+    background-color: #3b82f6;
+}
+.bg-custom-blue-600 {
+    background-color: #2563eb;
+}
+.bg-custom-green-500 {
+    background-color: #22c55e;
+}
+.bg-custom-red-500 {
+    background-color: #ef4444;
+}
+.bg-custom-yellow-500 {
+    background-color: #f59e0b;
+}
+.bg-custom-gray-50 {
+    background-color: #f9fafb;
+}
+.bg-custom-gray-100 {
+    background-color: #f3f4f6;
+}
+.bg-custom-gray-200 {
+    background-color: #e5e7eb;
+}
+.text-custom-blue-600 {
+    color: #2563eb;
+}
+.text-custom-blue-700 {
+    color: #1d4ed8;
+}
+.text-custom-gray-500 {
+    color: #6b7280;
+}
+.text-custom-gray-700 {
+    color: #374151;
+}
+.text-custom-gray-900 {
+    color: #111827;
+}
+.border-custom-gray-200 {
+    border-color: #e5e7eb;
+}
+.border-custom-blue-500 {
+    border-color: #3b82f6;
+}
