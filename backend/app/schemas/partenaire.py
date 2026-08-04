@@ -18,6 +18,8 @@ class PartenaireUpdate(BaseModel):
     ville: Optional[str] = None
     region: Optional[str] = None
     pays: Optional[str] = None
+    signataire: Optional[str] = None
+    convention_id: Optional[UUID] = None
 
 class PartenaireResponse(PartenaireBase):
     id: UUID

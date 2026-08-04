@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from datetime import date
 from uuid import UUID
+from app.schemas.partenaire import PartenaireResponse  # ✅ Importer le schéma Partenaire
 
 # Schema pour créer une convention
 class ConventionCreate(BaseModel):
@@ -17,6 +18,7 @@ class ConventionCreate(BaseModel):
     formation_continue: bool = False
     mots_cles: Optional[List[str]] = []
     articles: Optional[Dict] = {}
+    articles_personnalises: Optional[List] = []
 
 # Schema pour modifier une convention
 class ConventionUpdate(BaseModel):
@@ -33,7 +35,7 @@ class ConventionUpdate(BaseModel):
     statut: Optional[str] = None
     mots_cles: Optional[List[str]] = None
     articles: Optional[Dict] = None
-    # user_id n'est pas nécessaire dans l'update (on ne change pas le propriétaire)
+    articles_personnalises: Optional[List] = None
 
 # Schema pour retourner une convention au frontend
 class ConventionResponse(BaseModel):
@@ -52,7 +54,9 @@ class ConventionResponse(BaseModel):
     formation_continue: bool
     mots_cles: Optional[List[str]] = []
     articles: Optional[Dict] = {}
-    user_id: UUID  # ✅ AJOUTER CETTE LIGNE (optionnel, mais utile)
+    articles_personnalises: Optional[List] = []  
+    user_id: UUID
+    partenaires: List[PartenaireResponse] = []  # ✅ AJOUTER CETTE LIGNE
 
     class Config:
         from_attributes = True

@@ -27,12 +27,15 @@ class Convention(Base):
     signataire_um5_autre = Column(String, nullable=True)  # Optionnel
     mots_cles = Column(JSON, default=[])  # Liste de mots-clés
     articles = Column(JSON, default={})  # Articles de la convention
+    articles_personnalises = Column(JSON, default=[])  #Liste des articles personnalisés
+
     
     avec_budget = Column(Boolean, default=False)
     validation_conseil = Column(Boolean, default=False)
     formation_continue = Column(Boolean, default=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-
+    signataire_partenaire = Column(String, nullable=True)  # ✅ AJOUTER
+    signataire_partenaire_autre = Column(String, nullable=True)  # ✅ AJOUTER
     # Relations
     user = relationship("User", back_populates="conventions")
     partenaires = relationship("Partenaire", back_populates="convention")

@@ -42,7 +42,6 @@ export default function GeneralTab({
   readOnly
 }) {
   const [nouvelArticle, setNouvelArticle] = useState('');
-  const [articlesPersonnalises, setArticlesPersonnalises] = useState([]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -51,21 +50,41 @@ export default function GeneralTab({
     }
   };
 
-  // Ajouter un article personnalisé
+  // ✅ Ajouter un article personnalisé (sauvegardé dans formData)
   const ajouterArticle = () => {
     if (nouvelArticle.trim()) {
       const id = `custom_${Date.now()}`;
-      setArticlesPersonnalises([
-        ...articlesPersonnalises,
-        { id, label: nouvelArticle.trim(), placeholder: `Contenu de l'article...`, custom: true }
-      ]);
+      const newArticle = { 
+        id, 
+        label: nouvelArticle.trim(), 
+        placeholder: `Contenu de l'article...`, 
+        custom: true 
+      };
+      
+      // ✅ Sauvegarder dans formData.articles_personnalises
+      const currentCustom = formData.articles_personnalises || [];
+      onFormChange('articles_personnalises', [...currentCustom, newArticle]);
+      
+      // ✅ Ajouter une entrée vide dans articles
+      onFormChange('articles', {
+        ...(formData.articles || {}),
+        [id]: ''
+      });
+      
       setNouvelArticle('');
     }
   };
 
-  // Supprimer un article personnalisé
+  // ✅ Supprimer un article personnalisé
   const supprimerArticle = (id) => {
-    setArticlesPersonnalises(articlesPersonnalises.filter(a => a.id !== id));
+    // ✅ Supprimer de articles_personnalises
+    const currentCustom = formData.articles_personnalises || [];
+    onFormChange('articles_personnalises', currentCustom.filter(a => a.id !== id));
+    
+    // ✅ Supprimer la valeur de articles
+    const newArticles = { ...(formData.articles || {}) };
+    delete newArticles[id];
+    onFormChange('articles', newArticles);
   };
 
   // Récupérer la valeur d'un article depuis formData
@@ -81,8 +100,11 @@ export default function GeneralTab({
     });
   };
 
-  // Tous les articles (prédéfinis + personnalisés)
-  const tousLesArticles = [...ARTICLES_DEFAUT, ...articlesPersonnalises];
+  // ✅ Tous les articles (prédéfinis + personnalisés depuis formData)
+  const tousLesArticles = [
+    ...ARTICLES_DEFAUT,
+    ...(formData.articles_personnalises || [])
+  ];
 
   return (
     <div className="space-y-8">
@@ -177,7 +199,6 @@ export default function GeneralTab({
         </div>
       </section>
 
-
       {/* ==================== SIGNATAIRES PARTENAIRES ==================== */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -249,7 +270,6 @@ export default function GeneralTab({
                   placeholder="Pays"
                 />
                 
-                {/* Signataire spécifique à ce partenaire */}
                 <Input
                   label="Signataire du partenaire"
                   value={p.signataire || ''}
@@ -269,6 +289,7 @@ export default function GeneralTab({
           </div>
         )}
       </section>
+
       {/* ==================== OPTIONS ==================== */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Options</h3>
@@ -296,6 +317,7 @@ export default function GeneralTab({
       {/* ==================== MOTS-CLÉS ==================== */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Mots-clés</h3>
+        
         <div className="flex flex-wrap gap-2 mb-2">
           {formData.mots_cles && formData.mots_cles.length > 0 ? (
             formData.mots_cles.map((mc, index) => (
@@ -316,7 +338,8 @@ export default function GeneralTab({
               </span>
             ))
           ) : (
-            <span className="text-sm text-gray-400">          Mots-clés associés à la convention pour faciliter la recherche
+            <span className="text-sm text-gray-400">
+              Mots-clés associés à la convention pour faciliter la recherche
             </span>
           )}
         </div>

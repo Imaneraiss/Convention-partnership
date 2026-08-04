@@ -43,7 +43,7 @@ export default function CommitteesTab({
   
   const [newMembreUm5, setNewMembreUm5] = useState({ nom: '', email: '', etablissement: '' });
   const [newMembrePartenaire, setNewMembrePartenaire] = useState({ nom: '', email: '', organisme: '' });
-  const [newTache, setNewTache] = useState({ description: '', echeance: '', statut: 'en_attente' });
+  const [newTache, setNewTache] = useState('');
 
   const frequenceOptions = FREQUENCES_REUNION || ['Hebdomadaire', 'Mensuelle', 'Bimestrielle', 'Trimestrielle', 'Semestrielle', 'Annuelle'];
   const typeOptions = TYPES_COMITE || ['PILOTAGE', 'SUIVI', 'TECHNIQUE', 'SCIENTIFIQUE'];
@@ -88,7 +88,7 @@ export default function CommitteesTab({
         prochaineReunion: calculerProchaineReunion(newCommittee.date_debut, newCommittee.frequence),
         reunions: [],
         expanded: false,
-        taches: extractedTaches.length > 0 ? extractedTaches.map(t => ({ ...t, id: Date.now() + Math.random() })) : []
+        taches: extractedTaches.length > 0 ? extractedTaches.map(t => ({ id: Date.now() + Math.random(), description: t })) : []
       };
       updateCommittees([...committees, newComm]);
       setNewCommittee({ type: '', frequence: '', date_debut: '', membresUm5: [], membresPartenaires: [], taches: [] });
@@ -140,15 +140,15 @@ export default function CommitteesTab({
     ));
   };
 
-  // ─── TÂCHES ───
+  // ─── TÂCHES (SIMPLES) ───
   const addTache = (committeeId) => {
-    if (newTache.description) {
+    if (newTache.trim()) {
       updateCommittees(committees.map(c =>
         c.id === committeeId
-          ? { ...c, taches: [...(c.taches || []), { ...newTache, id: Date.now() }] }
+          ? { ...c, taches: [...(c.taches || []), { id: Date.now(), description: newTache.trim() }] }
           : c
       ));
-      setNewTache({ description: '', echeance: '', statut: 'en_attente' });
+      setNewTache('');
     }
   };
 
@@ -156,14 +156,6 @@ export default function CommitteesTab({
     updateCommittees(committees.map(c =>
       c.id === committeeId
         ? { ...c, taches: (c.taches || []).filter(t => t.id !== tacheId) }
-        : c
-    ));
-  };
-
-  const updateTacheStatut = (committeeId, tacheId, statut) => {
-    updateCommittees(committees.map(c =>
-      c.id === committeeId
-        ? { ...c, taches: (c.taches || []).map(t => t.id === tacheId ? { ...t, statut } : t) }
         : c
     ));
   };
@@ -268,26 +260,6 @@ export default function CommitteesTab({
         <p className="text-xs text-gray-400">PDF, DOC, DOCX</p>
       </div>
     );
-  };
-
-  const getStatutColor = (statut) => {
-    const colors = {
-      en_attente: 'text-yellow-600 bg-yellow-50',
-      en_cours: 'text-blue-600 bg-blue-50',
-      terminee: 'text-green-600 bg-green-50',
-      bloquee: 'text-red-600 bg-red-50'
-    };
-    return colors[statut] || colors.en_attente;
-  };
-
-  const getStatutLabel = (statut) => {
-    const labels = {
-      en_attente: 'En attente',
-      en_cours: 'En cours',
-      terminee: 'Terminée',
-      bloquee: 'Bloquée'
-    };
-    return labels[statut] || statut;
   };
 
   return (
@@ -425,17 +397,23 @@ export default function CommitteesTab({
                     </div>
                   </div>
 
-                  {/* TÂCHES */}
+                  {/* TÂCHES - Simple liste de textes */}
                   <div>
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                       <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
                         <CheckSquare size={16} /> Tâches
                       </h4>
                       {!readOnly && (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Input value={newTache.description} onChange={(e) => setNewTache({ ...newTache, description: e.target.value })} placeholder="Nouvelle tâche..." className="text-sm w-40" />
-                          <Input type="date" value={newTache.echeance} onChange={(e) => setNewTache({ ...newTache, echeance: e.target.value })} className="text-sm w-32" />
-                          <Button size="sm" onClick={() => addTache(committee.id)} disabled={!newTache.description}>Ajouter</Button>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            value={newTache} 
+                            onChange={(e) => setNewTache(e.target.value)} 
+                            placeholder="Nouvelle tâche..." 
+                            className="text-sm flex-1" 
+                          />
+                          <Button size="sm" onClick={() => addTache(committee.id)} disabled={!newTache.trim()}>
+                            Ajouter
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -446,29 +424,20 @@ export default function CommitteesTab({
                       </div>
                     )}
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       {(committee.taches || []).map((tache) => (
                         <div key={tache.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className="text-sm text-gray-700">{tache.description}</span>
-                            {tache.echeance && <span className="text-xs text-gray-400">Échéance: {new Date(tache.echeance).toLocaleDateString('fr-FR')}</span>}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!readOnly ? (
-                              <select value={tache.statut || 'en_attente'} onChange={(e) => updateTacheStatut(committee.id, tache.id, e.target.value)} className={`text-xs px-2 py-1 rounded-full border-0 ${getStatutColor(tache.statut || 'en_attente')}`}>
-                                <option value="en_attente">En attente</option>
-                                <option value="en_cours">En cours</option>
-                                <option value="terminee">Terminée</option>
-                                <option value="bloquee">Bloquée</option>
-                              </select>
-                            ) : (
-                              <span className={`text-xs px-2 py-1 rounded-full ${getStatutColor(tache.statut || 'en_attente')}`}>{getStatutLabel(tache.statut || 'en_attente')}</span>
-                            )}
-                            {!readOnly && <button onClick={() => removeTache(committee.id, tache.id)} className="text-red-600 hover:text-red-700 text-sm">×</button>}
-                          </div>
+                          <span className="text-sm text-gray-700 flex-1">• {tache.description}</span>
+                          {!readOnly && (
+                            <button onClick={() => removeTache(committee.id, tache.id)} className="text-red-600 hover:text-red-700 text-sm ml-2">
+                              ×
+                            </button>
+                          )}
                         </div>
                       ))}
-                      {(committee.taches || []).length === 0 && <p className="text-sm text-gray-400">Aucune tâche définie</p>}
+                      {(committee.taches || []).length === 0 && (
+                        <p className="text-sm text-gray-400">Aucune tâche définie</p>
+                      )}
                     </div>
                   </div>
 
@@ -478,14 +447,12 @@ export default function CommitteesTab({
                       <FileText size={16} /> Historique des réunions
                     </h4>
 
-                    {/* Zone de drag & drop pour upload PV */}
                     {!readOnly && (
                       <div className="mb-4">
                         <DropzonePV committeeId={committee.id} />
                       </div>
                     )}
 
-                    {/* Liste des PV uploadés */}
                     {(committee.reunions || []).length === 0 ? (
                       <p className="text-sm text-gray-400">Aucun PV uploadé</p>
                     ) : (
@@ -508,7 +475,6 @@ export default function CommitteesTab({
                                 className="text-blue-600 hover:text-blue-700 p-1"
                                 onClick={() => {
                                   console.log('Télécharger:', reunion.pv);
-                                  // window.open(`/api/fichiers/${reunion.pv?.id}`);
                                 }}
                               >
                                 <Download size={16} />
