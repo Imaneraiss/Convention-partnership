@@ -171,7 +171,8 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
         
         # Nettoie le JSON si Groq ajoute des backticks
         content = content.replace("```json", "").replace("```", "").strip()
-        
+        print("🔍 Réponse Groq brute:", content)
+        print("🔍 JSON parsé:", json.loads(content))
         return json.loads(content)
     
     except Exception as e:

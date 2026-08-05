@@ -11,6 +11,9 @@ import CommitteesTab from './tabs/CommitteesTab';
 import BudgetTab from './tabs/BudgetTab';
 import AlertsTab from './tabs/AlertsTab';
 import { createPartenaire, updatePartenaire } from '../../services/partenaireService';
+import { extractConvention } from '../../services/fichierService';
+import { exportConventionToWord } from '../../services/wordExportService';
+import { FileDown } from 'lucide-react';
 
 const TABS = [
   { id: 'general', label: 'Infos générales' },
@@ -32,12 +35,14 @@ export default function ConventionForm() {
   const [committees, setCommittees] = useState([]);
   const [budgetData, setBudgetData] = useState(null);
   const [alertsData, setAlertsData] = useState({ auto: [], manual: [] });
+  const [isFromUpload, setIsFromUpload] = useState(false);
+  const [uploadedFileInfo, setUploadedFileInfo] = useState(null);
 
   const canEdit = user?.role === ROLES.CHARGE;
   const isExisting = !!id;
   
-  // ✅ Mode édition : false = lecture seule, true = édition
-  const [isEditing, setIsEditing] = useState(!isExisting ? true : (isExisting && !canEdit ? false : false));  
+  const [isEditing, setIsEditing] = useState(!isExisting ? true : (isExisting && !canEdit ? false : false));
+  
   const [formData, setFormData] = useState({
     intitule: '',
     type: '',
@@ -55,6 +60,7 @@ export default function ConventionForm() {
     mots_cles: [],
     articles: {},
     articles_personnalises: [],
+    articles_masques: [],
     statut: 'EN_COURS'
   });
 
@@ -70,9 +76,12 @@ export default function ConventionForm() {
     }
   }, [id]);
 
+  // ✅ Récupération des données extraites par OCR + Groq
   useEffect(() => {
     if (location.state?.extractedData) {
       const extracted = location.state.extractedData;
+      console.log('📥 Données extraites reçues:', extracted);
+      
       if (!extracted.error) {
         setFormData(prev => ({
           ...prev,
@@ -90,7 +99,8 @@ export default function ConventionForm() {
           signataire_partenaire: extracted.signataire_partenaire || '',
           signataire_partenaire_autre: extracted.signataire_partenaire_autre || '',
           articles: extracted.articles || {},
-          articles_personnalises: extracted.articles_personnalises || []
+          articles_personnalises: extracted.articles_personnalises || [],
+          statut: extracted.statut || 'EN_COURS'
         }));
 
         if (extracted.partenaires && extracted.partenaires.length > 0) {
@@ -102,22 +112,126 @@ export default function ConventionForm() {
             pays: p.pays || 'Maroc',
             signataire: p.signataire || ''
           })));
-        } else if (extracted.partenaire_nom) {
-          setPartenaires([{
-            nom: extracted.partenaire_nom || '',
-            type: extracted.partenaire_type || '',
-            ville: extracted.partenaire_ville || '',
-            region: extracted.partenaire_region || '',
-            pays: extracted.partenaire_pays || 'Maroc',
-            signataire: extracted.partenaire_signataire || ''
-          }]);
         }
+
+        if (extracted.comites && extracted.comites.length > 0) {
+          setCommittees(extracted.comites.map(c => ({
+            ...c,
+            id: Date.now() + Math.random(),
+            expanded: false,
+            reunions: c.reunions || []
+          })));
+        }
+
+        if (extracted.budget) {
+          setBudgetData(extracted.budget);
+        }
+
+        if (extracted.alertes) {
+          setAlertsData({
+            auto: extracted.alertes.auto || [],
+            manual: extracted.alertes.manual || []
+          });
+        }
+
+        setIsFromUpload(true);
+        console.log('✅ Données mises à jour avec succès !');
+      } else {
+        console.error('❌ Erreur extraction:', extracted.error);
+        setError('Erreur lors de l\'extraction du document');
       }
     }
     if (location.state?.uploadedFile) {
       setFile(location.state.uploadedFile);
+      setUploadedFileInfo({
+        name: location.state.uploadedFile.name,
+        size: location.state.uploadedFile.size,
+        type: location.state.uploadedFile.type,
+        uploadDate: new Date().toISOString()
+      });
     }
   }, [location.state]);
+
+  // ✅ Fonction pour extraire un document (Drag & Drop dans GeneralTab)
+  const handleExtractDocument = async (file) => {
+    const formDataFile = new FormData();
+    formDataFile.append('file', file);
+    
+    try {
+      const response = await extractConvention(formDataFile);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur extraction:', error);
+      throw error;
+    }
+  };
+
+  // ✅ Fonction pour mettre à jour toutes les données après extraction
+  const handleExtractedData = (data) => {
+    setFormData(prev => ({
+      ...prev,
+      intitule: data.intitule || '',
+      type: data.type || '',
+      date_signature: data.date_signature || '',
+      date_expiration: data.date_expiration || '',
+      mode_renouvellement: data.mode_renouvellement || '',
+      avec_budget: data.avec_budget || false,
+      validation_conseil: data.validation_conseil || false,
+      formation_continue: data.formation_continue || false,
+      mots_cles: data.mots_cles || [],
+      signataire_um5: data.signataire_um5 || '',
+      signataire_um5_autre: data.signataire_um5_autre || '',
+      signataire_partenaire: data.signataire_partenaire || '',
+      signataire_partenaire_autre: data.signataire_partenaire_autre || '',
+      articles: data.articles || {},
+      articles_personnalises: data.articles_personnalises || [],
+      articles_masques: [],
+      statut: data.statut || 'EN_COURS'
+    }));
+
+    if (data.partenaires && data.partenaires.length > 0) {
+      setPartenaires(data.partenaires.map(p => ({
+        nom: p.nom || '',
+        type: p.type || '',
+        ville: p.ville || '',
+        region: p.region || '',
+        pays: p.pays || 'Maroc',
+        signataire: p.signataire || ''
+      })));
+    }
+
+    if (data.comites && data.comites.length > 0) {
+      setCommittees(data.comites.map(c => ({
+        ...c,
+        id: Date.now() + Math.random(),
+        expanded: false,
+        reunions: c.reunions || []
+      })));
+    }
+
+    if (data.budget) {
+      setBudgetData(data.budget);
+    }
+
+    if (data.alertes) {
+      setAlertsData({
+        auto: data.alertes.auto || [],
+        manual: data.alertes.manual || []
+      });
+    }
+
+    setIsFromUpload(true);
+    
+    // Mettre à jour les infos du fichier
+    if (file) {
+      setUploadedFileInfo({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadDate: new Date().toISOString()
+      });
+    }
+  };
 
   const fetchConventionData = async () => {
     setLoading(true);
@@ -145,11 +259,10 @@ export default function ConventionForm() {
       });
       setPartenaires(data.partenaires || [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]);
       
-      // ✅ Si l'utilisateur n'est pas CHARGE, rester en lecture seule
       if (!canEdit) {
         setIsEditing(false);
       } else {
-        setIsEditing(false); // Toujours en lecture seule au chargement
+        setIsEditing(false);
       }
     } catch (err) {
       console.error(err);
@@ -203,7 +316,7 @@ export default function ConventionForm() {
   const handleCancel = () => {
     if (id) {
       setIsEditing(false);
-      fetchConventionData(); // Recharger les données originales
+      fetchConventionData();
     } else {
       navigate('/conventions');
     }
@@ -220,6 +333,30 @@ export default function ConventionForm() {
     } catch (err) {
       console.error('❌ Erreur suppression:', err);
       setError('Erreur lors de la suppression de la convention');
+    }
+  };
+
+  // Exportation vers Word
+  const handleExportWord = async () => {
+    try {
+      const result = await exportConventionToWord(
+        formData,
+        partenaires,
+        committees,
+        budgetData,
+        alertsData,
+        uploadedFileInfo,
+        `Convention_${formData.intitule || 'sans_titre'}_${new Date().toISOString().split('T')[0]}.docx`
+      );
+      
+      if (result.success) {
+        console.log('✅ Exportation Word réussie !');
+      } else {
+        setError('Erreur lors de l\'exportation: ' + result.error);
+      }
+    } catch (err) {
+      console.error('❌ Erreur export:', err);
+      setError('Erreur lors de l\'exportation du document');
     }
   };
 
@@ -267,10 +404,11 @@ export default function ConventionForm() {
       let conventionId;
 
       if (id) {
+        // ✅ Mise à jour
         const response = await updateConvention(id, dataToSend);
         conventionId = id;
         
-        // ✅ Mise à jour des partenaires
+        // Mise à jour des partenaires
         for (const partenaire of partenaires) {
           if (partenaire.nom) {
             if (partenaire.id) {
@@ -291,10 +429,38 @@ export default function ConventionForm() {
             }
           }
         }
-      } else {
-        const convResponse = await createConvention(dataToSend);
-        conventionId = convResponse.data.id;
 
+        // ✅ Upload du fichier (si présent) - AJOUTÉ POUR MISE À JOUR
+        console.log('🔍 Vérification avant upload:');
+        console.log('📄 file:', file);
+        console.log('🆔 conventionId:', conventionId);
+        console.log('📋 type de conventionId:', typeof conventionId);
+        console.log('🔑 id du paramètre:', id);
+
+
+        if (file) {
+          console.log('📤 Upload du fichier (mise à jour) avec convention_id:', conventionId);
+          const formDataFile = new FormData();
+          formDataFile.append('file', file);
+          formDataFile.append('convention_id', conventionId);
+          await uploadFichier(formDataFile);
+        }
+
+      } else {
+        // ✅ Création
+        const convResponse = await createConvention(dataToSend);
+        conventionId = convResponse.data?.id || convResponse.id;  // ✅ Support des deux formats
+
+        if (!conventionId) {
+          console.error('❌ Impossible de récupérer l\'ID de la convention');
+          setError('Erreur lors de la création de la convention');
+          setSaving(false);
+          return;
+        }
+
+        console.log('✅ Convention créée avec ID:', conventionId);
+
+        // Création des partenaires
         for (const partenaire of partenaires) {
           if (partenaire.nom) {
             await createPartenaire({
@@ -304,7 +470,9 @@ export default function ConventionForm() {
           }
         }
 
+        // Upload du fichier (si présent)
         if (file) {
+          console.log('📤 Upload du fichier (création) avec convention_id:', conventionId);
           const formDataFile = new FormData();
           formDataFile.append('file', file);
           formDataFile.append('convention_id', conventionId);
@@ -312,10 +480,8 @@ export default function ConventionForm() {
         }
       }
 
-      // ✅ Après enregistrement, repasser en lecture seule
       setIsEditing(false);
       
-      // ✅ Recharger les données pour être sûr
       if (id) {
         await fetchConventionData();
       }
@@ -347,12 +513,19 @@ export default function ConventionForm() {
             {id ? `Convention ${formData.intitule || ''}` : 'Nouvelle convention'}
           </h1>
           {id && <p className="text-sm text-gray-500">Réf: {formData.numero_reference}</p>}
-
         </div>
         <div className="flex gap-2">
-          {/* ✅ Mode lecture seule */}
           {id && !isEditing && (
             <>
+              {/* Bouton Exporter Word */}
+              <Button 
+                onClick={handleExportWord} 
+                variant="success"
+                className="flex items-center gap-2"
+              >
+                <FileDown className="w-4 h-4" />
+                Exporter Word
+              </Button>
               {canEdit && (
                 <Button onClick={handleEdit}>Modifier</Button>
               )}
@@ -364,7 +537,7 @@ export default function ConventionForm() {
             </>
           )}
           
-          {/* ✅ Mode édition */}
+          
           {(!id || isEditing) && (
             <>
               <Button variant="secondary" onClick={handleCancel}>
@@ -419,12 +592,18 @@ export default function ConventionForm() {
                 onRemovePartenaire={removePartenaire}
                 onAddMotCle={addMotCle}
                 onRemoveMotCle={removeMotCle}
-                readOnly={!isEditing}  // ✅ Lecture seule si pas en édition
+                readOnly={!isEditing}
+                onExtractDocument={handleExtractDocument}
+                onExtractedData={handleExtractedData}
+                conventionId={id}
+                isFromUpload={isFromUpload}
+                uploadedFile={file}
+                uploadedFileInfo={uploadedFileInfo}
               />
             )}
             {activeTab === 'committees' && (
               <CommitteesTab 
-                readOnly={!isEditing}  // ✅ Lecture seule si pas en édition
+                readOnly={!isEditing}
                 initialCommittees={committees}
                 onChange={setCommittees}
                 conventionId={id}
@@ -433,7 +612,7 @@ export default function ConventionForm() {
             
             {activeTab === 'budget' && (
               <BudgetTab 
-                readOnly={!isEditing}  // ✅ Lecture seule si pas en édition
+                readOnly={!isEditing}
                 initialBudget={budgetData}
                 onChange={setBudgetData}
               />
@@ -441,7 +620,7 @@ export default function ConventionForm() {
             
             {activeTab === 'alerts' && (
               <AlertsTab 
-                readOnly={!isEditing}  // ✅ Lecture seule si pas en édition
+                readOnly={!isEditing}
                 conventionData={{
                   date_expiration: formData.date_expiration,
                   comites: committees,

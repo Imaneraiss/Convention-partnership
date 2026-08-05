@@ -33,18 +33,23 @@ services:
       - ./uploads:/app/uploads
 
       
-
   frontend:
     build: ./frontend
     container_name: partnership_frontend
-    depends_on:
-      - backend
     ports:
       - "5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
-
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    command: sh -c "npm install && npx vite --host 0.0.0.0 --port 5173 "
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

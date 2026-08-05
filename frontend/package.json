@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 5173 --watch",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -19,7 +19,9 @@
     "recharts": "^3.2.1",
     "tailwindcss": "^4.3.3",
     "react-dropzone": "^14.2.3",
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "docx": "^8.5.0",
+    "file-saver": "^2.0.5"
 
     
   },

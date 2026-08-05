@@ -29,6 +29,16 @@ def upload_fichier(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    print("=" * 50)
+    print("📤 UPLOAD FICHIER")
+    print(f"📄 Fichier: {file.filename}")
+    print(f"📄 Type: {file.content_type}")
+    print(f"🔍 convention_id reçu: {convention_id}")
+    print(f"🔍 Type de convention_id: {type(convention_id)}")
+    print(f"🔍 reunion_id reçu: {reunion_id}")
+    print(f"🔍 budget_id reçu: {budget_id}")
+    print("=" * 50)
+
     # Validation type de fichier
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="Type de fichier non autorisé")

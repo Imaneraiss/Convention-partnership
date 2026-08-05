@@ -1,10 +1,22 @@
 import api from './api'
 
 // Upload fichier (convention, réunion ou budget)
-export const uploadFichier = (formData) =>
-    api.post('/fichiers/upload', formData, {
+// src/services/fichierService.js
+export const uploadFichier = (formData) => {
+    const conventionId = formData.get('convention_id');
+    console.log('📤 convention_id extrait:', conventionId);
+    
+    // ✅ Si convention_id est présent, l'ajouter dans l'URL
+    if (conventionId) {
+        return api.post(`/fichiers/upload?convention_id=${conventionId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    }
+    
+    return api.post('/fichiers/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    });
+};
 
 // GET fichiers par convention
 export const getFichiersByConvention = (convention_id) =>

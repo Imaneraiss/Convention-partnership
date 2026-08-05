@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import Input from '../../../components/common/Input';
 import Select from '../../../components/common/Select';
 import Textarea from '../../../components/common/Textarea';
@@ -10,6 +11,7 @@ import {
   ETABLISSEMENTS_UM5,
   SIGNATAIRES_UM5
 } from '../../../utils/constants';
+import { X, Plus, Upload, FileText, AlertCircle, Download, RefreshCw } from 'lucide-react';
 
 // Articles prédéfinis
 const ARTICLES_DEFAUT = [
@@ -39,9 +41,74 @@ export default function GeneralTab({
   onRemovePartenaire,
   onAddMotCle,
   onRemoveMotCle,
-  readOnly
+  readOnly,
+  onExtractDocument,
+  onExtractedData,
+  conventionId,
+  isFromUpload = false,
+  uploadedFile = null,
+  uploadedFileInfo = null
 }) {
   const [nouvelArticle, setNouvelArticle] = useState('');
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState(null);
+  const [newFile, setNewFile] = useState(null);
+  const [replacementMode, setReplacementMode] = useState(false);
+
+  const articlesMasques = formData.articles_masques || [];
+
+  // ✅ Drag & Drop pour remplacer le fichier
+  const onDrop = useCallback(async (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+
+    if (isFromUpload && !window.confirm(
+      '⚠️ Remplacer ce document effacera toutes les données modifiées.\n\n' +
+      'Les nouvelles données seront extraites automatiquement.\n\n' +
+      'Continuer ?'
+    )) {
+      return;
+    }
+
+    setNewFile(file);
+    setReplacementMode(true);
+    setIsExtracting(true);
+    setExtractError(null);
+
+    try {
+      if (onExtractDocument) {
+        const result = await onExtractDocument(file);
+        
+        if (result && !result.error) {
+          onExtractedData(result);
+          onFormChange('articles_masques', []);
+          alert('✅ Document remplacé et extrait avec succès ! Toutes les données ont été mises à jour.');
+          //window.location.reload();
+        } else {
+          setExtractError(result?.message || 'Erreur lors de l\'extraction');
+        }
+      }
+    } catch (error) {
+      console.error('Erreur extraction:', error);
+      setExtractError(error.message || 'Erreur lors de l\'extraction du document');
+    } finally {
+      setIsExtracting(false);
+      setReplacementMode(false);
+    }
+  }, [onExtractDocument, onExtractedData, isFromUpload]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'image/png': ['.png'],
+      'image/jpeg': ['.jpg', '.jpeg']
+    },
+    maxFiles: 1,
+    disabled: readOnly || isExtracting
+  });
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -50,10 +117,9 @@ export default function GeneralTab({
     }
   };
 
-  // ✅ Ajouter un article personnalisé (sauvegardé dans formData)
   const ajouterArticle = () => {
     if (nouvelArticle.trim()) {
-      const id = `custom_${Date.now()}`;
+      const id = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const newArticle = { 
         id, 
         label: nouvelArticle.trim(), 
@@ -61,11 +127,7 @@ export default function GeneralTab({
         custom: true 
       };
       
-      // ✅ Sauvegarder dans formData.articles_personnalises
-      const currentCustom = formData.articles_personnalises || [];
-      onFormChange('articles_personnalises', [...currentCustom, newArticle]);
-      
-      // ✅ Ajouter une entrée vide dans articles
+      onFormChange('articles_personnalises', [...(formData.articles_personnalises || []), newArticle]);
       onFormChange('articles', {
         ...(formData.articles || {}),
         [id]: ''
@@ -75,24 +137,27 @@ export default function GeneralTab({
     }
   };
 
-  // ✅ Supprimer un article personnalisé
   const supprimerArticle = (id) => {
-    // ✅ Supprimer de articles_personnalises
     const currentCustom = formData.articles_personnalises || [];
     onFormChange('articles_personnalises', currentCustom.filter(a => a.id !== id));
     
-    // ✅ Supprimer la valeur de articles
     const newArticles = { ...(formData.articles || {}) };
     delete newArticles[id];
     onFormChange('articles', newArticles);
   };
 
-  // Récupérer la valeur d'un article depuis formData
+  const masquerArticle = (id) => {
+    onFormChange('articles_masques', [...articlesMasques, id]);
+  };
+
+  const afficherArticle = (id) => {
+    onFormChange('articles_masques', articlesMasques.filter(a => a !== id));
+  };
+
   const getArticleValue = (articleId) => {
     return formData.articles?.[articleId] || '';
   };
 
-  // Mettre à jour la valeur d'un article
   const setArticleValue = (articleId, value) => {
     onFormChange('articles', {
       ...(formData.articles || {}),
@@ -100,15 +165,161 @@ export default function GeneralTab({
     });
   };
 
-  // ✅ Tous les articles (prédéfinis + personnalisés depuis formData)
-  const tousLesArticles = [
-    ...ARTICLES_DEFAUT,
-    ...(formData.articles_personnalises || [])
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const fileInfo = uploadedFileInfo || (uploadedFile ? {
+    name: uploadedFile.name,
+    size: uploadedFile.size,
+    type: uploadedFile.type
+  } : null);
+
+  const articlesAffiches = [
+    ...ARTICLES_DEFAUT.filter(a => !articlesMasques.includes(a.id)),
+    ...(formData.articles_personnalises || []).filter(a => !articlesMasques.includes(a.id))
+  ];
+
+  const articlesMasquesList = [
+    ...ARTICLES_DEFAUT.filter(a => articlesMasques.includes(a.id)),
+    ...(formData.articles_personnalises || []).filter(a => articlesMasques.includes(a.id))
   ];
 
   return (
     <div className="space-y-8">
-      {/* ==================== IDENTIFICATION ==================== */}
+      {/* ==================== SECTION FICHIER ==================== */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <FileText size={20} />
+            {isFromUpload ? 'Document uploadé' : 'Upload du document'}
+          </h3>
+          {isFromUpload && fileInfo && !readOnly && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => document.getElementById('fileInput')?.click()}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw size={14} />
+              Remplacer
+            </Button>
+          )}
+          {!isFromUpload && !readOnly && (
+            <span className="text-xs text-gray-400">
+              Formats acceptés : PDF, DOC, DOCX, PNG, JPG
+            </span>
+          )}
+        </div>
+
+        {isFromUpload && fileInfo ? (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FileText size={24} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{fileInfo.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {formatFileSize(fileInfo.size)} • {fileInfo.type || 'Document'}
+                    {fileInfo.uploadDate && ` • ${new Date(fileInfo.uploadDate).toLocaleDateString('fr-FR')}`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm"
+                  onClick={() => {
+                    console.log('Télécharger:', fileInfo);
+                  }}
+                >
+                  <Download size={16} />
+                  Télécharger
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {(!isFromUpload || !readOnly) && (
+          <div
+            {...getRootProps()}
+            className={`
+              border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200
+              ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}
+              ${(readOnly || isExtracting) ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <input {...getInputProps()} id="fileInput" />
+            
+            {isExtracting ? (
+              <div className="space-y-3">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-600 font-medium">
+                  {replacementMode ? 'Remplacement et extraction en cours...' : 'Extraction en cours...'}
+                </p>
+                <p className="text-sm text-gray-400">OCR + Groq analysent le document</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Upload className="mx-auto text-gray-400" size={32} />
+                <div>
+                  <p className="text-gray-600 font-medium">
+                    {isDragActive ? 'Déposez le document ici' : 
+                     isFromUpload ? 'Glissez-déposez pour remplacer le document' : 
+                     'Glissez-déposez le document'}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    ou cliquez pour sélectionner un fichier
+                  </p>
+                </div>
+                <div className="flex justify-center gap-4 text-xs text-gray-400">
+                  <span>PDF</span>
+                  <span>DOC</span>
+                  <span>DOCX</span>
+                  <span>PNG</span>
+                  <span>JPG</span>
+                </div>
+                {newFile && !isExtracting && (
+                  <p className="text-sm text-green-600">
+                    ✅ Nouveau fichier : {newFile.name}
+                  </p>
+                )}
+                {extractError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      {extractError}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isFromUpload && !readOnly && !isExtracting && (
+          <p className="text-xs text-amber-600 flex items-center gap-1">
+            <AlertCircle size={12} />
+            ⚠️ Le remplacement effacera toutes les modifications manuelles
+          </p>
+        )}
+        
+        {!isFromUpload && !readOnly && !isExtracting && (
+          <p className="text-xs text-amber-600 flex items-center gap-1">
+            <AlertCircle size={12} />
+            L'upload d'un document remplacera toutes les données existantes
+          </p>
+        )}
+      </section>
+
+      {/* ==================== RESTE DU FORMULAIRE ==================== */}
+      
+      {/* IDENTIFICATION */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Identification</h3>
         
@@ -146,7 +357,7 @@ export default function GeneralTab({
         </div>
       </section>
 
-      {/* ==================== DATES ==================== */}
+      {/* DATES */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Dates</h3>
         
@@ -172,7 +383,7 @@ export default function GeneralTab({
         </div>
       </section>
 
-      {/* ==================== SIGNATAIRE UM5 ==================== */}
+      {/* SIGNATAIRE UM5 */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Signataire UM5</h3>
         
@@ -199,7 +410,7 @@ export default function GeneralTab({
         </div>
       </section>
 
-      {/* ==================== SIGNATAIRES PARTENAIRES ==================== */}
+      {/* SIGNATAIRES PARTENAIRES */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Signataires Partenaires</h3>
@@ -290,7 +501,7 @@ export default function GeneralTab({
         )}
       </section>
 
-      {/* ==================== OPTIONS ==================== */}
+      {/* OPTIONS */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Options</h3>
         
@@ -314,7 +525,7 @@ export default function GeneralTab({
         </div>
       </section>
 
-      {/* ==================== MOTS-CLÉS ==================== */}
+      {/* MOTS-CLÉS */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Mots-clés</h3>
         
@@ -362,46 +573,104 @@ export default function GeneralTab({
 
       {/* ==================== ARTICLES ==================== */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-lg font-semibold text-gray-900">Articles</h3>
-          {!readOnly && (
-            <div className="flex items-center gap-2">
-              <Input
-                value={nouvelArticle}
-                onChange={(e) => setNouvelArticle(e.target.value)}
-                placeholder="Nom du nouvel article..."
-                className="w-48"
-              />
-              <Button variant="outline" size="sm" onClick={ajouterArticle}>
-                + Ajouter article
+          <div className="flex items-center gap-2 flex-wrap">
+            {articlesMasquesList.length > 0 && !readOnly && (
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => {
+                  articlesMasquesList.forEach(a => afficherArticle(a.id));
+                }}
+              >
+                Afficher les articles masqués ({articlesMasquesList.length})
               </Button>
-            </div>
-          )}
+            )}
+            
+            {!readOnly && (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={nouvelArticle}
+                  onChange={(e) => setNouvelArticle(e.target.value)}
+                  placeholder="Nom du nouvel article..."
+                  className="w-48"
+                />
+                <Button variant="outline" size="sm" onClick={ajouterArticle}>
+                  <Plus size={14} className="mr-1" />
+                  Ajouter
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
-          {tousLesArticles.map((article) => (
-            <div key={article.id} className="relative">
-              <Textarea
-                label={article.label}
-                name={`article_${article.id}`}
-                value={getArticleValue(article.id)}
-                onChange={(e) => setArticleValue(article.id, e.target.value)}
-                readOnly={readOnly}
-                placeholder={article.placeholder}
-                rows={3}
-              />
-              {article.custom && !readOnly && (
-                <button
-                  type="button"
-                  onClick={() => supprimerArticle(article.id)}
-                  className="absolute top-0 right-0 text-red-600 hover:text-red-700 text-sm mt-1"
-                >
-                  Supprimer
-                </button>
+          {articlesAffiches.map((article, index) => {
+            const isCustom = article.custom === true;
+            const hasContent = getArticleValue(article.id) && getArticleValue(article.id).trim() !== '';
+            
+            // ✅ Clé unique : utiliser article.id ou générer une clé basée sur l'index
+            const key = article.id || `article_${index}`;
+            
+            return (
+              <div key={key} className="relative group">
+                <Textarea
+                  label={article.label}
+                  name={`article_${article.id || index}`}
+                  value={getArticleValue(article.id)}
+                  onChange={(e) => setArticleValue(article.id, e.target.value)}
+                  readOnly={readOnly}
+                  placeholder={article.placeholder}
+                  rows={3}
+                />
+                
+                {!readOnly && !isCustom && (
+                  <button
+                    type="button"
+                    onClick={() => masquerArticle(article.id)}
+                    className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 text-sm mt-1 mr-1 p-1 rounded hover:bg-gray-100 transition-colors"
+                    title="Masquer cet article"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                
+                {isCustom && !readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => supprimerArticle(article.id)}
+                    className="absolute top-0 right-0 text-red-400 hover:text-red-600 text-sm mt-1 mr-1 p-1 rounded hover:bg-red-50 transition-colors"
+                    title="Supprimer cet article personnalisé"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                
+                {!hasContent && !readOnly && (
+                  <span className="absolute bottom-2 right-3 text-xs text-gray-400">
+                    (vide)
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          
+          {articlesAffiches.length === 0 && (
+            <div className="text-center text-gray-500 py-8 border border-dashed border-gray-300 rounded-lg">
+              <p>Aucun article affiché</p>
+              {!readOnly && articlesMasquesList.length > 0 && (
+                <p className="text-sm mt-1">
+                  Cliquez sur "Afficher les articles masqués" pour les restaurer
+                </p>
+              )}
+              {!readOnly && articlesMasquesList.length === 0 && (
+                <p className="text-sm mt-1">
+                  Ajoutez un article personnalisé ou affichez les articles masqués
+                </p>
               )}
             </div>
-          ))}
+          )}
         </div>
       </section>
     </div>

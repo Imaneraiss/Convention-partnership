@@ -105,6 +105,23 @@ def update_convention(
     return convention
 
 #   DELETE — Supprimer une convention
+@router.delete("/{convention_id}")
+def delete_convention(
+    convention_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    convention = db.query(Convention).filter(Convention.id == convention_id).first()
+    if not convention:
+        raise HTTPException(status_code=404, detail="Convention non trouvée")
+    
+    db.delete(convention)
+    db.commit()
+    return {"message": "Convention supprimée avec succès"}
+
+
+
+
 @router.get("/export/{format}")
 def export_conventions(
     format: str,
