@@ -25,6 +25,7 @@ class Comite(Base):
     reunions = relationship("Reunion", back_populates="comite")
     destinataires_internes = relationship("User", secondary=comite_destinataires_internes)
     destinataires_externes = relationship("ComiteDestinataireExterne", back_populates="comite")
+    alertes = relationship("Alerte", back_populates="comite") 
 
 class ComiteDestinataireExterne(Base):
     __tablename__ = "comite_destinataires_externes"

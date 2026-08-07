@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../utils/constants';
 import { createConvention, updateConvention, getConvention, deleteConvention } from '../../services/conventionService';
-import { uploadFichier } from '../../services/fichierService';
+import { uploadFichier, extractConvention, getFichiersByConvention as getFichiersConvention } from '../../services/fichierService';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import GeneralTab from './tabs/GeneralTab';
@@ -11,7 +11,6 @@ import CommitteesTab from './tabs/CommitteesTab';
 import BudgetTab from './tabs/BudgetTab';
 import AlertsTab from './tabs/AlertsTab';
 import { createPartenaire, updatePartenaire } from '../../services/partenaireService';
-import { extractConvention } from '../../services/fichierService';
 import { exportConventionToWord } from '../../services/wordExportService';
 import { FileDown } from 'lucide-react';
 
@@ -37,18 +36,23 @@ export default function ConventionForm() {
   const [alertsData, setAlertsData] = useState({ auto: [], manual: [] });
   const [isFromUpload, setIsFromUpload] = useState(false);
   const [uploadedFileInfo, setUploadedFileInfo] = useState(null);
+  const [file, setFile] = useState(null);
+
+  // ✅ REF POUR LE FICHIER (persiste entre les renders)
+  const fileRef = useRef(null);
 
   const canEdit = user?.role === ROLES.CHARGE;
   const isExisting = !!id;
-  
+
   const [isEditing, setIsEditing] = useState(!isExisting ? true : (isExisting && !canEdit ? false : false));
-  
+
   const [formData, setFormData] = useState({
     intitule: '',
     type: '',
     numero_reference: '',
     date_signature: '',
     date_expiration: '',
+    duree_annees: '', // ✅ AJOUT DE LA DURÉE
     mode_renouvellement: '',
     signataire_um5: '',
     signataire_um5_autre: '',
@@ -61,14 +65,56 @@ export default function ConventionForm() {
     articles: {},
     articles_personnalises: [],
     articles_masques: [],
-    statut: 'EN_COURS'
+    statut: 'EN_COURS',
+    signe: false
   });
 
   const [partenaires, setPartenaires] = useState([
     { nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }
   ]);
-  const [file, setFile] = useState(null);
   const [motCle, setMotCle] = useState('');
+
+  // ✅ RESTAURER LES DONNÉES DEPUIS SESSIONSTORAGE AU CHARGEMENT
+  useEffect(() => {
+    const savedFileInfo = sessionStorage.getItem('uploadedFileInfo');
+    const savedIsFromUpload = sessionStorage.getItem('isFromUpload');
+
+    if (savedFileInfo) {
+      try {
+        const parsed = JSON.parse(savedFileInfo);
+        setUploadedFileInfo(parsed);
+        const fakeFile = {
+          name: parsed.name,
+          size: parsed.size,
+          type: parsed.type,
+          uploadDate: parsed.uploadDate,
+          id: parsed.id
+        };
+        fileRef.current = fakeFile;
+        setFile(fakeFile);
+        console.log('📂 Fichier restauré depuis sessionStorage:', parsed);
+      } catch (e) {
+        console.error('Erreur parsing:', e);
+      }
+    }
+
+    if (savedIsFromUpload === 'true') {
+      setIsFromUpload(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // ✅ Si c'est une nouvelle convention (pas d'id), nettoyer sessionStorage
+    if (!id) {
+      sessionStorage.removeItem('uploadedFileInfo');
+      sessionStorage.removeItem('isFromUpload');
+      setIsFromUpload(false);
+      setUploadedFileInfo(null);
+      setFile(null);
+      fileRef.current = null;
+      console.log('🧹 Nouvelle convention - sessionStorage nettoyé');
+    }
+  }, [id]); 
 
   useEffect(() => {
     if (id) {
@@ -81,7 +127,7 @@ export default function ConventionForm() {
     if (location.state?.extractedData) {
       const extracted = location.state.extractedData;
       console.log('📥 Données extraites reçues:', extracted);
-      
+
       if (!extracted.error) {
         setFormData(prev => ({
           ...prev,
@@ -89,6 +135,7 @@ export default function ConventionForm() {
           type: extracted.type || '',
           date_signature: extracted.date_signature || '',
           date_expiration: extracted.date_expiration || '',
+          duree_annees: extracted.duree_annees || '', // ✅ EXTRACTION DE LA DURÉE
           mode_renouvellement: extracted.mode_renouvellement || '',
           avec_budget: extracted.avec_budget || false,
           validation_conseil: extracted.validation_conseil || false,
@@ -142,13 +189,23 @@ export default function ConventionForm() {
       }
     }
     if (location.state?.uploadedFile) {
-      setFile(location.state.uploadedFile);
+      const uploaded = location.state.uploadedFile;
+      fileRef.current = uploaded;
+      setFile(uploaded);
       setUploadedFileInfo({
-        name: location.state.uploadedFile.name,
-        size: location.state.uploadedFile.size,
-        type: location.state.uploadedFile.type,
+        name: uploaded.name,
+        size: uploaded.size,
+        type: uploaded.type,
         uploadDate: new Date().toISOString()
       });
+      sessionStorage.setItem('uploadedFileInfo', JSON.stringify({
+        name: uploaded.name,
+        size: uploaded.size,
+        type: uploaded.type,
+        uploadDate: new Date().toISOString()
+      }));
+      sessionStorage.setItem('isFromUpload', 'true');
+      setIsFromUpload(true);
     }
   }, [location.state]);
 
@@ -156,10 +213,14 @@ export default function ConventionForm() {
   const handleExtractDocument = async (file) => {
     const formDataFile = new FormData();
     formDataFile.append('file', file);
-    
+
     try {
       const response = await extractConvention(formDataFile);
-      return response.data;
+      // ✅ Retourner les données ET le fichier
+      return {
+        data: response.data,
+        file: file
+      };
     } catch (error) {
       console.error('Erreur extraction:', error);
       throw error;
@@ -167,13 +228,30 @@ export default function ConventionForm() {
   };
 
   // ✅ Fonction pour mettre à jour toutes les données après extraction
-  const handleExtractedData = (data) => {
+  const handleExtractedData = (data, uploadedFile) => {
+    // ✅ Sauvegarder le fichier
+    if (uploadedFile) {
+      fileRef.current = uploadedFile;
+      setFile(uploadedFile);
+      const fileInfo = {
+        name: uploadedFile.name,
+        size: uploadedFile.size,
+        type: uploadedFile.type,
+        uploadDate: new Date().toISOString()
+      };
+      setUploadedFileInfo(fileInfo);
+      sessionStorage.setItem('uploadedFileInfo', JSON.stringify(fileInfo));
+      sessionStorage.setItem('isFromUpload', 'true');
+      console.log('💾 Fichier sauvegardé:', fileInfo);
+    }
+
     setFormData(prev => ({
       ...prev,
       intitule: data.intitule || '',
       type: data.type || '',
       date_signature: data.date_signature || '',
       date_expiration: data.date_expiration || '',
+      duree_annees: data.duree_annees || '', // ✅ GARDER LA DURÉE EXTRAITE
       mode_renouvellement: data.mode_renouvellement || '',
       avec_budget: data.avec_budget || false,
       validation_conseil: data.validation_conseil || false,
@@ -186,7 +264,9 @@ export default function ConventionForm() {
       articles: data.articles || {},
       articles_personnalises: data.articles_personnalises || [],
       articles_masques: [],
-      statut: data.statut || 'EN_COURS'
+      statut: data.statut || 'EN_COURS',
+      expiree_manuellement: data.expiree_manuellement || false,
+      signe: !!uploadedFile || data.signe || false
     }));
 
     if (data.partenaires && data.partenaires.length > 0) {
@@ -221,16 +301,6 @@ export default function ConventionForm() {
     }
 
     setIsFromUpload(true);
-    
-    // Mettre à jour les infos du fichier
-    if (file) {
-      setUploadedFileInfo({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        uploadDate: new Date().toISOString()
-      });
-    }
   };
 
   const fetchConventionData = async () => {
@@ -238,12 +308,41 @@ export default function ConventionForm() {
     try {
       const response = await getConvention(id);
       const data = response.data;
+
+      // ✅ Vérifier si des fichiers existent
+      let hasFile = false;
+      let fileInfo = null;
+
+      try {
+        const fichiersResponse = await getFichiersConvention(id);
+        if (fichiersResponse.data && fichiersResponse.data.length > 0) {
+          hasFile = true;
+          const dernierFichier = fichiersResponse.data[fichiersResponse.data.length - 1];
+          fileInfo = {
+            id: dernierFichier.id,
+            name: dernierFichier.nom_fichier || 'Document',
+            size: dernierFichier.taille || 0,
+            type: dernierFichier.type_fichier || 'application/pdf',
+            uploadDate: dernierFichier.uploaded_at || new Date().toISOString(),
+            chemin: dernierFichier.chemin
+          };
+          setUploadedFileInfo(fileInfo);
+          sessionStorage.setItem('uploadedFileInfo', JSON.stringify(fileInfo));
+          sessionStorage.setItem('isFromUpload', 'true');
+          setIsFromUpload(true);
+          console.log('📂 Fichier existant chargé:', fileInfo);
+        }
+      } catch (fichiersErr) {
+        console.error('Erreur chargement fichiers:', fichiersErr);
+      }
+
       setFormData({
         intitule: data.intitule || '',
         type: data.type || '',
         numero_reference: data.numero_reference || '',
         date_signature: data.date_signature || '',
         date_expiration: data.date_expiration || '',
+        duree_annees: data.duree_annees || '',
         mode_renouvellement: data.mode_renouvellement || '',
         signataire_um5: data.signataire_um5 || '',
         signataire_um5_autre: data.signataire_um5_autre || '',
@@ -255,15 +354,19 @@ export default function ConventionForm() {
         mots_cles: data.mots_cles || [],
         articles: data.articles || {},
         articles_personnalises: data.articles_personnalises || [],
-        statut: data.statut || 'EN_COURS'
+        statut: data.statut || 'EN_COURS',
+        expiree_manuellement: data.expiree_manuellement || false,
+        // ✅ Si un fichier existe, signe = true, sinon utiliser la valeur de la base
+        signe: hasFile || data.signe || false
       });
-      setPartenaires(data.partenaires || [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]);
-      
-      if (!canEdit) {
-        setIsEditing(false);
-      } else {
-        setIsEditing(false);
-      }
+
+      setPartenaires(data.partenaires?.length > 0
+        ? data.partenaires
+        : [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]
+      );
+
+      setIsEditing(false);
+
     } catch (err) {
       console.error(err);
       setError('Erreur lors du chargement de la convention');
@@ -326,9 +429,11 @@ export default function ConventionForm() {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette convention ? Cette action est irréversible.')) {
       return;
     }
-    
+
     try {
       await deleteConvention(id);
+      sessionStorage.removeItem('uploadedFileInfo');
+      sessionStorage.removeItem('isFromUpload');
       navigate('/conventions');
     } catch (err) {
       console.error('❌ Erreur suppression:', err);
@@ -348,7 +453,7 @@ export default function ConventionForm() {
         uploadedFileInfo,
         `Convention_${formData.intitule || 'sans_titre'}_${new Date().toISOString().split('T')[0]}.docx`
       );
-      
+
       if (result.success) {
         console.log('✅ Exportation Word réussie !');
       } else {
@@ -373,7 +478,7 @@ export default function ConventionForm() {
     ];
 
     const missingFields = requiredFields.filter(f => !formData[f.field]);
-    
+
     if (missingFields.length > 0) {
       const fieldNames = missingFields.map(f => f.label).join(', ');
       setError(`Veuillez remplir les champs obligatoires : ${fieldNames}`);
@@ -386,6 +491,7 @@ export default function ConventionForm() {
       type: formData.type,
       date_signature: formData.date_signature,
       date_expiration: formData.date_expiration || null,
+      duree_annees: formData.duree_annees || null, // ✅ ENVOYER LA DURÉE AU BACKEND
       mode_renouvellement: formData.mode_renouvellement || null,
       signataire_um5: formData.signataire_um5,
       signataire_um5_autre: formData.signataire_um5_autre || null,
@@ -397,7 +503,9 @@ export default function ConventionForm() {
       mots_cles: formData.mots_cles || [],
       articles: formData.articles || {},
       articles_personnalises: formData.articles_personnalises || [],
-      statut: formData.statut || 'EN_COURS'
+      statut: formData.statut || 'EN_COURS',
+      expiree_manuellement: formData.expiree_manuellement || false,
+      signe: formData.signe || false
     };
 
     try {
@@ -405,9 +513,9 @@ export default function ConventionForm() {
 
       if (id) {
         // ✅ Mise à jour
-        const response = await updateConvention(id, dataToSend);
+        await updateConvention(id, dataToSend);
         conventionId = id;
-        
+
         // Mise à jour des partenaires
         for (const partenaire of partenaires) {
           if (partenaire.nom) {
@@ -419,7 +527,7 @@ export default function ConventionForm() {
                 region: partenaire.region || '',
                 pays: partenaire.pays || 'Maroc',
                 signataire: partenaire.signataire || '',
-                convention_id: conventionId  
+                convention_id: conventionId
               });
             } else {
               await createPartenaire({
@@ -430,26 +538,10 @@ export default function ConventionForm() {
           }
         }
 
-        // ✅ Upload du fichier (si présent) - AJOUTÉ POUR MISE À JOUR
-        console.log('🔍 Vérification avant upload:');
-        console.log('📄 file:', file);
-        console.log('🆔 conventionId:', conventionId);
-        console.log('📋 type de conventionId:', typeof conventionId);
-        console.log('🔑 id du paramètre:', id);
-
-
-        if (file) {
-          console.log('📤 Upload du fichier (mise à jour) avec convention_id:', conventionId);
-          const formDataFile = new FormData();
-          formDataFile.append('file', file);
-          formDataFile.append('convention_id', conventionId);
-          await uploadFichier(formDataFile);
-        }
-
       } else {
         // ✅ Création
         const convResponse = await createConvention(dataToSend);
-        conventionId = convResponse.data?.id || convResponse.id;  // ✅ Support des deux formats
+        conventionId = convResponse.data?.id || convResponse.id;
 
         if (!conventionId) {
           console.error('❌ Impossible de récupérer l\'ID de la convention');
@@ -469,25 +561,39 @@ export default function ConventionForm() {
             });
           }
         }
+      }
 
-        // Upload du fichier (si présent)
-        if (file) {
-          console.log('📤 Upload du fichier (création) avec convention_id:', conventionId);
-          const formDataFile = new FormData();
-          formDataFile.append('file', file);
-          formDataFile.append('convention_id', conventionId);
-          await uploadFichier(formDataFile);
-        }
+      // ✅ UPLOAD DU FICHIER (identique pour création et mise à jour)
+      const fileToUpload = fileRef.current || file;
+      console.log('📄 fileToUpload:', fileToUpload);
+
+      if (fileToUpload) {
+        console.log('📤 Upload du fichier avec convention_id:', conventionId);
+        const formDataFile = new FormData();
+        formDataFile.append('file', fileToUpload);
+        formDataFile.append('convention_id', conventionId);
+        await uploadFichier(formDataFile);
+
+          setFormData(prev => ({
+            ...prev,
+            signe: true
+          }));
+
+        // ✅ Nettoyer sessionStorage après upload réussi
+        sessionStorage.removeItem('uploadedFileInfo');
+        sessionStorage.removeItem('isFromUpload');
+        fileRef.current = null;
+        setFile(null);
       }
 
       setIsEditing(false);
-      
+
       if (id) {
         await fetchConventionData();
       }
-      
+
       navigate(`/conventions/${conventionId}`, { replace: true });
-      
+
     } catch (err) {
       console.error('❌ Erreur:', err);
       console.error('📋 Réponse:', err.response?.data);
@@ -517,9 +623,8 @@ export default function ConventionForm() {
         <div className="flex gap-2">
           {id && !isEditing && (
             <>
-              {/* Bouton Exporter Word */}
-              <Button 
-                onClick={handleExportWord} 
+              <Button
+                onClick={handleExportWord}
                 variant="success"
                 className="flex items-center gap-2"
               >
@@ -536,8 +641,8 @@ export default function ConventionForm() {
               )}
             </>
           )}
-          
-          
+
+
           {(!id || isEditing) && (
             <>
               <Button variant="secondary" onClick={handleCancel}>
@@ -599,27 +704,28 @@ export default function ConventionForm() {
                 isFromUpload={isFromUpload}
                 uploadedFile={file}
                 uploadedFileInfo={uploadedFileInfo}
+                onFileChange={(newFile) => setFile(newFile)}
               />
             )}
             {activeTab === 'committees' && (
-              <CommitteesTab 
+              <CommitteesTab
                 readOnly={!isEditing}
                 initialCommittees={committees}
                 onChange={setCommittees}
                 conventionId={id}
               />
             )}
-            
+
             {activeTab === 'budget' && (
-              <BudgetTab 
+              <BudgetTab
                 readOnly={!isEditing}
                 initialBudget={budgetData}
                 onChange={setBudgetData}
               />
             )}
-            
+
             {activeTab === 'alerts' && (
-              <AlertsTab 
+              <AlertsTab
                 readOnly={!isEditing}
                 conventionData={{
                   date_expiration: formData.date_expiration,

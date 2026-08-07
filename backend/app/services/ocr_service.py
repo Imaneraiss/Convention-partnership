@@ -7,6 +7,8 @@ import os
 import json
 from groq import Groq
 from dotenv import load_dotenv
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 load_dotenv()
 
@@ -81,10 +83,14 @@ Extrais et retourne UNIQUEMENT un objet JSON valide avec ces champs :
 - "mode_renouvellement": "Tacitement / Par avenant / Concertation des parties / Non renouvelable / etc."
 
 ================================================================
-2. DATES
+2. DATES ET DURÉE
 ================================================================
 - "date_signature": "YYYY-MM-DD ou null"
-- "date_expiration": "YYYY-MM-DD ou null"
+- "date_expiration": "YYYY-MM-DD ou null" (si explicitement mentionnée)
+- "duree_annees": nombre d'années de la convention (ex: 1, 2, 3, 5)
+  * Cherche des phrases comme "durée de X ans", "valable pour une période de X ans", "conclue pour X ans"
+  * Si la durée est en mois, convertis en années (ex: 24 mois = 2 ans)
+  * Si tu trouves "une année" → 1, "deux ans" → 2, etc.
 
 ================================================================
 3. SIGNATAIRE UM5
@@ -164,7 +170,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
-            max_tokens=2000  # Augmenté pour les articles
+            max_tokens=2500  # Augmenté pour les articles
         )
         
         content = response.choices[0].message.content.strip()
@@ -176,13 +182,37 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
         return json.loads(content)
     
     except Exception as e:
+        print(f"❌ Erreur Groq : {e}")
         return {
             "error": str(e),
             "message": "Extraction IA indisponible — veuillez remplir manuellement"
         }
 
+
 # ─────────────────────────────────────────
-# 3. FONCTION PRINCIPALE
+# 3. CALCUL DE LA DATE D'EXPIRATION
+# ─────────────────────────────────────────
+
+def calculer_date_expiration(date_signature: str, duree_annees: int) -> str:
+    """
+    Calcule la date d'expiration à partir de la date de signature et de la durée
+    """
+    if not date_signature or not duree_annees:
+        return None
+    
+    try:
+        date_sig = datetime.strptime(date_signature, "%Y-%m-%d").date()
+        date_exp = date_sig + relativedelta(years=duree_annees)
+        # Soustraire 1 jour pour que l'expiration soit la veille de la date anniversaire
+        date_exp = date_exp - relativedelta(days=1)
+        return date_exp.strftime("%Y-%m-%d")
+    except Exception as e:
+        print(f"⚠️ Erreur calcul date expiration: {e}")
+        return None
+
+
+# ─────────────────────────────────────────
+# 4. FONCTION PRINCIPALE
 # ─────────────────────────────────────────
 
 def process_document(file_bytes: bytes, content_type: str) -> dict:
@@ -204,7 +234,27 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
     if "error" in fields:
         return fields
     
-    # Construction de la réponse structurée
+    # ─────────────────────────────────────────────
+    # Étape 3 — Calcul de la date d'expiration
+    # ─────────────────────────────────────────────
+    
+    date_signature = fields.get("date_signature")
+    date_expiration = fields.get("date_expiration")
+    duree_annees = fields.get("duree_annees")
+    
+    # Si la date d'expiration n'est pas extraite mais qu'on a la durée et la date de signature
+    if not date_expiration and date_signature and duree_annees:
+        date_expiration = calculer_date_expiration(date_signature, duree_annees)
+        print(f"📅 Date d'expiration calculée: {date_expiration}")
+    
+    # Si on a la durée mais pas la date de signature, on ne peut pas calculer
+    if duree_annees and not date_signature:
+        print("⚠️ Durée extraite mais pas de date de signature, impossible de calculer l'expiration")
+    
+    # ─────────────────────────────────────────────
+    # Étape 4 — Construction de la réponse structurée
+    # ─────────────────────────────────────────────
+    
     result = {
         # Identification
         "intitule": fields.get("intitule", ""),
@@ -212,12 +262,15 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
         "mode_renouvellement": fields.get("mode_renouvellement", ""),
         
         # Dates
-        "date_signature": fields.get("date_signature", ""),
-        "date_expiration": fields.get("date_expiration", ""),
+        "date_signature": date_signature,
+        "date_expiration": date_expiration,
+        "duree_annees": duree_annees,  # Ajout de la durée
         
         # Signataire UM5
         "signataire_um5": fields.get("signataire_um5", ""),
         "signataire_um5_autre": fields.get("signataire_um5_autre", ""),
+        "signataire_partenaire": fields.get("signataire_partenaire", ""),
+        "signataire_partenaire_autre": fields.get("signataire_partenaire_autre", ""),
         
         # Partenaires (avec signataire)
         "partenaires": fields.get("partenaires", []),
@@ -232,6 +285,7 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
         
         # Articles
         "articles": {
+            # Articles standards
             "objet": fields.get("objet", ""),
             "objectif": fields.get("objectif", ""),
             "engagement_um5": fields.get("engagement_um5", ""),
@@ -257,3 +311,32 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
     }
     
     return result
+
+
+# ─────────────────────────────────────────
+# 5. FONCTION DE TEST
+# ─────────────────────────────────────────
+
+def test_extraction(file_path: str):
+    """Fonction de test pour l'extraction"""
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+    
+    # Détection du type
+    if file_path.endswith(".pdf"):
+        content_type = "application/pdf"
+    elif file_path.endswith((".png", ".jpg", ".jpeg")):
+        content_type = "image/png"
+    else:
+        content_type = "application/octet-stream"
+    
+    result = process_document(file_bytes, content_type)
+    print("\n" + "="*60)
+    print("📄 RÉSULTAT DE L'EXTRACTION")
+    print("="*60)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return result
+
+if __name__ == "__main__":
+    # Exemple d'utilisation
+    test_extraction("chemin/vers/ton/fichier.pdf")

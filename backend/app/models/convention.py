@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Date, ForeignKey, Enum, JSON
+from sqlalchemy import Column, String, Boolean, Date, ForeignKey, Enum, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -8,7 +8,7 @@ import enum
 class StatutConvention(enum.Enum):
     EN_COURS = "EN_COURS"
     EXPIREE = "EXPIREE"
-    RENOUVELEE = "RENOUVELEE"
+    A_RENOUVELER = "A_RENOUVELER" 
 
 class Convention(Base):
     __tablename__ = "conventions"
@@ -22,20 +22,25 @@ class Convention(Base):
     statut = Column(String, default="EN_COURS")
     mode_renouvellement = Column(String, nullable=True)
     
-    # 🆕 Nouveaux champs
-    signataire_um5 = Column(String, nullable=False)  # Obligatoire
-    signataire_um5_autre = Column(String, nullable=True)  # Optionnel
-    mots_cles = Column(JSON, default=[])  # Liste de mots-clés
-    articles = Column(JSON, default={})  # Articles de la convention
-    articles_personnalises = Column(JSON, default=[])  #Liste des articles personnalisés
-
+    # 🆕 NOUVEAU : Durée en années
+    duree_annees = Column(Integer, nullable=True)  # 1, 2, 3, 5, etc.
+    
+    # Champs existants
+    signataire_um5 = Column(String, nullable=False)
+    signataire_um5_autre = Column(String, nullable=True)
+    mots_cles = Column(JSON, default=[])
+    articles = Column(JSON, default={})
+    articles_personnalises = Column(JSON, default=[])
     
     avec_budget = Column(Boolean, default=False)
     validation_conseil = Column(Boolean, default=False)
     formation_continue = Column(Boolean, default=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    signataire_partenaire = Column(String, nullable=True)  # ✅ AJOUTER
-    signataire_partenaire_autre = Column(String, nullable=True)  # ✅ AJOUTER
+    signataire_partenaire = Column(String, nullable=True)
+    signataire_partenaire_autre = Column(String, nullable=True)
+    signe = Column(Boolean, default=False)
+    expiree_manuellement = Column(Boolean, default=False)
+    
     # Relations
     user = relationship("User", back_populates="conventions")
     partenaires = relationship("Partenaire", back_populates="convention")

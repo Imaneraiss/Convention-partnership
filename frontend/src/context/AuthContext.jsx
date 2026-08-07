@@ -16,6 +16,8 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const savedToken = localStorage.getItem('token')
         const savedUser = localStorage.getItem('user')
+        console.log('Token:', localStorage.getItem('token'));
+        console.log('User:', localStorage.getItem('user'));
 
         if (savedToken && savedUser) {
             setToken(savedToken)

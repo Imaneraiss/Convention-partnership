@@ -15,3 +15,4 @@ class Reunion(Base):
     # Relations
     comite = relationship("Comite", back_populates="reunions")
     fichiers = relationship("Fichier", back_populates="reunion")
+    alertes = relationship("Alerte", back_populates="reunion")  # ⬅️ NOUVEAU

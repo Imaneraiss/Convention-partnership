@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getConventions, exportConventions } from '../../services/conventionService';
 import { formatDate } from '../../utils/formatDate';
 import { TYPES_CONVENTION, STATUTS, TYPES_PARTENAIRE } from '../../utils/constants';
@@ -7,11 +7,12 @@ import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import { Printer, CheckSquare, Square, ChevronDown, ChevronRight } from 'lucide-react';
+import { Printer, CheckSquare, Square, ChevronDown, ChevronRight, FileCheck, FileX } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 
 export default function ConventionsList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [conventions, setConventions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -20,6 +21,12 @@ export default function ConventionsList() {
   const [filtreTypesPartenaire, setFiltreTypesPartenaire] = useState([]);
   const [filtreDateDebut, setFiltreDateDebut] = useState('');
   const [filtreDateFin, setFiltreDateFin] = useState('');
+  const [filtreSigne, setFiltreSigne] = useState('');
+  
+  // ✅ Filtres Options (cases à cocher)
+  const [filtreBudget, setFiltreBudget] = useState(false);
+  const [filtreValidationConseil, setFiltreValidationConseil] = useState(false);
+  const [filtreFormationContinue, setFiltreFormationContinue] = useState(false);
   
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState({});
@@ -31,6 +38,7 @@ export default function ConventionsList() {
       { id: 'intitule', label: 'Intitulé de la convention' },
       { id: 'type', label: 'Type de convention' },
       { id: 'statut', label: 'Statut' },
+      { id: 'signe', label: 'Signé' },
     ],
     'Dates': [
       { id: 'date_signature', label: 'Date de signature' },
@@ -62,7 +70,7 @@ export default function ConventionsList() {
 
   useEffect(() => {
     fetchConventions();
-  }, []);
+  }, [location.key]);
 
   const fetchConventions = async () => {
     try {
@@ -90,6 +98,14 @@ export default function ConventionsList() {
     }
     if (filtreDateDebut && c.date_signature < filtreDateDebut) return false;
     if (filtreDateFin && c.date_expiration > filtreDateFin) return false;
+    if (filtreSigne === 'signe' && !c.signe) return false;
+    if (filtreSigne === 'non_signe' && c.signe) return false;
+    
+    // ✅ Filtres Options (cases à cocher)
+    if (filtreBudget && !c.avec_budget) return false;
+    if (filtreValidationConseil && !c.validation_conseil) return false;
+    if (filtreFormationContinue && !c.formation_continue) return false;
+    
     return true;
   });
 
@@ -123,16 +139,30 @@ export default function ConventionsList() {
     setFiltreTypesPartenaire([]);
     setFiltreDateDebut('');
     setFiltreDateFin('');
+    setFiltreSigne('');
+    // ✅ Réinitialiser les cases à cocher
+    setFiltreBudget(false);
+    setFiltreValidationConseil(false);
+    setFiltreFormationContinue(false);
   };
 
+  // ✅ Statuts corrigés (3 statuts seulement)
   const getStatutColor = (statut) => {
     const colors = {
-      EN_COURS: '#0F6E56',
-      EXPIREE: '#993C1D',
-      RENOUVELEE: '#185FA5',
-      A_RENOUVELER: '#BA7517'
+      'EN_COURS': '#0F6E56',      // 🟢 Vert
+      'A_RENOUVELER': '#BA7517',  // 🟡 Jaune
+      'EXPIREE': '#993C1D'        // 🔴 Rouge
     };
     return colors[statut] || '#888';
+  };
+
+  const getStatutLabel = (statut) => {
+    const labels = {
+      'EN_COURS': 'En cours',
+      'A_RENOUVELER': 'À renouveler',
+      'EXPIREE': 'Expirée'
+    };
+    return labels[statut] || statut;
   };
 
   const getPartenairesDisplay = (partenaires) => {
@@ -172,7 +202,8 @@ export default function ConventionsList() {
       case 'numero_reference': return convention.numero_reference || '';
       case 'intitule': return convention.intitule || '';
       case 'type': return convention.type || '';
-      case 'statut': return convention.statut || '';
+      case 'statut': return getStatutLabel(convention.statut) || '';
+      case 'signe': return convention.signe ? '✅ Signé' : '❌ Non signé';
       case 'date_signature': return formatDate(convention.date_signature);
       case 'date_expiration': return formatDate(convention.date_expiration) || '—';
       case 'signataire_um5': return convention.signataire_um5 || '';
@@ -194,7 +225,6 @@ export default function ConventionsList() {
   const handlePrint = () => {
     setIsPrintModalOpen(false);
     
-    // ✅ Construire le HTML directement
     const columns = selectedColumnsList;
     const data = conventionsFiltrees;
 
@@ -247,6 +277,8 @@ export default function ConventionsList() {
             color: #999;
             padding: 20px;
           }
+          .signe-oui { color: #16a34a; font-weight: 600; }
+          .signe-non { color: #dc2626; font-weight: 600; }
           @page {
             margin: 8mm;
             size: A4 landscape;
@@ -286,7 +318,8 @@ export default function ConventionsList() {
       data.forEach(c => {
         html += `<tr>`;
         columns.forEach(col => {
-          html += `<td>${getValue(c, col.id)}</td>`;
+          const value = getValue(c, col.id);
+          html += `<td>${value}</td>`;
         });
         html += `</tr>`;
       });
@@ -299,7 +332,6 @@ export default function ConventionsList() {
       </html>
     `;
 
-    // ✅ Ouvrir la nouvelle fenêtre
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (printWindow) {
       printWindow.document.write(html);
@@ -325,7 +357,6 @@ export default function ConventionsList() {
   return (
     <>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -369,10 +400,9 @@ export default function ConventionsList() {
                   value={filtreType}
                   onChange={(e) => setFiltreType(e.target.value)}
                   options={[
-                    { value: '', label: 'Tous les types' },
                     ...TYPES_CONVENTION.map(t => ({ value: t, label: t }))
                   ]}
-                  placeholder="Type de convention"
+                  placeholder="Tous les types"
                 />
               </div>
 
@@ -381,13 +411,23 @@ export default function ConventionsList() {
                   value={filtreStatut}
                   onChange={(e) => setFiltreStatut(e.target.value)}
                   options={[
-                    { value: '', label: 'Tous les statuts' },
                     { value: 'EN_COURS', label: 'En cours' },
-                    { value: 'EXPIREE', label: 'Expirée' },
-                    { value: 'RENOUVELEE', label: 'Renouvelée' },
-                    { value: 'A_RENOUVELER', label: 'À renouveler' }
+                    { value: 'A_RENOUVELER', label: 'À renouveler' },
+                    { value: 'EXPIREE', label: 'Expirée' }
                   ]}
-                  placeholder="Statut"
+                  placeholder="Tous les statuts"
+                />
+              </div>
+
+              <div className="flex-1 min-w-[150px]">
+                <Select
+                  value={filtreSigne}
+                  onChange={(e) => setFiltreSigne(e.target.value)}
+                  options={[
+                    { value: 'signe', label: ' Signé' },
+                    { value: 'non_signe', label: ' Non signé' }
+                  ]}
+                  placeholder="Signature"
                 />
               </div>
 
@@ -414,8 +454,9 @@ export default function ConventionsList() {
               </Button>
             </div>
 
+            {/* ✅ Type partenaire */}
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200">
-              <span className="text-sm text-gray-600">Type partenaire :</span>
+              <span className="text-sm text-gray-600 font-medium">Type partenaire :</span>
               {TYPES_PARTENAIRE.map(type => (
                 <label key={type} className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
@@ -427,6 +468,41 @@ export default function ConventionsList() {
                   {type}
                 </label>
               ))}
+            </div>
+
+            {/* ✅ Filtres Options (cases à cocher) */}
+            <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-gray-200">
+              <span className="text-sm text-gray-600 font-medium">Options :</span>
+              
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filtreBudget}
+                  onChange={(e) => setFiltreBudget(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-700"> Avec budget</span>
+              </label>
+              
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filtreValidationConseil}
+                  onChange={(e) => setFiltreValidationConseil(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-700">Validation conseil</span>
+              </label>
+              
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filtreFormationContinue}
+                  onChange={(e) => setFiltreFormationContinue(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-700">Formation continue</span>
+              </label>
             </div>
           </div>
         </Card>
@@ -444,12 +520,13 @@ export default function ConventionsList() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date signature</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date expiration</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Signé</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {conventionsFiltrees.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                       Aucune convention trouvée
                     </td>
                   </tr>
@@ -476,8 +553,21 @@ export default function ConventionsList() {
                             color: getStatutColor(c.statut)
                           }}
                         >
-                          {c.statut}
+                          {getStatutLabel(c.statut)}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {c.signe ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <FileCheck size={14} />
+                            Signé
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <FileX size={14} />
+                            Non signé
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))

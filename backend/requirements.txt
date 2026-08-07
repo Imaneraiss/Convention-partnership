@@ -17,4 +17,7 @@ pdfplumber
 PyMuPDF
 pandas
 openpyxl
-reportlab
+reportlab   
+python-dotenv==1.0.0
+sendgrid==6.10.0 
+python-dateutil==2.9.0

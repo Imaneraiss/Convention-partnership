@@ -4,34 +4,16 @@ from sqlalchemy import extract
 from sqlalchemy.orm import Session, joinedload 
 from typing import List
 from uuid import UUID
-from fastapi.responses import FileResponse
-
-from app.database import get_db
-from app.models.convention import Convention
-from app.models.user import User
-from app.schemas.convention import ConventionCreate, ConventionUpdate, ConventionResponse
-from app.auth import get_current_user
-
-
 from fastapi.responses import StreamingResponse
-from typing import List
-from uuid import UUID
-from datetime import datetime
 import pandas as pd
 from io import BytesIO
 
 from app.database import get_db
 from app.models.convention import Convention
 from app.models.user import User
+from app.schemas.convention import ConventionCreate, ConventionUpdate, ConventionResponse
 from app.auth import get_current_user
-
-
-from app.models.partenaire import Partenaire
-from app.models.comite import Comite
-from app.models.reunion import Reunion
-from app.models.fichier import Fichier
-from app.models.alerte import Alerte
-from app.models.budget import Budget
+from app.services.convention_service import ConventionService
 
 router = APIRouter(
     prefix="/api/conventions",
@@ -45,18 +27,32 @@ def get_conventions(db: Session = Depends(get_db), current_user: User = Depends(
     conventions = db.query(Convention).options(
         joinedload(Convention.partenaires)
     ).all()
+    
+    # ✅ Mettre à jour les statuts
+    for convention in conventions:
+        nouveau_statut = ConventionService.calculer_statut(convention)  # ✅ Correction
+        if convention.statut != nouveau_statut:
+            convention.statut = nouveau_statut
+    
+    db.commit()
     return conventions
 
 #   GET — Détail d'une convention avec les partenaires
 @router.get("/{convention_id}", response_model=ConventionResponse)
 def get_convention(convention_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # ✅ Charger les partenaires avec joinedload
     convention = db.query(Convention).options(
         joinedload(Convention.partenaires)
     ).filter(Convention.id == convention_id).first()
     
     if not convention:
         raise HTTPException(status_code=404, detail="Convention non trouvée")
+
+    # ✅ Mettre à jour le statut
+    nouveau_statut = ConventionService.calculer_statut(convention)  # ✅ Correction
+    if convention.statut != nouveau_statut:
+        convention.statut = nouveau_statut
+        db.commit()
+
     return convention
 
 #   POST — Créer une convention numérotée
@@ -79,6 +75,9 @@ def create_convention(
     convention = Convention(**data_dict)
     convention.numero_reference = f"{numero:02d}/{annee}"
     
+    # ✅ Calculer le statut automatiquement
+    convention.statut = ConventionService.calculer_statut(convention)  # ✅ Correction
+    
     db.add(convention)
     db.commit()
     db.refresh(convention)
@@ -98,8 +97,10 @@ def update_convention(
     
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(convention, key, value)
-        print("📥 Articles reçus:", data.articles)
-    print("📥 Type de articles:", type(data.articles))
+
+    # ✅ Recalculer le statut après modification
+    convention.statut = ConventionService.calculer_statut(convention)  # ✅ Correction
+    
     db.commit()
     db.refresh(convention)
     return convention
@@ -119,9 +120,20 @@ def delete_convention(
     db.commit()
     return {"message": "Convention supprimée avec succès"}
 
+#   POST — Mettre à jour tous les statuts
+@router.post("/update-statuses")
+def update_all_statuses(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Met à jour les statuts de toutes les conventions
+    """
+    from app.services.convention_service import ConventionService
+    resultats = ConventionService.mettre_a_jour_tous_les_statuts(db)
+    return resultats
 
-
-
+#   GET — Exporter les conventions vers Excel
 @router.get("/export/{format}")
 def export_conventions(
     format: str,

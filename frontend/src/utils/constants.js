@@ -21,7 +21,6 @@ export const STATUTS = {
 export const STATUTS_COLORS = {
     EN_COURS: "green",
     EXPIREE: "red",
-    RENOUVELEE: "blue",
     A_RENOUVELER: "orange"
 }
 
@@ -156,6 +155,20 @@ export const ACTIONS_HISTORIQUE = {
     UPLOAD_FICHIER: "UPLOAD_FICHIER",
     SUPPRESSION_FICHIER: "SUPPRESSION_FICHIER"
 }
+
+
+// Ajouter les options de durée
+export const DUREES_CONVENTION = [
+  { value: 1, label: '1 an' },
+  { value: 2, label: '2 ans' },
+  { value: 3, label: '3 ans' },
+  { value: 4, label: '4 ans' },
+  { value: 5, label: '5 ans' },
+  { value: 10, label: '10 ans' },
+];
+
+
+
 
 // ─────────────────────────────────────────
 // CONFIG API

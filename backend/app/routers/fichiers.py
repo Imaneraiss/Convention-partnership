@@ -9,7 +9,7 @@ from app.models.user import User
 from app.schemas.fichier import FichierResponse
 from app.auth import get_current_user
 from app.services.ocr_service import process_document
-
+from app.models.convention import Convention
 router = APIRouter(prefix="/api/fichiers", tags=["Fichiers"])
 
 ALLOWED_TYPES = [
@@ -72,7 +72,17 @@ def upload_fichier(
     db.add(fichier)
     db.commit()
     db.refresh(fichier)
+
+    # ✅ Mettre à jour le champ signe de la convention
+    if convention_id:
+        convention = db.query(Convention).filter(Convention.id == convention_id).first()
+        if convention:
+            convention.signe = True
+            db.commit()
+            print(f"✅ Convention {convention_id} marquée comme signée")
+
     return fichier
+
 
 @router.get("/convention/{convention_id}", response_model=List[FichierResponse])
 def get_fichiers_convention(

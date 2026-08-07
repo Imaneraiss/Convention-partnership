@@ -30,6 +30,13 @@ const ARTICLES_DEFAUT = [
   { id: 'propriete_intellectuelle', label: 'Propriété intellectuelle', placeholder: "Propriété intellectuelle..." },
 ];
 
+// ✅ Modes conditionnels qui nécessitent une décision
+const MODES_CONDITIONNELS = [
+  "Concertation des parties",
+  "Par avenant",
+  "Par décision de l'Assemblée Générale extraordinaire"
+];
+
 export default function GeneralTab({
   formData,
   partenaires,
@@ -47,7 +54,8 @@ export default function GeneralTab({
   conventionId,
   isFromUpload = false,
   uploadedFile = null,
-  uploadedFileInfo = null
+  uploadedFileInfo = null,
+  onFileChange
 }) {
   const [nouvelArticle, setNouvelArticle] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
@@ -71,6 +79,7 @@ export default function GeneralTab({
     }
 
     setNewFile(file);
+    onFileChange?.(file);
     setReplacementMode(true);
     setIsExtracting(true);
     setExtractError(null);
@@ -82,8 +91,7 @@ export default function GeneralTab({
         if (result && !result.error) {
           onExtractedData(result);
           onFormChange('articles_masques', []);
-          alert('✅ Document remplacé et extrait avec succès ! Toutes les données ont été mises à jour.');
-          //window.location.reload();
+          alert('✅ Document remplacé et extrait avec succès !');
         } else {
           setExtractError(result?.message || 'Erreur lors de l\'extraction');
         }
@@ -95,8 +103,8 @@ export default function GeneralTab({
       setIsExtracting(false);
       setReplacementMode(false);
     }
-  }, [onExtractDocument, onExtractedData, isFromUpload]);
-
+  }, [onExtractDocument, onExtractedData, isFromUpload, onFileChange]);
+ 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -187,31 +195,35 @@ export default function GeneralTab({
     ...(formData.articles_personnalises || []).filter(a => articlesMasques.includes(a.id))
   ];
 
+  // ✅ Vérifier si le mode de renouvellement est conditionnel
+  const isModeConditionnel = MODES_CONDITIONNELS.includes(formData.mode_renouvellement);
+
   return (
     <div className="space-y-8">
-      {/* ==================== SECTION FICHIER ==================== */}
+      {/* SECTION FICHIER */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <FileText size={20} />
             {isFromUpload ? 'Document uploadé' : 'Upload du document'}
           </h3>
-          {isFromUpload && fileInfo && !readOnly && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => document.getElementById('fileInput')?.click()}
-              className="flex items-center gap-1"
-            >
-              <RefreshCw size={14} />
-              Remplacer
-            </Button>
-          )}
-          {!isFromUpload && !readOnly && (
-            <span className="text-xs text-gray-400">
-              Formats acceptés : PDF, DOC, DOCX, PNG, JPG
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {fileInfo && !readOnly && (
+              <button
+                type="button"
+                onClick={() => document.getElementById('fileInput')?.click()}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <RefreshCw size={14} />
+                Remplacer
+              </button>
+            )}
+            {!isFromUpload && !readOnly && (
+              <span className="text-xs text-gray-400">
+                Formats acceptés : PDF, DOC, DOCX, PNG, JPG
+              </span>
+            )}
+          </div>
         </div>
 
         {isFromUpload && fileInfo ? (
@@ -229,18 +241,16 @@ export default function GeneralTab({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm"
-                  onClick={() => {
-                    console.log('Télécharger:', fileInfo);
-                  }}
-                >
-                  <Download size={16} />
-                  Télécharger
-                </button>
-              </div>
+              <button
+                type="button"
+                className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm"
+                onClick={() => {
+                  console.log('Télécharger:', fileInfo);
+                }}
+              >
+                <Download size={16} />
+                Télécharger
+              </button>
             </div>
           </div>
         ) : null}
@@ -270,8 +280,8 @@ export default function GeneralTab({
                 <div>
                   <p className="text-gray-600 font-medium">
                     {isDragActive ? 'Déposez le document ici' : 
-                     isFromUpload ? 'Glissez-déposez pour remplacer le document' : 
-                     'Glissez-déposez le document'}
+                    isFromUpload ? 'Glissez-déposez pour remplacer le document' : 
+                    'Glissez-déposez le document'}
                   </p>
                   <p className="text-sm text-gray-400">
                     ou cliquez pour sélectionner un fichier
@@ -346,22 +356,40 @@ export default function GeneralTab({
             readOnly={readOnly}
           />
           
-          <Select
-            label="Mode de renouvellement"
-            name="mode_renouvellement"
-            value={formData.mode_renouvellement || ''}
-            onChange={(e) => onFormChange('mode_renouvellement', e.target.value)}
-            options={MODES_RENOUVELLEMENT.map(m => ({ value: m, label: m }))}
-            readOnly={readOnly}
-          />
+          <div className="space-y-2">
+            <Select
+              label="Mode de renouvellement"
+              name="mode_renouvellement"
+              value={formData.mode_renouvellement || ''}
+              onChange={(e) => onFormChange('mode_renouvellement', e.target.value)}
+              options={MODES_RENOUVELLEMENT.map(m => ({ value: m, label: m }))}
+              readOnly={readOnly}
+            />
+            
+            {/* ✅ Case à cocher "Expirée" - UNIQUEMENT pour les modes conditionnels */}
+            {isModeConditionnel && (
+              <label className="flex items-center gap-2 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={formData.expiree_manuellement || false}
+                  onChange={(e) => onFormChange('expiree_manuellement', e.target.checked)}
+                  disabled={readOnly}
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
+                <span className="text-sm text-gray-700">
+                  ❌ Convention expirée
+                </span>
+              </label>
+            )}
+          </div>
         </div>
       </section>
 
       {/* DATES */}
       <section className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Dates</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Dates et Durée</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input
             label="Date de signature"
             name="date_signature"
@@ -373,14 +401,58 @@ export default function GeneralTab({
           />
           
           <Input
+            label="Durée (en années)"
+            name="duree_annees"
+            type="number"
+            min="1"
+            max="10"
+            value={formData.duree_annees || ''}
+            onChange={(e) => {
+              const value = e.target.value ? parseInt(e.target.value) : '';
+              onFormChange('duree_annees', value);
+              
+              if (value && formData.date_signature) {
+                const dateSig = new Date(formData.date_signature);
+                dateSig.setFullYear(dateSig.getFullYear() + value);
+                dateSig.setDate(dateSig.getDate() - 1);
+                const dateExp = dateSig.toISOString().split('T')[0];
+                onFormChange('date_expiration', dateExp);
+              } else if (!value) {
+                onFormChange('date_expiration', '');
+              }
+            }}
+            readOnly={readOnly}
+            placeholder="Ex: 3"
+          />
+          
+          <Input
             label="Date d'expiration"
             name="date_expiration"
             type="date"
             value={formData.date_expiration || ''}
             onChange={(e) => onFormChange('date_expiration', e.target.value)}
-            readOnly={readOnly}
+            readOnly={true}
+            className="bg-gray-50"
+            placeholder={formData.duree_annees ? 'Calculée automatiquement' : ''}
           />
         </div>
+        
+        {formData.date_signature && !formData.duree_annees && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-700 flex items-center gap-2">
+              <AlertCircle size={16} />
+              Veuillez renseigner la durée (en années) pour calculer automatiquement la date d'expiration.
+            </p>
+          </div>
+        )}
+        
+        {formData.duree_annees && formData.date_signature && formData.date_expiration && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-700 flex items-center gap-2">
+              ✅ Date d'expiration calculée : <strong>{new Date(formData.date_expiration).toLocaleDateString('fr-FR')}</strong>
+            </p>
+          </div>
+        )}
       </section>
 
       {/* SIGNATAIRE UM5 */}
@@ -522,9 +594,34 @@ export default function GeneralTab({
               <span className="text-sm text-gray-700">{label}</span>
             </label>
           ))}
-        </div>
-      </section>
 
+          {/* ✅ Champ Signé */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={!!uploadedFile || !!uploadedFileInfo || formData.signe || false}
+              disabled={true}
+              className="rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-not-allowed opacity-70"
+            />
+            <span className="text-sm text-gray-700 flex items-center gap-1">
+              <FileText size={14} className={uploadedFile || uploadedFileInfo ? 'text-green-600' : 'text-gray-400'} />
+              Signé {uploadedFile || uploadedFileInfo ? '✅' : '❌'}
+            </span>
+          </div>
+        </div>
+
+        {(uploadedFile || uploadedFileInfo) && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-700 flex items-center gap-2">
+              <FileText size={16} />
+              ✅ Document uploadé : <strong>{uploadedFile?.name || uploadedFileInfo?.name}</strong>
+            </p>
+          </div>
+        )}
+
+        
+      </section>
+      
       {/* MOTS-CLÉS */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Mots-clés</h3>
@@ -609,8 +706,6 @@ export default function GeneralTab({
           {articlesAffiches.map((article, index) => {
             const isCustom = article.custom === true;
             const hasContent = getArticleValue(article.id) && getArticleValue(article.id).trim() !== '';
-            
-            // ✅ Clé unique : utiliser article.id ou générer une clé basée sur l'index
             const key = article.id || `article_${index}`;
             
             return (

@@ -888,7 +888,7 @@ export default function Dashboard() {
             {widgets.length === 0 ? (
                 <Card className="p-12 text-center">
                     <p className="text-gray-500">Aucun graphique configuré</p>
-                    <Button className="mt-4" onClick={() => setShowAddWidget(true)}>
+                    <Button className="mt-4 flex justify-center " onClick={() => setShowAddWidget(true)}>
                         Ajouter un graphique
                     </Button>
                 </Card>
