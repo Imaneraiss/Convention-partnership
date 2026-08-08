@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Table
+from sqlalchemy import JSON, Column, String, ForeignKey, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -19,6 +19,8 @@ class Comite(Base):
     type = Column(String, nullable=False)  # PILOTAGE, SUIVI, TECHNIQUE
     frequence = Column(String, nullable=True)  # Mensuelle, Trimestrielle...
     convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=False)
+
+    taches = Column(JSON, default=[])  # Liste des tâches du comité
 
     # Relations
     convention = relationship("Convention", back_populates="comites")

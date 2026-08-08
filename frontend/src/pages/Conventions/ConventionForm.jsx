@@ -13,7 +13,8 @@ import AlertsTab from './tabs/AlertsTab';
 import { createPartenaire, updatePartenaire } from '../../services/partenaireService';
 import { exportConventionToWord } from '../../services/wordExportService';
 import { FileDown } from 'lucide-react';
-
+import { createComite, updateComite, getComites } from '../../services/comiteService';
+import { createBudget, updateBudget, getBudget } from '../../services/budgetService';
 const TABS = [
   { id: 'general', label: 'Infos générales' },
   { id: 'committees', label: 'Comités' },
@@ -66,7 +67,8 @@ export default function ConventionForm() {
     articles_personnalises: [],
     articles_masques: [],
     statut: 'EN_COURS',
-    signe: false
+    signe: false,
+    expiree_manuellement: false
   });
 
   const [partenaires, setPartenaires] = useState([
@@ -229,48 +231,64 @@ export default function ConventionForm() {
 
   // ✅ Fonction pour mettre à jour toutes les données après extraction
   const handleExtractedData = (data, uploadedFile) => {
+    console.log('📥 handleExtractedData - data:', data);
+    console.log('📥 handleExtractedData - uploadedFile:', uploadedFile);
+
+    // ✅ Si data a une propriété 'data', c'est qu'on a passé l'objet complet
+    const extractedData = data && data.data ? data.data : data;
+
+    if (!extractedData || Object.keys(extractedData).length === 0) {
+      console.warn('⚠️ Aucune donnée extraite !');
+      setError('Aucune donnée n\'a été extraite du document');
+      return;
+    }
+
     // ✅ Sauvegarder le fichier
     if (uploadedFile) {
       fileRef.current = uploadedFile;
       setFile(uploadedFile);
+
       const fileInfo = {
         name: uploadedFile.name,
         size: uploadedFile.size,
         type: uploadedFile.type,
-        uploadDate: new Date().toISOString()
+        uploadDate: new Date().toISOString(),
+        conventionId: id // ✅ AJOUTER L'ID DE LA CONVENTION
       };
       setUploadedFileInfo(fileInfo);
       sessionStorage.setItem('uploadedFileInfo', JSON.stringify(fileInfo));
       sessionStorage.setItem('isFromUpload', 'true');
-      console.log('💾 Fichier sauvegardé:', fileInfo);
+      console.log('💾 Nouveau fichier sauvegardé:', fileInfo);
     }
 
+    // ✅ Mettre à jour le formulaire avec les données extraites
     setFormData(prev => ({
       ...prev,
-      intitule: data.intitule || '',
-      type: data.type || '',
-      date_signature: data.date_signature || '',
-      date_expiration: data.date_expiration || '',
-      duree_annees: data.duree_annees || '', // ✅ GARDER LA DURÉE EXTRAITE
-      mode_renouvellement: data.mode_renouvellement || '',
-      avec_budget: data.avec_budget || false,
-      validation_conseil: data.validation_conseil || false,
-      formation_continue: data.formation_continue || false,
-      mots_cles: data.mots_cles || [],
-      signataire_um5: data.signataire_um5 || '',
-      signataire_um5_autre: data.signataire_um5_autre || '',
-      signataire_partenaire: data.signataire_partenaire || '',
-      signataire_partenaire_autre: data.signataire_partenaire_autre || '',
-      articles: data.articles || {},
-      articles_personnalises: data.articles_personnalises || [],
+      intitule: extractedData.intitule || '',
+      type: extractedData.type || '',
+      date_signature: extractedData.date_signature || '',
+      date_expiration: extractedData.date_expiration || '',
+      duree_annees: extractedData.duree_annees || '',
+      mode_renouvellement: extractedData.mode_renouvellement || '',
+      avec_budget: extractedData.avec_budget || false,
+      validation_conseil: extractedData.validation_conseil || false,
+      formation_continue: extractedData.formation_continue || false,
+      mots_cles: extractedData.mots_cles || [],
+      signataire_um5: extractedData.signataire_um5 || '',
+      signataire_um5_autre: extractedData.signataire_um5_autre || '',
+      signataire_partenaire: extractedData.signataire_partenaire || '',
+      signataire_partenaire_autre: extractedData.signataire_partenaire_autre || '',
+      articles: extractedData.articles || {},
+      articles_personnalises: extractedData.articles_personnalises || [],
       articles_masques: [],
-      statut: data.statut || 'EN_COURS',
-      expiree_manuellement: data.expiree_manuellement || false,
-      signe: !!uploadedFile || data.signe || false
+      statut: extractedData.statut || 'EN_COURS',
+      expiree_manuellement: extractedData.expiree_manuellement || false,
+      signe: !!uploadedFile || extractedData.signe || false
     }));
 
-    if (data.partenaires && data.partenaires.length > 0) {
-      setPartenaires(data.partenaires.map(p => ({
+    // ✅ Mettre à jour les partenaires
+    if (extractedData.partenaires && extractedData.partenaires.length > 0) {
+      setPartenaires(extractedData.partenaires.map(p => ({
         nom: p.nom || '',
         type: p.type || '',
         ville: p.ville || '',
@@ -280,23 +298,31 @@ export default function ConventionForm() {
       })));
     }
 
-    if (data.comites && data.comites.length > 0) {
-      setCommittees(data.comites.map(c => ({
+    // ✅ Mettre à jour les comités (avec leurs tâches)
+    if (extractedData.comites && extractedData.comites.length > 0) {
+      const comitesAvecTaches = extractedData.comites.map(c => ({
         ...c,
         id: Date.now() + Math.random(),
         expanded: false,
-        reunions: c.reunions || []
-      })));
+        reunions: c.reunions || [],
+        // ✅ Les tâches sont déjà dans c.taches (extraites par Groq)
+        taches: c.taches || []
+      }));
+      setCommittees(comitesAvecTaches);
+      console.log('📋 Comités mis à jour avec leurs tâches:', comitesAvecTaches);
     }
 
-    if (data.budget) {
-      setBudgetData(data.budget);
+    // ✅ Mettre à jour le budget
+    if (extractedData.budget) {
+      setBudgetData(extractedData.budget);
+      console.log('💰 Budget mis à jour:', extractedData.budget);
     }
 
-    if (data.alertes) {
+    // ✅ Mettre à jour les alertes
+    if (extractedData.alertes) {
       setAlertsData({
-        auto: data.alertes.auto || [],
-        manual: data.alertes.manual || []
+        auto: extractedData.alertes.auto || [],
+        manual: extractedData.alertes.manual || []
       });
     }
 
@@ -327,8 +353,6 @@ export default function ConventionForm() {
             chemin: dernierFichier.chemin
           };
           setUploadedFileInfo(fileInfo);
-          sessionStorage.setItem('uploadedFileInfo', JSON.stringify(fileInfo));
-          sessionStorage.setItem('isFromUpload', 'true');
           setIsFromUpload(true);
           console.log('📂 Fichier existant chargé:', fileInfo);
         }
@@ -356,7 +380,6 @@ export default function ConventionForm() {
         articles_personnalises: data.articles_personnalises || [],
         statut: data.statut || 'EN_COURS',
         expiree_manuellement: data.expiree_manuellement || false,
-        // ✅ Si un fichier existe, signe = true, sinon utiliser la valeur de la base
         signe: hasFile || data.signe || false
       });
 
@@ -364,6 +387,35 @@ export default function ConventionForm() {
         ? data.partenaires
         : [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]
       );
+
+      // ✅ CHARGER LES COMITÉS
+      try {
+        const comitesResponse = await getComites();
+        const comitesFiltres = comitesResponse.data.filter(c => c.convention_id === id);
+        if (comitesFiltres && comitesFiltres.length > 0) {
+          setCommittees(comitesFiltres.map(c => ({
+            ...c,
+            expanded: false,
+            reunions: c.reunions || [],
+            taches: c.taches || [],
+            // ✅ Transformer les destinataires en membres Um5 et Partenaires
+            membresUm5: c.destinataires_internes || [],
+            membresPartenaires: c.destinataires_externes || []
+          })));
+        }
+      } catch (err) {
+        console.error('Erreur chargement comités:', err);
+      }
+
+      // ✅ CHARGER LE BUDGET
+      try {
+        const budgetResponse = await getBudget(id);
+        if (budgetResponse.data) {
+          setBudgetData(budgetResponse.data);
+        }
+      } catch (err) {
+        console.error('Erreur chargement budget:', err);
+      }
 
       setIsEditing(false);
 
@@ -491,7 +543,7 @@ export default function ConventionForm() {
       type: formData.type,
       date_signature: formData.date_signature,
       date_expiration: formData.date_expiration || null,
-      duree_annees: formData.duree_annees || null, // ✅ ENVOYER LA DURÉE AU BACKEND
+      duree_annees: formData.duree_annees || null,
       mode_renouvellement: formData.mode_renouvellement || null,
       signataire_um5: formData.signataire_um5,
       signataire_um5_autre: formData.signataire_um5_autre || null,
@@ -512,23 +564,23 @@ export default function ConventionForm() {
       let conventionId;
 
       if (id) {
-        // ✅ Mise à jour
+        // ✅ Mise à jour de la convention
         await updateConvention(id, dataToSend);
         conventionId = id;
 
-        // Mise à jour des partenaires
+        // ✅ Mise à jour des partenaires
         for (const partenaire of partenaires) {
           if (partenaire.nom) {
             if (partenaire.id) {
-              await updatePartenaire(partenaire.id, {
+              const updateData = {
                 nom: partenaire.nom,
                 type: partenaire.type,
                 ville: partenaire.ville || '',
                 region: partenaire.region || '',
                 pays: partenaire.pays || 'Maroc',
                 signataire: partenaire.signataire || '',
-                convention_id: conventionId
-              });
+              };
+              await updatePartenaire(partenaire.id, updateData);
             } else {
               await createPartenaire({
                 ...partenaire,
@@ -537,9 +589,61 @@ export default function ConventionForm() {
             }
           }
         }
+        console.log('📋 COMITÉS À SAUVEGARDER:', JSON.stringify(committees, null, 2));
+        console.log('📋 Nombre de comités:', committees.length);
+
+
+        // ✅ SAUVEGARDER LES COMITÉS
+        for (const comite of committees) {
+          if (comite.type) {
+            const comiteData = {
+              type: comite.type,
+              frequence: comite.frequence || null,
+              taches: comite.taches || [],
+              destinataires_internes: comite.membresUm5?.map(m => m.id) || [],
+              destinataires_externes: comite.membresPartenaires?.map(m => m.email) || []
+            };
+
+            // ✅ Vérifier si c'est un vrai UUID ou un ID temporaire
+            const isRealId = comite.id && !comite.id.toString().startsWith('temp_');
+            
+            if (isRealId && !comite._deleted) {
+              // ✅ Mise à jour d'un comité existant
+              await updateComite(comite.id, comiteData);
+            } else if (!comite._deleted) {
+              // ✅ Création d'un nouveau comité
+              const newComite = await createComite({
+                ...comiteData,
+                convention_id: conventionId
+              });
+              // ✅ Remplacer l'ID temporaire par le vrai ID
+              comite.id = newComite.data?.id || newComite.id;
+              comite._new = false;
+            }
+          }
+        }
+
+        // ✅ SAUVEGARDER LE BUDGET
+        if (budgetData) {
+          const budgetToSend = {
+            modalitePaiement: budgetData.modalitePaiement || '',
+            devise: budgetData.devise || 'MAD',
+            montantTotal: budgetData.montantTotal || 0,
+            montantRecu: budgetData.montantRecu || 0,
+            montantDepense: budgetData.montantDepense || 0,
+            commentaire: budgetData.commentaire || '',
+            convention_id: conventionId
+          };
+
+          if (budgetData.id) {
+            await updateBudget(budgetData.id, budgetToSend);
+          } else {
+            await createBudget(budgetToSend);
+          }
+        }
 
       } else {
-        // ✅ Création
+        // ✅ Création de la convention
         const convResponse = await createConvention(dataToSend);
         conventionId = convResponse.data?.id || convResponse.id;
 
@@ -552,7 +656,7 @@ export default function ConventionForm() {
 
         console.log('✅ Convention créée avec ID:', conventionId);
 
-        // Création des partenaires
+        // ✅ Création des partenaires
         for (const partenaire of partenaires) {
           if (partenaire.nom) {
             await createPartenaire({
@@ -561,35 +665,68 @@ export default function ConventionForm() {
             });
           }
         }
+
+        // ✅ CRÉATION DES COMITÉS
+        for (const comite of committees) {
+          if (comite.nom || comite.type) {
+            await createComite({
+              type: comite.type,
+              frequence: comite.frequence || null,
+              convention_id: conventionId,
+              taches: comite.taches || [],
+              destinataires_internes: comite.membresUm5?.map(m => m.id) || [],
+              destinataires_externes: comite.membresPartenaires?.map(m => m.email) || []
+            });
+          }
+        }
+
+        // ✅ CRÉATION DU BUDGET
+        if (budgetData) {
+          await createBudget({
+            modalitePaiement: budgetData.modalitePaiement || '',
+            devise: budgetData.devise || 'MAD',
+            montantTotal: budgetData.montantTotal || 0,
+            montantRecu: budgetData.montantRecu || 0,
+            montantDepense: budgetData.montantDepense || 0,
+            commentaire: budgetData.commentaire || '',
+            convention_id: conventionId
+          });
+        }
       }
 
-      // ✅ UPLOAD DU FICHIER (identique pour création et mise à jour)
+      // ✅ UPLOAD DU FICHIER
       const fileToUpload = fileRef.current || file;
-      console.log('📄 fileToUpload:', fileToUpload);
+      const isRealFile = fileToUpload instanceof File;
 
-      if (fileToUpload) {
+      if (fileToUpload && isRealFile) {
         console.log('📤 Upload du fichier avec convention_id:', conventionId);
         const formDataFile = new FormData();
         formDataFile.append('file', fileToUpload);
         formDataFile.append('convention_id', conventionId);
         await uploadFichier(formDataFile);
 
-          setFormData(prev => ({
-            ...prev,
-            signe: true
-          }));
+        setFormData(prev => ({
+          ...prev,
+          signe: true
+        }));
 
-        // ✅ Nettoyer sessionStorage après upload réussi
         sessionStorage.removeItem('uploadedFileInfo');
         sessionStorage.removeItem('isFromUpload');
         fileRef.current = null;
         setFile(null);
+      } else if (uploadedFileInfo?.id && !isRealFile) {
+        console.log('ℹ️ Fichier déjà uploadé (ID:', uploadedFileInfo.id, '), skip upload');
+      } else {
+        console.log('⚠️ Aucun fichier valide à uploader');
       }
 
       setIsEditing(false);
 
       if (id) {
-        await fetchConventionData();
+        // ✅ Recharger avec un délai pour que la base ait le temps de sauvegarder
+        setTimeout(async () => {
+          await fetchConventionData();
+        }, 500);
       }
 
       navigate(`/conventions/${conventionId}`, { replace: true });
@@ -597,7 +734,15 @@ export default function ConventionForm() {
     } catch (err) {
       console.error('❌ Erreur:', err);
       console.error('📋 Réponse:', err.response?.data);
-      setError(err.response?.data?.detail || "Erreur lors de l'enregistrement de la convention");
+      
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (detail && typeof detail === 'object') {
+        setError(JSON.stringify(detail));
+      } else {
+        setError("Erreur lors de l'enregistrement de la convention");
+      }
     } finally {
       setSaving(false);
     }
@@ -713,6 +858,7 @@ export default function ConventionForm() {
                 initialCommittees={committees}
                 onChange={setCommittees}
                 conventionId={id}
+                dateSignature={formData.date_signature} 
               />
             )}
 

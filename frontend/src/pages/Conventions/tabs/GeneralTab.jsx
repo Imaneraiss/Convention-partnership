@@ -89,7 +89,7 @@ export default function GeneralTab({
         const result = await onExtractDocument(file);
         
         if (result && !result.error) {
-          onExtractedData(result);
+          onExtractedData(result.data, file);
           onFormChange('articles_masques', []);
           alert('✅ Document remplacé et extrait avec succès !');
         } else {
@@ -272,7 +272,6 @@ export default function GeneralTab({
                 <p className="text-gray-600 font-medium">
                   {replacementMode ? 'Remplacement et extraction en cours...' : 'Extraction en cours...'}
                 </p>
-                <p className="text-sm text-gray-400">OCR + Groq analysent le document</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -377,7 +376,7 @@ export default function GeneralTab({
                   className="rounded border-gray-300 text-red-600 focus:ring-red-500"
                 />
                 <span className="text-sm text-gray-700">
-                  ❌ Convention expirée
+                  Convention expirée
                 </span>
               </label>
             )}
@@ -605,7 +604,7 @@ export default function GeneralTab({
             />
             <span className="text-sm text-gray-700 flex items-center gap-1">
               <FileText size={14} className={uploadedFile || uploadedFileInfo ? 'text-green-600' : 'text-gray-400'} />
-              Signé {uploadedFile || uploadedFileInfo ? '✅' : '❌'}
+              Signé 
             </span>
           </div>
         </div>

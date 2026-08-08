@@ -5,9 +5,17 @@ import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import Textarea from '../../../components/common/Textarea';
 
+// ✅ Devises disponibles
+const DEVISES = [
+  { value: 'MAD', label: '🇲🇦 MAD (Dirham)' },
+  { value: 'EUR', label: '🇪🇺 EUR (Euro)' },
+  { value: 'USD', label: '🇺🇸 USD (Dollar)' }
+];
+
 export default function BudgetTab({ readOnly, initialBudget = null, onChange }) {
   const [budget, setBudget] = useState(initialBudget || {
     modalitePaiement: '',
+    devise: 'MAD', // ✅ Devise par défaut
     montantTotal: 0,
     montantRecu: 0,
     montantDepense: 0,
@@ -79,6 +87,16 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
 
   const statut = getStatutBudget();
 
+  // ✅ Symbole de la devise
+  const getDeviseSymbol = (devise) => {
+    const symbols = {
+      MAD: 'DH',
+      EUR: '€',
+      USD: '$'
+    };
+    return symbols[devise] || devise;
+  };
+
   return (
     <div className="space-y-6">
       {/* Modalités de paiement */}
@@ -95,12 +113,36 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
         )}
       </Card>
 
+      {/* ✅ Sélection de la devise */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-700">Devise</h3>
+          {readOnly ? (
+            <span className="text-lg font-semibold text-gray-900">
+              {DEVISES.find(d => d.value === budget.devise)?.label || budget.devise}
+            </span>
+          ) : (
+            <select
+              value={budget.devise || 'MAD'}
+              onChange={(e) => updateBudget({ ...budget, devise: e.target.value })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {DEVISES.map(devise => (
+                <option key={devise.value} value={devise.value}>
+                  {devise.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </Card>
+
       {/* Montants */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <p className="text-sm text-gray-600">Montant total</p>
           <p className="text-xl font-bold text-gray-900">
-            {(budget.montantTotal || 0).toLocaleString()} DH
+            {(budget.montantTotal || 0).toLocaleString()} {getDeviseSymbol(budget.devise)}
           </p>
           {!readOnly && (
             <Input
@@ -115,7 +157,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
         <Card className="p-4">
           <p className="text-sm text-gray-600">Montant reçu</p>
           <p className="text-xl font-bold text-green-600">
-            {(budget.montantRecu || 0).toLocaleString()} DH
+            {(budget.montantRecu || 0).toLocaleString()} {getDeviseSymbol(budget.devise)}
           </p>
           {!readOnly && (
             <Input
@@ -130,7 +172,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
         <Card className="p-4">
           <p className="text-sm text-gray-600">Montant dépensé</p>
           <p className="text-xl font-bold text-orange-600">
-            {(budget.montantDepense || 0).toLocaleString()} DH
+            {(budget.montantDepense || 0).toLocaleString()} {getDeviseSymbol(budget.devise)}
           </p>
           {!readOnly && (
             <Input
@@ -145,7 +187,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
         <Card className="p-4">
           <p className="text-sm text-gray-600">Reste à payer</p>
           <p className="text-xl font-bold text-red-600">
-            {totalRestant.toLocaleString()} DH
+            {totalRestant.toLocaleString()} {getDeviseSymbol(budget.devise)}
           </p>
           <p className={`text-sm font-medium ${statut.color}`}>
             {statut.label}
@@ -160,11 +202,10 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
           Justificatifs
         </h3>
 
-        {/* Liste des justificatifs */}
         {(budget.justificatifs || []).length > 0 && (
           <div className="space-y-2 mb-4">
             {(budget.justificatifs || []).map((j, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50  rounded">
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                 <div className="flex items-center gap-3">
                   <FileText size={16} className="text-blue-600" />
                   <span className="text-sm text-gray-700">{j.nom}</span>
@@ -193,7 +234,6 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
           </div>
         )}
 
-        {/* Zone Drag & Drop NATIVE sans react-dropzone */}
         {!readOnly && (
           <div
             onDrop={handleDrop}
@@ -201,7 +241,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
             onDragLeave={handleDragLeave}
             onClick={() => fileInputRef.current?.click()}
             className={`
-              border-2 border-dashed  rounded p-6 text-center cursor-pointer transition-colors
+              border-2 border-dashed rounded p-6 text-center cursor-pointer transition-colors
               ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
             `}
           >

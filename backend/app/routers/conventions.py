@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi.responses import StreamingResponse
 import pandas as pd
 from io import BytesIO
+from typing import List, Dict, Any  
 
 from app.database import get_db
 from app.models.convention import Convention
@@ -133,42 +134,17 @@ def update_all_statuses(
     resultats = ConventionService.mettre_a_jour_tous_les_statuts(db)
     return resultats
 
-#   GET — Exporter les conventions vers Excel
-@router.get("/export/{format}")
-def export_conventions(
-    format: str,
+#  Exporter les conventions vers Excel
+@router.post("/export/excel")
+def export_conventions_excel(
+    data: List[Dict[str, Any]],
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if format != "excel":
-        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez 'excel'.")
-    
-    conventions = db.query(Convention).options(
-        joinedload(Convention.partenaires)
-    ).all()
-    
-    data = []
-    for c in conventions:
-        row = {
-            # === IDENTIFICATION ===
-            "N°": c.numero_reference,
-            "Intitulé": c.intitule,
-            "Type": c.type,
-            "Statut": c.statut,
-            
-            # === DATES ===
-            "Date signature": c.date_signature.strftime("%d/%m/%Y") if c.date_signature else "",
-            "Date expiration": c.date_expiration.strftime("%d/%m/%Y") if c.date_expiration else "",
-            
-            # === SIGNATAIRES ===
-            "Signature UM5": c.signataire_um5,
-            "Autre signature UM5": c.signataire_um5_autre or "",
-            "Signature partenaire": c.signataire_partenaire or "",
-            
-            # === PARTENAIRES ===
-            "Partenaire(s)": ", ".join([p.nom for p in c.partenaires]) if c.partenaires else "",
-        }
-        data.append(row)
+    print("=" * 50)
+    print("📤 EXPORT EXCEL")
+    print(f"📊 Nombre de lignes: {len(data)}")
+    print("=" * 50)
     
     df = pd.DataFrame(data)
     output = BytesIO()
@@ -176,7 +152,6 @@ def export_conventions(
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='Conventions', index=False)
         
-        # Ajuster la largeur des colonnes
         worksheet = writer.sheets['Conventions']
         for column in worksheet.columns:
             max_length = 0

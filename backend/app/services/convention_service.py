@@ -22,7 +22,7 @@ class ConventionService:
     ]
     
     @staticmethod
-    def calculer_statut(convention: Convention) -> str:
+    def calculer_statut(convention: Convention) -> str:  # ✅ Reçoit un objet Convention
         """
         Calcule le statut d'une convention en fonction de sa date d'expiration,
         de son mode de renouvellement et de la décision du chargé

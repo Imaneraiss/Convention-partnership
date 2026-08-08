@@ -86,7 +86,6 @@ export default function ConventionUpload() {
               <Loader className="mx-auto text-blue-600 animate-spin" size={48} />
               <div>
                 <p className="text-lg font-medium text-gray-700">Extraction en cours...</p>
-                <p className="text-sm text-gray-500">OCR + Groq analysent votre document</p>
               </div>
               <div className="w-full max-w-xs mx-auto h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-600 animate-pulse rounded-full w-full" />

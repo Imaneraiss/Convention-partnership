@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback , useEffect} from 'react';
 import { useDropzone } from 'react-dropzone';
 import { 
   ChevronDown, 
@@ -22,12 +22,26 @@ import Modal from '../../../components/common/Modal';
 import { TYPES_COMITE, FREQUENCES_REUNION } from '../../../utils/constants';
 import { uploadFichier, deleteFichier } from '../../../services/fichierService';
 
+// ✅ Jours fériés au Maroc (à adapter selon tes besoins)
+const JOURS_FERIES = [
+  '2026-01-01', // Nouvel An
+  '2026-01-11', // Manifeste de l'Indépendance
+  '2026-05-01', // Fête du Travail
+  '2026-07-30', // Fête du Trône
+  '2026-08-14', // Oued Ed-Dahab
+  '2026-08-20', // Révolution du Roi et du Peuple
+  '2026-08-21', // Fête de la Jeunesse
+  '2026-11-06', // Marche Verde
+  '2026-11-18', // Fête de l'Indépendance
+];
+
 export default function CommitteesTab({ 
   readOnly, 
   initialCommittees = [], 
   onChange,
   conventionId,
-  extractedTaches = []
+  extractedTaches = [],
+  dateSignature = null 
 }) {
   const [committees, setCommittees] = useState(initialCommittees || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +49,6 @@ export default function CommitteesTab({
   const [newCommittee, setNewCommittee] = useState({
     type: '',
     frequence: '',
-    date_debut: '',
     membresUm5: [],
     membresPartenaires: [],
     taches: []
@@ -49,6 +62,28 @@ export default function CommitteesTab({
   const typeOptions = TYPES_COMITE || ['PILOTAGE', 'SUIVI', 'TECHNIQUE', 'SCIENTIFIQUE'];
   const etablissementsOptions = ['UM5R', 'FLSH', 'FMD', 'FMPH', 'ENS', 'ENSAM', 'ENSET', 'EST', 'FSR', 'FSJES AGDAL', 'FSJES SOUISSI', 'FSJES SALE', 'EST SALE', 'EMI', 'ENSIAS', 'IS'];
 
+  useEffect(() => {
+    if (initialCommittees && initialCommittees.length > 0 && dateSignature) {
+      const updatedCommittees = initialCommittees.map(committee => {
+        if (!committee.date_debut) {
+          return {
+            ...committee,
+            date_debut: dateSignature,
+            prochaineReunion: calculerProchaineReunion(dateSignature, committee.frequence)
+          };
+        }
+        if (committee.date_debut && !committee.prochaineReunion) {
+          return {
+            ...committee,
+            prochaineReunion: calculerProchaineReunion(committee.date_debut, committee.frequence)
+          };
+        }
+        return committee;
+      });
+      setCommittees(updatedCommittees);
+    }
+  }, [initialCommittees, dateSignature]);
+  
   const updateCommittees = (newCommittees) => {
     setCommittees(newCommittees);
     if (onChange) onChange(newCommittees);
@@ -60,10 +95,34 @@ export default function CommitteesTab({
     ));
   };
 
+  // ✅ Vérifier si une date est un jour férié
+  const estJourFerie = (date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return JOURS_FERIES.includes(dateStr);
+  };
+
+  // ✅ Vérifier si une date est un week-end
+  const estWeekend = (date) => {
+    const jour = date.getDay();
+    return jour === 5 || jour === 6; // Vendredi (5) ou Samedi (6)
+  };
+
+  // ✅ Trouver le prochain jour ouvrable
+  const prochainJourOuvrable = (date) => {
+    const newDate = new Date(date);
+    while (estWeekend(newDate) || estJourFerie(newDate)) {
+      newDate.setDate(newDate.getDate() + 1);
+    }
+    return newDate;
+  };
+
+  // ✅ Calcul de la prochaine réunion avec gestion des week-ends et jours fériés
   const calculerProchaineReunion = (dateDebut, frequence) => {
     if (!dateDebut || !frequence) return '';
     const date = new Date(dateDebut);
     const aujourdhui = new Date();
+    aujourdhui.setHours(0, 0, 0, 0);
+    
     while (date < aujourdhui) {
       switch (frequence) {
         case 'Hebdomadaire': date.setDate(date.getDate() + 7); break;
@@ -75,23 +134,29 @@ export default function CommitteesTab({
         default: break;
       }
     }
-    return date.toISOString().split('T')[0];
+    
+    const dateFinale = prochainJourOuvrable(date);
+    return dateFinale.toISOString().split('T')[0];
   };
 
   // ─── COMITÉ ───
   const addCommittee = () => {
     if (newCommittee.type) {
+      const dateDebut = dateSignature || new Date().toISOString().split('T')[0];
+      
       const newComm = {
         ...newCommittee,
-        id: Date.now(),
+        id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // ✅ ID temporaire
         nom: newCommittee.type,
-        prochaineReunion: calculerProchaineReunion(newCommittee.date_debut, newCommittee.frequence),
+        date_debut: dateDebut,
+        prochaineReunion: calculerProchaineReunion(dateDebut, newCommittee.frequence),
         reunions: [],
         expanded: false,
-        taches: extractedTaches.length > 0 ? extractedTaches.map(t => ({ id: Date.now() + Math.random(), description: t })) : []
+        taches: extractedTaches.length > 0 ? extractedTaches.map(t => ({ id: Date.now() + Math.random(), description: t })) : [],
+        _new: true // ✅ Marquer comme nouveau
       };
       updateCommittees([...committees, newComm]);
-      setNewCommittee({ type: '', frequence: '', date_debut: '', membresUm5: [], membresPartenaires: [], taches: [] });
+      setNewCommittee({ type: '', frequence: '', membresUm5: [], membresPartenaires: [], taches: [] });
       setIsModalOpen(false);
     }
   };
@@ -140,27 +205,30 @@ export default function CommitteesTab({
     ));
   };
 
-  // ─── TÂCHES (SIMPLES) ───
+  // ─── TÂCHES ───
   const addTache = (committeeId) => {
     if (newTache.trim()) {
       updateCommittees(committees.map(c =>
         c.id === committeeId
-          ? { ...c, taches: [...(c.taches || []), { id: Date.now(), description: newTache.trim() }] }
+          ? { ...c, taches: [...(c.taches || []), newTache.trim()] }
           : c
       ));
       setNewTache('');
     }
   };
 
-  const removeTache = (committeeId, tacheId) => {
+  const removeTache = (committeeId, tacheIndex) => {
     updateCommittees(committees.map(c =>
       c.id === committeeId
-        ? { ...c, taches: (c.taches || []).filter(t => t.id !== tacheId) }
+        ? { 
+            ...c, 
+            taches: (c.taches || []).filter((_, i) => i !== tacheIndex) 
+          }
         : c
     ));
   };
 
-  // ─── UPLOAD PV AVEC DRAG & DROP ───
+  // ─── UPLOAD PV ───
   const uploadPV = async (committeeId, file) => {
     if (!conventionId) {
       alert('Veuillez d\'abord enregistrer la convention avant d\'uploader des PV.');
@@ -293,30 +361,34 @@ export default function CommitteesTab({
         <div className="space-y-4">
           {committees.map((committee) => (
             <Card key={committee.id} className="overflow-hidden">
-              {/* ACCORDÉON HEADER */}
-              <button
-                type="button"
-                onClick={() => toggleExpand(committee.id)}
-                className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
+              {/* ✅ ACCORDÉON HEADER - CORRIGÉ */}
+              <div className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(committee.id)}
+                  className="flex items-center gap-3 flex-1 text-left"
+                >
                   {committee.expanded ? <ChevronDown size={20} className="text-gray-500" /> : <ChevronRight size={20} className="text-gray-500" />}
                   <span className="font-semibold text-gray-900">{committee.nom}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
                     {committee.type || 'Non défini'}
                   </span>
                   <span className="text-sm text-gray-500">({committee.frequence || 'Fréquence non définie'})</span>
-                </div>
+                </button>
+                
                 {!readOnly && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); removeCommittee(committee.id); }}
-                    className="text-red-600 hover:text-red-700 text-sm"
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      removeCommittee(committee.id); 
+                    }}
+                    className="text-red-600 hover:text-red-700 text-sm ml-4 flex-shrink-0"
                   >
                     Supprimer
                   </button>
                 )}
-              </button>
+              </div>
 
               {/* ACCORDÉON CONTENU */}
               {committee.expanded && (
@@ -397,39 +469,22 @@ export default function CommitteesTab({
                     </div>
                   </div>
 
-                  {/* TÂCHES - Simple liste de textes */}
+                  {/* TÂCHES */}
                   <div>
-                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                      <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        <CheckSquare size={16} /> Tâches
-                      </h4>
-                      {!readOnly && (
-                        <div className="flex items-center gap-2">
-                          <Input 
-                            value={newTache} 
-                            onChange={(e) => setNewTache(e.target.value)} 
-                            placeholder="Nouvelle tâche..." 
-                            className="text-sm flex-1" 
-                          />
-                          <Button size="sm" onClick={() => addTache(committee.id)} disabled={!newTache.trim()}>
-                            Ajouter
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                    <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <CheckSquare size={16} /> Tâches ({committee.taches?.length || 0})
+                    </h4>
 
-                    {(committee.taches || []).some(t => t.extracted) && (
-                      <div className="mb-3 p-2 bg-blue-50 rounded-lg">
-                        <p className="text-xs text-blue-600">📄 Tâches extraites automatiquement</p>
-                      </div>
-                    )}
-
-                    <div className="space-y-1">
-                      {(committee.taches || []).map((tache) => (
-                        <div key={tache.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                          <span className="text-sm text-gray-700 flex-1">• {tache.description}</span>
+                    <div className="space-y-1 mt-2">
+                      {(committee.taches || []).map((tache, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <span className="text-sm text-gray-700 flex-1">• {tache}</span>
                           {!readOnly && (
-                            <button onClick={() => removeTache(committee.id, tache.id)} className="text-red-600 hover:text-red-700 text-sm ml-2">
+                            <button 
+                              type="button"
+                              onClick={() => removeTache(committee.id, index)} 
+                              className="text-red-600 hover:text-red-700 text-sm ml-2"
+                            >
                               ×
                             </button>
                           )}
@@ -466,7 +521,7 @@ export default function CommitteesTab({
                                   {reunion.pv?.titre || `PV_${reunion.date}`}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {reunion.pv?.nom || 'Fichier'} • {reunion.date ? new Date(reunion.date).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                                  {reunion.pv?.nom || 'Fichier'} 
                                 </p>
                               </div>
                             </div>
@@ -520,13 +575,6 @@ export default function CommitteesTab({
               {frequenceOptions.map(freq => <option key={freq} value={freq}>{freq}</option>)}
             </select>
           </div>
-
-          <Input 
-            label="Date de début des réunions" 
-            type="date" 
-            value={newCommittee.date_debut} 
-            onChange={(e) => setNewCommittee({ ...newCommittee, date_debut: e.target.value })} 
-          />
 
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Annuler</Button>

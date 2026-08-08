@@ -7,9 +7,8 @@ import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import { Printer, CheckSquare, Square, ChevronDown, ChevronRight, FileCheck, FileX } from 'lucide-react';
+import { Printer, CheckSquare, Square, ChevronDown, ChevronRight, FileCheck, FileX, FileSpreadsheet } from 'lucide-react';
 import Modal from '../../components/common/Modal';
-
 export default function ConventionsList() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,6 +21,7 @@ export default function ConventionsList() {
   const [filtreDateDebut, setFiltreDateDebut] = useState('');
   const [filtreDateFin, setFiltreDateFin] = useState('');
   const [filtreSigne, setFiltreSigne] = useState('');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   // ✅ Filtres Options (cases à cocher)
   const [filtreBudget, setFiltreBudget] = useState(false);
@@ -106,23 +106,39 @@ export default function ConventionsList() {
     if (filtreValidationConseil && !c.validation_conseil) return false;
     if (filtreFormationContinue && !c.formation_continue) return false;
     
-    return true;
-  });
+      return true;
+    });
 
   const handleExportExcel = async () => {
     try {
-      const response = await exportConventions('excel');
+      setIsPrintModalOpen(false);
+      
+      const columns = Object.values(allColumns)
+        .flat()
+        .filter(col => selectedColumns[col.id]);
+      
+      const data = conventionsFiltrees.map(c => {
+        const row = {};
+        columns.forEach(col => {
+          row[col.label] = getValue(c, col.id);
+        });
+        return row;
+      });
+      
+      // ✅ Appel avec données
+      const response = await exportConventions('excel', data);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'conventions.xlsx');
+      link.download = `conventions_${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (err) {
       console.error(err);
+      alert('Erreur lors de l\'export Excel');
     }
-  };
+  };  
 
   const toggleTypePartenaire = (type) => {
     setFiltreTypesPartenaire(prev => 
@@ -367,17 +383,15 @@ export default function ConventionsList() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={handleExportExcel}>
-              Exporter Excel
-            </Button>
             <Button 
               variant="outline" 
-              onClick={() => setIsPrintModalOpen(true)}
+              onClick={() => setIsPrintModalOpen(true)}  // Ouvre la même pop-up
               className="flex items-center gap-2"
             >
-              <Printer size={16} />
-              Imprimer
+              <FileSpreadsheet size={16} />
+              Exporter & Imprimer
             </Button>
+            
             <Button onClick={() => navigate('/conventions/new')}>
               Nouvelle convention
             </Button>
@@ -587,7 +601,7 @@ export default function ConventionsList() {
         <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Printer size={20} />
+             
               Sélection des colonnes
             </h3>
             <span className="text-sm text-gray-500">
@@ -595,9 +609,6 @@ export default function ConventionsList() {
             </span>
           </div>
           
-          <p className="text-sm text-gray-500">
-            Sélectionnez les colonnes à inclure dans l'impression
-          </p>
 
           <div className="space-y-3">
             {Object.entries(allColumns).map(([groupName, columns]) => (
@@ -656,7 +667,11 @@ export default function ConventionsList() {
             </Button>
             <Button onClick={handlePrint} className="flex items-center gap-2">
               <Printer size={16} />
-              Imprimer ({getSelectedCount()} colonnes)
+              Imprimer
+            </Button>
+            <Button onClick={handleExportExcel} className="flex items-center gap-2" variant="success">
+              <FileSpreadsheet size={16} />
+              Exporter Excel
             </Button>
           </div>
         </div>

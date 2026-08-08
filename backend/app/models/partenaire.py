@@ -13,7 +13,6 @@ class Partenaire(Base):
     ville = Column(String, nullable=True)
     region = Column(String, nullable=True)
     pays = Column(String, nullable=True)
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=False)
-
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=False)
     # Relation
     convention = relationship("Convention", back_populates="partenaires")

@@ -39,22 +39,42 @@ def create_partenaire(data: PartenaireCreate, db: Session = Depends(get_db), cur
 
 #   PUT — Modifier un partenaire
 @router.put("/{partenaire_id}", response_model=PartenaireResponse)
-def update_partenaire(partenaire_id: UUID, data: PartenaireUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_partenaire(
+    partenaire_id: UUID, 
+    data: PartenaireUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     partenaire = db.query(Partenaire).filter(Partenaire.id == partenaire_id).first()
     if not partenaire:
         raise HTTPException(status_code=404, detail="Partenaire non trouvé")
-    for key, value in data.model_dump(exclude_unset=True).items():
+    
+    # ✅ Récupérer les données à mettre à jour
+    update_data = data.model_dump(exclude_unset=True)
+    
+    # ✅ Si convention_id est présent et None, on le retire (car colonne NOT NULL)
+    if 'convention_id' in update_data and update_data['convention_id'] is None:
+        del update_data['convention_id']
+    
+    # ✅ Appliquer les mises à jour
+    for key, value in update_data.items():
         setattr(partenaire, key, value)
+    
     db.commit()
     db.refresh(partenaire)
     return partenaire
 
 #   DELETE — Supprimer un partenaire
 @router.delete("/{partenaire_id}")
-def delete_partenaire(partenaire_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_partenaire(
+    partenaire_id: UUID, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     partenaire = db.query(Partenaire).filter(Partenaire.id == partenaire_id).first()
     if not partenaire:
         raise HTTPException(status_code=404, detail="Partenaire non trouvé")
+    
     db.delete(partenaire)
     db.commit()
     return {"message": "Partenaire supprimé avec succès"}

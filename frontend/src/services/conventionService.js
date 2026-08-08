@@ -30,9 +30,16 @@ export const deleteConvention = (id) =>
 
  // EXPORT
  
-// Exporter les conventions (PDF/Excel/Word)
-export const exportConventions = (format, params = {}) =>
-    api.get(`/conventions/export/${format}`, { 
-        params,
-        responseType: 'blob' // important pour les fichiers
-    })
+// ✅ Support GET (export simple) et POST (export avec sélection)
+export const exportConventions = (format, data = null) => {
+  if (data) {
+    // POST avec données (colonnes sélectionnées)
+    return api.post(`/conventions/export/${format}`, data, {
+      responseType: 'blob'
+    });
+  }
+  // GET sans données (export complet)
+  return api.get(`/conventions/export/${format}`, {
+    responseType: 'blob'
+  });
+};

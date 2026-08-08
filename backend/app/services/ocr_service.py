@@ -88,9 +88,6 @@ Extrais et retourne UNIQUEMENT un objet JSON valide avec ces champs :
 - "date_signature": "YYYY-MM-DD ou null"
 - "date_expiration": "YYYY-MM-DD ou null" (si explicitement mentionnée)
 - "duree_annees": nombre d'années de la convention (ex: 1, 2, 3, 5)
-  * Cherche des phrases comme "durée de X ans", "valable pour une période de X ans", "conclue pour X ans"
-  * Si la durée est en mois, convertis en années (ex: 24 mois = 2 ans)
-  * Si tu trouves "une année" → 1, "deux ans" → 2, etc.
 
 ================================================================
 3. SIGNATAIRE UM5
@@ -99,7 +96,7 @@ Extrais et retourne UNIQUEMENT un objet JSON valide avec ces champs :
 - "signataire_um5_autre": si le signataire n'est pas dans la liste standard, mets son nom ici
 
 ================================================================
-4. PARTENAIRES (peut y en avoir plusieurs)
+4. PARTENAIRES
 ================================================================
 - "partenaires": [
     {{
@@ -148,10 +145,43 @@ Extrais le contenu de CHACUN des articles suivants s'ils sont présents :
 Si tu trouves d'autres articles avec des TITRES DIFFÉRENTS dans le document
 (ex: "Dispositions particulières", "Clause sociale", "Durée", "Signature", etc.),
 extrais-les dans un objet "autres_articles" avec leur titre comme clé.
-Exemple: "autres_articles": {{"Dispositions particulières": "contenu...", "Clause sociale": "contenu..."}}
 
 ================================================================
-9. STATUT
+9. COMITÉS (avec leurs tâches)
+================================================================
+Extrais les comités mentionnés dans la convention. Chaque comité doit contenir :
+- "type": "PILOTAGE" / "SUIVI" / "TECHNIQUE" / "SCIENTIFIQUE"
+- "frequence": "Hebdomadaire" / "Mensuelle" / "Bimestrielle" / "Trimestrielle" / "Semestrielle" / "Annuelle"
+- "membres": ["nom1", "nom2", ...]
+- "taches": ["tâche1", "tâche2", ...]  # ⬅️ AJOUTER CETTE LIGNE
+
+Exemple: "comites": [
+  {{
+    "type": "PILOTAGE",
+    "frequence": "Mensuelle",
+    "membres": ["Dr. Ahmed", "Pr. Fatima"],
+    "taches": [
+      "Valider les rapports d'avancement",
+      "Décider des orientations stratégiques"
+    ]
+  }}
+]
+
+================================================================
+10. BUDGET ⬅️ NOUVEAU
+================================================================
+Extrais les informations budgétaires si présentes :
+- "budget": {{
+    "modalitePaiement": "modalités de paiement (ex: Versement annuel en 2 tranches)",
+    "devise": "MAD / EUR / USD",
+    "montantTotal": nombre (en devise),
+    "montantRecu": nombre (en devise),
+    "montantDepense": nombre (en devise),
+    "commentaire": "commentaire sur le budget"
+  }}
+
+================================================================
+11. STATUT
 ================================================================
 - "statut": "EN_COURS" par défaut, ou déduit de la date d'expiration
 
@@ -159,7 +189,7 @@ Exemple: "autres_articles": {{"Dispositions particulières": "contenu...", "Clau
 IMPORTANT:
 - Si un champ n'est pas présent dans le document, mets-le à null ou [] pour les listes
 - Pour "partenaires", extrais tous les partenaires mentionnés
-- Pour "autres_articles", ne mets que les articles qui ont un titre différent de ceux déjà listés
+- Pour "comites", extrais tous les comités mentionnés
 - Le JSON doit être valide et bien formé
 
 Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
@@ -170,16 +200,17 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
-            max_tokens=2500  # Augmenté pour les articles
+            max_tokens=3000  # Augmenté pour les comités et budget
         )
         
         content = response.choices[0].message.content.strip()
         
         # Nettoie le JSON si Groq ajoute des backticks
         content = content.replace("```json", "").replace("```", "").strip()
-        print("🔍 Réponse Groq brute:", content)
-        print("🔍 JSON parsé:", json.loads(content))
-        return json.loads(content)
+        print("🔍 Réponse Groq brute:", content[:500] + "..." if len(content) > 500 else content)
+        parsed = json.loads(content)
+        print("🔍 JSON parsé avec succès")
+        return parsed
     
     except Exception as e:
         print(f"❌ Erreur Groq : {e}")
@@ -247,13 +278,23 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
         date_expiration = calculer_date_expiration(date_signature, duree_annees)
         print(f"📅 Date d'expiration calculée: {date_expiration}")
     
-    # Si on a la durée mais pas la date de signature, on ne peut pas calculer
-    if duree_annees and not date_signature:
-        print("⚠️ Durée extraite mais pas de date de signature, impossible de calculer l'expiration")
-    
     # ─────────────────────────────────────────────
     # Étape 4 — Construction de la réponse structurée
     # ─────────────────────────────────────────────
+    
+    # ✅ Récupérer les comités avec leurs tâches
+    comites = fields.get("comites", [])
+    if comites:
+        print(f"📋 Comités extraits: {len(comites)}")
+        for c in comites:
+            taches = c.get('taches', [])
+            print(f"   - {c.get('type')} - {len(taches)} tâches")
+            for t in taches:
+                print(f"      • {t}")
+    # ✅ Récupérer le budget
+    budget = fields.get("budget")
+    if budget:
+        print(f"💰 Budget extrait: {budget.get('montantTotal', 0)} {budget.get('devise', 'MAD')}")
     
     result = {
         # Identification
@@ -264,7 +305,7 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
         # Dates
         "date_signature": date_signature,
         "date_expiration": date_expiration,
-        "duree_annees": duree_annees,  # Ajout de la durée
+        "duree_annees": duree_annees,
         
         # Signataire UM5
         "signataire_um5": fields.get("signataire_um5", ""),
@@ -272,7 +313,7 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
         "signataire_partenaire": fields.get("signataire_partenaire", ""),
         "signataire_partenaire_autre": fields.get("signataire_partenaire_autre", ""),
         
-        # Partenaires (avec signataire)
+        # Partenaires
         "partenaires": fields.get("partenaires", []),
         
         # Options
@@ -285,7 +326,6 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
         
         # Articles
         "articles": {
-            # Articles standards
             "objet": fields.get("objet", ""),
             "objectif": fields.get("objectif", ""),
             "engagement_um5": fields.get("engagement_um5", ""),
@@ -299,9 +339,14 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
             "confidentialite": fields.get("confidentialite", ""),
             "protection_donnees": fields.get("protection_donnees", ""),
             "propriete_intellectuelle": fields.get("propriete_intellectuelle", ""),
-            # Articles personnalisés
             **(fields.get("autres_articles", {}))
         },
+        
+        # ✅ COMITÉS (nouveau)
+        "comites": comites,
+        
+        # ✅ BUDGET (nouveau)
+        "budget": budget,
         
         # Statut
         "statut": fields.get("statut", "EN_COURS"),
@@ -312,31 +357,3 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
     
     return result
 
-
-# ─────────────────────────────────────────
-# 5. FONCTION DE TEST
-# ─────────────────────────────────────────
-
-def test_extraction(file_path: str):
-    """Fonction de test pour l'extraction"""
-    with open(file_path, "rb") as f:
-        file_bytes = f.read()
-    
-    # Détection du type
-    if file_path.endswith(".pdf"):
-        content_type = "application/pdf"
-    elif file_path.endswith((".png", ".jpg", ".jpeg")):
-        content_type = "image/png"
-    else:
-        content_type = "application/octet-stream"
-    
-    result = process_document(file_bytes, content_type)
-    print("\n" + "="*60)
-    print("📄 RÉSULTAT DE L'EXTRACTION")
-    print("="*60)
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-    return result
-
-if __name__ == "__main__":
-    # Exemple d'utilisation
-    test_extraction("chemin/vers/ton/fichier.pdf")

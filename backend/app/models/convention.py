@@ -43,9 +43,9 @@ class Convention(Base):
     
     # Relations
     user = relationship("User", back_populates="conventions")
-    partenaires = relationship("Partenaire", back_populates="convention")
-    comites = relationship("Comite", back_populates="convention")
-    fichiers = relationship("Fichier", back_populates="convention")
-    alertes = relationship("Alerte", back_populates="convention")
-    budget = relationship("Budget", back_populates="convention", uselist=False)
-    historique = relationship("Historique", back_populates="convention")
+    partenaires = relationship("Partenaire", back_populates="convention", cascade="all, delete-orphan")
+    comites = relationship("Comite", back_populates="convention", cascade="all, delete-orphan")
+    fichiers = relationship("Fichier", back_populates="convention", cascade="all, delete-orphan")
+    alertes = relationship("Alerte", back_populates="convention", cascade="all, delete-orphan")
+    budget = relationship("Budget", back_populates="convention", uselist=False, cascade="all, delete-orphan")
+    historique = relationship("Historique", back_populates="convention", cascade="all, delete-orphan")
