@@ -1,9 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef , useEffect} from 'react';
 import { UploadCloud, Download, FileText } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import Textarea from '../../../components/common/Textarea';
+import { uploadFichier } from '../../../services/fichierService';
+import { deleteFichier } from '../../../services/fichierService';
+
 
 // ✅ Devises disponibles
 const DEVISES = [
@@ -12,7 +15,7 @@ const DEVISES = [
   { value: 'USD', label: '🇺🇸 USD (Dollar)' }
 ];
 
-export default function BudgetTab({ readOnly, initialBudget = null, onChange }) {
+export default function BudgetTab({ readOnly, initialBudget = null, onChange, conventionId  }) {
   const [budget, setBudget] = useState(initialBudget || {
     modalitePaiement: '',
     devise: 'MAD', // ✅ Devise par défaut
@@ -26,21 +29,53 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
 
-  const updateBudget = (newBudget) => {
-    setBudget(newBudget);
-    if (onChange) onChange(newBudget);
-  };
+  useEffect(() => {
+    console.log('📊 Budget reçu dans BudgetTab:', initialBudget);
+    if (initialBudget) {
+      setBudget(initialBudget);
+    }
+  }, [initialBudget]);
+    const updateBudget = (newBudget) => {
+      setBudget(newBudget);
+      if (onChange) onChange(newBudget);
+    };
 
-  const handleFileUpload = (file) => {
-    if (file) {
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+
+    // ✅ Vérifier que conventionId existe
+    if (!conventionId) {
+      alert('Veuillez d\'abord enregistrer la convention avant d\'uploader des justificatifs.');
+      return;
+    }
+
+    try {
+      // ✅ Upload du fichier sur le serveur
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('convention_id', conventionId);
+      
+      const response = await uploadFichier(formData);
+      
+      // ✅ Ajouter le justificatif dans le state avec l'ID retourné
+      const newJustificatif = {
+        id: response.data.id,
+        nom: file.name,
+        uploadDate: new Date().toISOString().split('T')[0]
+      };
+      
       const newBudget = {
         ...budget,
-        justificatifs: [...(budget.justificatifs || []), { 
-          nom: file.name, 
-          uploadDate: new Date().toISOString().split('T')[0] 
-        }]
+        justificatifs: [...(budget.justificatifs || []), newJustificatif]
       };
       updateBudget(newBudget);
+      
+      console.log('✅ Justificatif uploadé:', newJustificatif);
+      
+    } catch (error) {
+      console.error('❌ Erreur upload justificatif:', error);
+      alert('Erreur lors de l\'upload du justificatif: ' + (error.response?.data?.detail || error.message));
     }
   };
 
@@ -66,14 +101,28 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange }) 
     handleFileUpload(file);
   };
 
-  const removeJustificatif = (index) => {
+
+  const removeJustificatif = async (index) => {
+    const justificatif = budget.justificatifs[index];
+    
+    // ✅ Supprimer du serveur si l'ID existe
+    if (justificatif.id) {
+      try {
+        await deleteFichier(justificatif.id);
+      } catch (error) {
+        console.error('❌ Erreur suppression justificatif:', error);
+        alert('Erreur lors de la suppression du justificatif');
+        return;
+      }
+    }
+    
+    // ✅ Supprimer du state
     const newBudget = {
       ...budget,
       justificatifs: (budget.justificatifs || []).filter((_, i) => i !== index)
     };
     updateBudget(newBudget);
   };
-
   const totalRestant = (budget.montantTotal || 0) - (budget.montantRecu || 0);
   const pourcentageRecu = budget.montantTotal > 0 ? (budget.montantRecu / budget.montantTotal) * 100 : 0;
 

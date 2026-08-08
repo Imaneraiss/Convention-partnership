@@ -14,6 +14,7 @@ class Budget(Base):
     montant_depense = Column(Float, default=0.0)
     reste_a_payer = Column(Float, default=0.0)
     commentaire = Column(Text, nullable=True)
+    devise = Column(String, default="MAD")
     convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=False)
 
     # Relation

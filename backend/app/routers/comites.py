@@ -21,6 +21,14 @@ def get_comite(comite_id: UUID, db: Session = Depends(get_db), current_user: Use
         raise HTTPException(status_code=404, detail="Comité non trouvé")
     return comite
 
+@router.get("/convention/{convention_id}")
+def get_comites_by_convention(
+    convention_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return db.query(Comite).filter(Comite.convention_id == convention_id).all()
+
 @router.post("/", response_model=ComiteResponse)
 def create_comite(data: ComiteCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     comite = Comite(

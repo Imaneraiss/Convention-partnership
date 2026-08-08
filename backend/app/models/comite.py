@@ -20,7 +20,7 @@ class Comite(Base):
     frequence = Column(String, nullable=True)  # Mensuelle, Trimestrielle...
     convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=False)
 
-    taches = Column(JSON, default=[])  # Liste des tâches du comité
+    taches = Column(JSON, default=[])  
 
     # Relations
     convention = relationship("Convention", back_populates="comites")

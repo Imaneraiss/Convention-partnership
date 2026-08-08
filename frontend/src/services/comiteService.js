@@ -1,7 +1,8 @@
 import api from "./api";
  
 export const getComites  = () => api.get('/comites')
-
+export const getComitesByConvention = (conventionId) =>
+    api.get(`/comites/convention/${conventionId}`)
 export const getComite  =(comite_id) => api.get(`/comites/${comite_id}`)
 export const createComite = (data) => api.post('/comites', data)
 export const updateComite = (comite_id, data) => api.put(`/comites/${comite_id}`, data)
