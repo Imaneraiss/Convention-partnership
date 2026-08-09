@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.services.email_service import EmailService
 from app.models.convention import Convention
 from app.models.comite import Comite
-from app.models.reunion import Reunion
+# from app.models.reunion import Reunion  # ❌ SUPPRIMER
 from app.models.user import User
 from app.models.alerte import Alerte
 from app.models.enums import TypeAlerte
@@ -29,7 +29,6 @@ class AlerteService:
 
     def _get_etablissements_um5(self) -> List[str]:
         """Récupère les emails des établissements UM5"""
-        # À remplacer par la vraie liste plus tard
         emails_str = os.getenv("ETABLISSEMENTS_UM5_EMAILS", "")
         return [email.strip() for email in emails_str.split(",") if email.strip()]
 
@@ -41,12 +40,13 @@ class AlerteService:
     def _get_committee_emails(self, comite: Comite) -> List[str]:
         """Récupère tous les emails des membres d'un comité"""
         emails = []
-        for membre in comite.destinataires_internes:
-            if membre.email:
-                emails.append(membre.email)
-        for externe in comite.destinataires_externes:
-            if externe.email:
-                emails.append(externe.email)
+        # ✅ Utiliser les champs JSON membres_um5 et membres_partenaires
+        for membre in (comite.membres_um5 or []):
+            if membre.get('email'):
+                emails.append(membre.get('email'))
+        for membre in (comite.membres_partenaires or []):
+            if membre.get('email'):
+                emails.append(membre.get('email'))
         return list(set(emails))
 
     def _enregistrer_alerte(self, convention_id, type_alerte: TypeAlerte, objet: str, envoyee: bool, comite_id=None, reunion_id=None):
@@ -59,7 +59,7 @@ class AlerteService:
             envoyee=envoyee,
             traitee=envoyee,
             comite_id=comite_id,
-            reunion_id=reunion_id
+            # reunion_id=reunion_id  # ❌ SUPPRIMER
         )
         self.db.add(alerte)
         self.db.commit()
@@ -70,9 +70,7 @@ class AlerteService:
     # ──────────────────────────────────────────────
 
     def diffuser_convention_cadre(self, convention: Convention, piece_jointe: str = None) -> bool:
-        """
-        Alerte 1 : Envoie la convention cadre à tous les établissements UM5
-        """
+        """Alerte 1 : Envoie la convention cadre à tous les établissements UM5"""
         to_emails = self._get_etablissements_um5()
         if not to_emails:
             print("⚠️ Aucun email d'établissement UM5 configuré.")
@@ -96,7 +94,6 @@ class AlerteService:
 
         success = self.email_service.send_email(to_emails, sujet, message)
         
-        # Enregistrer l'alerte
         self._enregistrer_alerte(
             convention_id=convention.id,
             type_alerte=TypeAlerte.DIFFUSION_CADRE,
@@ -107,9 +104,7 @@ class AlerteService:
         return success
 
     def diffuser_convention_budget(self, convention: Convention, piece_jointe: str = None) -> bool:
-        """
-        Alerte 2 : Envoie la convention avec budget aux services financiers
-        """
+        """Alerte 2 : Envoie la convention avec budget aux services financiers"""
         to_emails = self._get_finance_emails()
         if not to_emails:
             print("⚠️ Aucun email des services financiers configuré.")
@@ -123,7 +118,7 @@ class AlerteService:
         <ul>
             <li><strong>Intitulé :</strong> {convention.intitule}</li>
             <li><strong>Référence :</strong> {convention.numero_reference}</li>
-            <li><strong>Montant :</strong> {convention.budget.montant_total if convention.budget else 'Non renseigné'}</li>
+            <li><strong>Montant :</strong> {convention.budget.montant if convention.budget else 'Non renseigné'}</li>
         </ul>
         <p>Veuillez trouver la convention en pièce jointe.</p>
         <br>
@@ -133,7 +128,6 @@ class AlerteService:
 
         success = self.email_service.send_email(to_emails, sujet, message)
         
-        # Enregistrer l'alerte
         self._enregistrer_alerte(
             convention_id=convention.id,
             type_alerte=TypeAlerte.DIFFUSION_BUDGET,
@@ -148,9 +142,7 @@ class AlerteService:
     # ──────────────────────────────────────────────
 
     def alerte_expiration(self, convention: Convention, rappel_type: str) -> bool:
-        """
-        Alerte 3 : Envoi d'un rappel d'expiration aux CHARGÉS DE PARTENARIAT
-        """
+        """Alerte 3 : Envoi d'un rappel d'expiration aux CHARGÉS DE PARTENARIAT"""
         to_emails = self._get_charges_emails()
         if not to_emails:
             print("⚠️ Aucun Chargé de partenariat trouvé.")
@@ -159,7 +151,6 @@ class AlerteService:
         sujet, html = self.email_service._generate_expiration_message(convention, rappel_type)
         success = self.email_service.send_email(to_emails, sujet, html)
         
-        # Enregistrer l'alerte
         self._enregistrer_alerte(
             convention_id=convention.id,
             type_alerte=TypeAlerte.RAPPEL_EXPIRATION,
@@ -169,44 +160,12 @@ class AlerteService:
         
         return success
 
-    def alerte_reunion(self, reunion: Reunion) -> bool:
-        """
-        Alerte 4 : Envoi d'un rappel de réunion aux MEMBRES DU COMITÉ
-        """
-        comite = self.db.query(Comite).filter(Comite.id == reunion.comite_id).first()
-        if not comite:
-            return False
-
-        convention = self.db.query(Convention).filter(Convention.id == comite.convention_id).first()
-        all_emails = self._get_committee_emails(comite)
-        
-        if not all_emails:
-            print(f"⚠️ Aucun email trouvé pour le comité {comite.id}")
-            return False
-
-        sujet, html = self.email_service._generate_reunion_message(comite, reunion, convention)
-        success = self.email_service.send_email(all_emails, sujet, html)
-        
-        # Enregistrer l'alerte
-        self._enregistrer_alerte(
-            convention_id=convention.id,
-            type_alerte=TypeAlerte.RAPPEL_REUNION,
-            objet=f"Réunion du comité {comite.nom} - {reunion.date_reunion}",
-            envoyee=success,
-            comite_id=comite.id,
-            reunion_id=reunion.id
-        )
-        
-        return success
-
     # ──────────────────────────────────────────────
     # VÉRIFICATIONS AUTOMATIQUES (SCHEDULER)
     # ──────────────────────────────────────────────
 
     def verifier_expirations(self) -> dict:
-        """
-        Vérifier et envoyer les alertes d'expiration (T-3, T-2, T-1)
-        """
+        """Vérifier et envoyer les alertes d'expiration (T-3, T-2, T-1)"""
         from datetime import datetime, timedelta
         
         today = datetime.now().date()
@@ -229,7 +188,6 @@ class AlerteService:
                     rappel_type = "T-3"
                 
                 if rappel_type:
-                    # Vérifier si l'alerte n'a pas déjà été envoyée
                     existante = self.db.query(Alerte).filter(
                         Alerte.convention_id == convention.id,
                         Alerte.type_alerte == TypeAlerte.RAPPEL_EXPIRATION.value,
@@ -252,53 +210,12 @@ class AlerteService:
         
         return resultats
 
-    def verifier_reunions(self) -> dict:
-        """
-        Vérifier et envoyer les alertes de réunion (J-7)
-        """
-        from datetime import datetime, timedelta
-        
-        today = datetime.now().date()
-        alert_date = today + timedelta(days=7)
-        
-        reunions = self.db.query(Reunion).filter(
-            Reunion.date_reunion >= today,
-            Reunion.date_reunion <= alert_date
-        ).all()
-        
-        resultats = {"envoyees": [], "erreurs": []}
-        
-        for reunion in reunions:
-            # Vérifier si l'alerte n'a pas déjà été envoyée
-            existante = self.db.query(Alerte).filter(
-                Alerte.reunion_id == reunion.id,
-                Alerte.type_alerte == TypeAlerte.RAPPEL_REUNION.value
-            ).first()
-            
-            if not existante:
-                try:
-                    success = self.alerte_reunion(reunion)
-                    resultats["envoyees"].append({
-                        "reunion_id": str(reunion.id),
-                        "date": str(reunion.date_reunion),
-                        "success": success
-                    })
-                except Exception as e:
-                    resultats["erreurs"].append({
-                        "reunion_id": str(reunion.id),
-                        "erreur": str(e)
-                    })
-        
-        return resultats
-
     # ──────────────────────────────────────────────
     # ALERTE MANUELLE
     # ──────────────────────────────────────────────
 
     def alerte_manuelle(self, emails: List[str], sujet: str, corps: str, convention_id: str = None) -> bool:
-        """
-        Alerte 6 : Envoyer une alerte manuelle personnalisée
-        """
+        """Alerte 6 : Envoyer une alerte manuelle personnalisée"""
         if not emails:
             return False
         

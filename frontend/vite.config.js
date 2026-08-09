@@ -12,7 +12,8 @@ export default defineConfig({
   host: '0.0.0.0',
   port: 5173,
   watch: {
-    usePolling: true  
+    usePolling: true ,
+    ignored: ['**/README.md', '**/node_modules/**', '**/.git/**']
   }
   }
 })

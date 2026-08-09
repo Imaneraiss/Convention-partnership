@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import conventions
-from app.routers import alertes, budget, comites, fichiers, reunions, users, auth
+from app.routers import alertes, budget, comites, fichiers, users, auth
 from app.middleware.logging_middleware import LoggingMiddleware 
 from app.routers import historique
 from app.routers import statistiques
@@ -29,7 +29,6 @@ app.include_router(auth.router)
 app.include_router(conventions.router)
 app.include_router(users.router)
 app.include_router(comites.router)
-app.include_router(reunions.router)
 app.include_router(alertes.router)
 app.include_router(budget.router)
 app.include_router(fichiers.router)

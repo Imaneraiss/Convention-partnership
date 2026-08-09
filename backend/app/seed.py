@@ -5,8 +5,8 @@ from app.database import SessionLocal
 from app.models.user import User
 from app.models.convention import Convention
 from app.models.partenaire import Partenaire
-from app.models.comite import Comite, ComiteDestinataireExterne
-from app.models.reunion import Reunion
+from app.models.comite import Comite
+# from app.models.reunion import Reunion  # ❌ SUPPRIMER
 from app.models.alerte import Alerte
 from app.models.budget import Budget
 from app.models.historique import Historique
@@ -61,6 +61,7 @@ def seed():
         db.commit()
 
         # ─────────────────────────────────────────
+        # 2 — CONVENTIONS
         # ─────────────────────────────────────────
         conv1 = Convention(
             id=uuid.uuid4(),
@@ -188,54 +189,55 @@ def seed():
         # ─────────────────────────────────────────
         # 3 — PARTENAIRES
         # ─────────────────────────────────────────
-
         partenaires = [
-    Partenaire(
-        id=uuid.uuid4(),
-        nom="Université Paris Saclay",
-        type="PUBLIC",
-        ville="Paris",
-        region="Île-de-France",
-        pays="France",
-        convention_id=conv1.id
-    ),
-    Partenaire(
-        id=uuid.uuid4(),
-        nom="CNRST",
-        type="PUBLIC",
-        ville="Rabat",
-        region="Rabat-Salé-Kénitra",
-        pays="Maroc",
-        convention_id=conv2.id
-    ),
-    Partenaire(
-        id=uuid.uuid4(),
-        nom="Université Mohammed VI Polytechnique",
-        type="PUBLIC",
-        ville="Ben Guerir",
-        region="Marrakech-Safi",
-        pays="Maroc",
-        convention_id=conv3.id
-    ),
-    Partenaire(
-        id=uuid.uuid4(),
-        nom="OCP Group",
-        type="SEMI_PUBLIC",
-        ville="Casablanca",
-        region="Casablanca-Settat",
-        pays="Maroc",
-        convention_id=conv4.id
-    ),
-    Partenaire(
-        id=uuid.uuid4(),
-        nom="ANAPEC",
-        type="PUBLIC",
-        ville="Rabat",
-        region="Rabat-Salé-Kénitra",
-        pays="Maroc",
-        convention_id=conv5.id
-    ),
-]
+            Partenaire(
+                id=uuid.uuid4(),
+                nom="Université Paris Saclay",
+                type="PUBLIC",
+                ville="Paris",
+                region="Île-de-France",
+                pays="France",
+                convention_id=conv1.id
+            ),
+            Partenaire(
+                id=uuid.uuid4(),
+                nom="CNRST",
+                type="PUBLIC",
+                ville="Rabat",
+                region="Rabat-Salé-Kénitra",
+                pays="Maroc",
+                convention_id=conv2.id
+            ),
+            Partenaire(
+                id=uuid.uuid4(),
+                nom="Université Mohammed VI Polytechnique",
+                type="PUBLIC",
+                ville="Ben Guerir",
+                region="Marrakech-Safi",
+                pays="Maroc",
+                convention_id=conv3.id
+            ),
+            Partenaire(
+                id=uuid.uuid4(),
+                nom="OCP Group",
+                type="SEMI_PUBLIC",
+                ville="Casablanca",
+                region="Casablanca-Settat",
+                pays="Maroc",
+                convention_id=conv4.id
+            ),
+            Partenaire(
+                id=uuid.uuid4(),
+                nom="ANAPEC",
+                type="PUBLIC",
+                ville="Rabat",
+                region="Rabat-Salé-Kénitra",
+                pays="Maroc",
+                convention_id=conv5.id
+            ),
+        ]
+        db.add_all(partenaires)
+        db.commit()
 
         # ─────────────────────────────────────────
         # 4 — BUDGETS
@@ -276,81 +278,50 @@ def seed():
         db.commit()
 
         # ─────────────────────────────────────────
-        # 5 — COMITES
+        # 5 — COMITÉS (avec membres JSON)
         # ─────────────────────────────────────────
         comite1 = Comite(
             id=uuid.uuid4(),
             type="PILOTAGE",
             frequence="Trimestrielle",
-            convention_id=conv1.id
+            convention_id=conv1.id,
+            taches=[],
+            reunions=[],  # ✅ Stocké en JSON
+            membres_um5=[],  # ✅ Stocké en JSON
+            membres_partenaires=[],  # ✅ Stocké en JSON
+            date_debut=date(2026, 1, 15),
+            prochaine_reunion=date(2026, 4, 15)
         )
         comite2 = Comite(
             id=uuid.uuid4(),
             type="SUIVI",
             frequence="Mensuelle",
-            convention_id=conv1.id
+            convention_id=conv1.id,
+            taches=[],
+            reunions=[],  # ✅ Stocké en JSON
+            membres_um5=[],
+            membres_partenaires=[],
+            date_debut=date(2026, 1, 15),
+            prochaine_reunion=date(2026, 2, 15)
         )
         comite3 = Comite(
             id=uuid.uuid4(),
             type="TECHNIQUE",
             frequence="Semestrielle",
-            convention_id=conv4.id
+            convention_id=conv4.id,
+            taches=[],
+            reunions=[],  # ✅ Stocké en JSON
+            membres_um5=[],
+            membres_partenaires=[],
+            date_debut=date(2026, 3, 20),
+            prochaine_reunion=date(2026, 9, 20)
         )
 
         db.add_all([comite1, comite2, comite3])
         db.commit()
 
-        # Destinataires internes comités
-        comite1.destinataires_internes.append(charge_admin)
-        comite1.destinataires_internes.append(charge_normal)
-        comite2.destinataires_internes.append(charge_admin)
-        comite3.destinataires_internes.append(charge_normal)
-        db.commit()
-
-        # Destinataires externes comités
-        externes = [
-            ComiteDestinataireExterne(
-                id=uuid.uuid4(),
-                comite_id=comite1.id,
-                email="contact@paris-saclay.fr"
-            ),
-            ComiteDestinataireExterne(
-                id=uuid.uuid4(),
-                comite_id=comite3.id,
-                email="partenariat@ocpgroup.ma"
-            ),
-        ]
-        db.add_all(externes)
-        db.commit()
-
         # ─────────────────────────────────────────
-        # 6 — REUNIONS
-        # ─────────────────────────────────────────
-        reunions = [
-            Reunion(
-                id=uuid.uuid4(),
-                date_reunion=date(2026, 3, 15),
-                decisions="Validation du plan d'action 2026. Prochaine réunion en juin.",
-                comite_id=comite1.id
-            ),
-            Reunion(
-                id=uuid.uuid4(),
-                date_reunion=date(2026, 4, 10),
-                decisions="Suivi des indicateurs Q1. Tout conforme aux objectifs.",
-                comite_id=comite2.id
-            ),
-            Reunion(
-                id=uuid.uuid4(),
-                date_reunion=date(2026, 5, 20),
-                decisions="Revue technique du projet. Ajustements mineurs nécessaires.",
-                comite_id=comite3.id
-            ),
-        ]
-        db.add_all(reunions)
-        db.commit()
-
-        # ─────────────────────────────────────────
-        # 7 — ALERTES
+        # 6 — ALERTES
         # ─────────────────────────────────────────
         alerte1 = Alerte(
             id=uuid.uuid4(),
@@ -368,7 +339,8 @@ def seed():
             objet="Réunion trimestrielle du comité de pilotage à planifier",
             envoyee=False,
             traitee=False,
-            convention_id=conv1.id
+            convention_id=conv1.id,
+            comite_id=comite1.id  # ✅ Ajouter comite_id
         )
         alerte3 = Alerte(
             id=uuid.uuid4(),
@@ -391,7 +363,7 @@ def seed():
         db.commit()
 
         # ─────────────────────────────────────────
-        # 8 — HISTORIQUE
+        # 7 — HISTORIQUE
         # ─────────────────────────────────────────
         historique = [
             Historique(
@@ -436,7 +408,6 @@ def seed():
         print(f"   - 5 partenaires créés")
         print(f"   - 3 budgets créés")
         print(f"   - 3 comités créés")
-        print(f"   - 3 réunions créées")
         print(f"   - 3 alertes créées")
         print(f"   - 4 historiques créés")
         print(f"\n🔑 Identifiants de connexion:")

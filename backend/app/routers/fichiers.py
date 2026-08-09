@@ -10,6 +10,9 @@ from app.schemas.fichier import FichierResponse
 from app.auth import get_current_user
 from app.services.ocr_service import process_document
 from app.models.convention import Convention
+from app.models.comite import Comite  # ✅ AJOUTÉ pour mettre à jour les réunions
+import json
+from datetime import datetime, timedelta 
 router = APIRouter(prefix="/api/fichiers", tags=["Fichiers"])
 
 ALLOWED_TYPES = [
@@ -26,6 +29,7 @@ def upload_fichier(
     convention_id: Optional[UUID] = None,
     reunion_id: Optional[UUID] = None,
     budget_id: Optional[UUID] = None,
+    comite_id: Optional[UUID] = None,  # ✅ AJOUTÉ pour lier au comité
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -34,9 +38,9 @@ def upload_fichier(
     print(f"📄 Fichier: {file.filename}")
     print(f"📄 Type: {file.content_type}")
     print(f"🔍 convention_id reçu: {convention_id}")
-    print(f"🔍 Type de convention_id: {type(convention_id)}")
     print(f"🔍 reunion_id reçu: {reunion_id}")
     print(f"🔍 budget_id reçu: {budget_id}")
+    print(f"🔍 comite_id reçu: {comite_id}")
     print("=" * 50)
 
     # Validation type de fichier
@@ -46,12 +50,12 @@ def upload_fichier(
     # Organisation par dossier
     if convention_id:
         upload_dir = f"/app/uploads/conventions/{convention_id}"
-    elif reunion_id:
-        upload_dir = f"/app/uploads/reunions/{reunion_id}"
     elif budget_id:
         upload_dir = f"/app/uploads/budgets/{budget_id}"
+    elif comite_id:
+        upload_dir = f"/app/uploads/comites/{comite_id}"
     else:
-        raise HTTPException(status_code=400, detail="Veuillez préciser une convention, réunion ou budget")
+        raise HTTPException(status_code=400, detail="Veuillez préciser une convention, budget ou comité")
 
     os.makedirs(upload_dir, exist_ok=True)
     file_ext = os.path.splitext(file.filename)[1]
@@ -64,22 +68,50 @@ def upload_fichier(
     fichier = Fichier(
         nom_fichier=file.filename,
         type_fichier=file.content_type,
+        taille=file.size or 0,
         chemin=file_path,
         convention_id=convention_id,
-        reunion_id=reunion_id,
+        # reunion_id=reunion_id,  # ❌ SUPPRIMER
         budget_id=budget_id
     )
     db.add(fichier)
-    db.commit()
-    db.refresh(fichier)
+    db.flush()  # Pour obtenir l'ID du fichier
 
+    # ✅ Si comite_id est fourni, mettre à jour les réunions du comité
+    if comite_id:
+        comite = db.query(Comite).filter(Comite.id == comite_id).first()
+        if comite:
+            # Créer la nouvelle réunion
+            date_str = datetime.now().strftime('%Y-%m-%d')
+            new_reunion = {
+                "id": f"reunion_{uuid.uuid4()}",
+                "date": date_str,
+                "pv": {
+                    "id": str(fichier.id),
+                    "nom": file.filename,
+                    "titre": f"PV_{comite.type}_{date_str}",
+                    "date": date_str
+                }
+            }
+            
+            # Ajouter la réunion au JSON existant
+            reunions = comite.reunions or []
+            reunions.append(new_reunion)
+            comite.reunions = reunions
+            
+            db.add(comite)
+            print(f"✅ Réunion ajoutée au comité {comite_id}")
+    
     # ✅ Mettre à jour le champ signe de la convention
     if convention_id:
         convention = db.query(Convention).filter(Convention.id == convention_id).first()
         if convention:
             convention.signe = True
-            db.commit()
+            db.add(convention)
             print(f"✅ Convention {convention_id} marquée comme signée")
+
+    db.commit()
+    db.refresh(fichier)
 
     return fichier
 
@@ -92,13 +124,9 @@ def get_fichiers_convention(
 ):
     return db.query(Fichier).filter(Fichier.convention_id == convention_id).all()
 
-@router.get("/reunion/{reunion_id}", response_model=List[FichierResponse])
-def get_fichiers_reunion(
-    reunion_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    return db.query(Fichier).filter(Fichier.reunion_id == reunion_id).all()
+# ❌ SUPPRIMER la route /reunion/{reunion_id} car les réunions sont dans le JSON
+# @router.get("/reunion/{reunion_id}", response_model=List[FichierResponse])
+# def get_fichiers_reunion(...):
 
 @router.get("/budget/{budget_id}", response_model=List[FichierResponse])
 def get_fichiers_budget(
@@ -107,6 +135,15 @@ def get_fichiers_budget(
     current_user: User = Depends(get_current_user)
 ):
     return db.query(Fichier).filter(Fichier.budget_id == budget_id).all()
+
+@router.get("/comite/{comite_id}", response_model=List[FichierResponse])
+def get_fichiers_comite(
+    comite_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Récupère tous les fichiers d'un comité (PV, documents)"""
+    return db.query(Fichier).filter(Fichier.comite_id == comite_id).all()
 
 @router.delete("/{fichier_id}")
 def delete_fichier(

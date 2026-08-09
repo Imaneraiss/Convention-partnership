@@ -26,10 +26,8 @@ class Alerte(Base):
     
     # Champs optionnels pour les alertes de réunion
     comite_id = Column(UUID(as_uuid=True), ForeignKey("comites.id"), nullable=True)
-    reunion_id = Column(UUID(as_uuid=True), ForeignKey("reunions.id"), nullable=True)
 
     # Relations
     convention = relationship("Convention", back_populates="alertes")
     comite = relationship("Comite", back_populates="alertes")
-    reunion = relationship("Reunion", back_populates="alertes")
     destinataires = relationship("User", secondary=alerte_destinataires)

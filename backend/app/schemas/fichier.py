@@ -8,12 +8,11 @@ class FichierResponse(BaseModel):
     id: UUID
     nom_fichier: str
     type_fichier: Optional[str] = None
+    taille: Optional[int] = None  # ✅ AJOUTER ce champ
     chemin: str
     uploaded_at: datetime
     convention_id: Optional[UUID] = None
-    reunion_id: Optional[UUID] = None
     budget_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True
-        

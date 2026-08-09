@@ -9,7 +9,7 @@ from app.models.alerte import Alerte
 from app.models.user import User
 from app.models.convention import Convention
 from app.models.comite import Comite
-from app.models.reunion import Reunion
+# from app.models.reunion import Reunion  # ❌ SUPPRIMER
 from app.schemas.alerte import AlerteCreate, AlerteUpdate, AlerteResponse
 from app.auth import get_current_user, require_role
 from app.services.email_service import EmailService
@@ -73,7 +73,7 @@ def traiter_alerte(alerte_id: UUID, db: Session = Depends(get_db), current_user:
     return {"message": "Alerte marquée comme traitée"}
 
 # ============================================
-# NOUVELLES ROUTES (ALERTES AUTOMATIQUES)
+# ALERTES AUTOMATIQUES - VERSION CORRIGÉE
 # ============================================
 
 @router.post("/check-expiration")
@@ -147,51 +147,66 @@ async def check_reunion_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("CHARGE"))
 ):
-    """Vérifier et envoyer les alertes de réunion (J-7)"""
+    """
+    Vérifier et envoyer les alertes de réunion (J-7)
+    ✅ VERSION CORRIGÉE - Utilise les réunions stockées dans Comite.reunions (JSON)
+    """
     email_service = EmailService()
     today = datetime.now().date()
     alert_date = today + timedelta(days=7)
     
-    reunions = db.query(Reunion).filter(
-        Reunion.date_reunion >= today,
-        Reunion.date_reunion <= alert_date
-    ).all()
+    # ✅ Récupérer tous les comités avec leurs réunions (stockées dans le JSON reunions)
+    comites = db.query(Comite).all()
     
     alerts_sent = []
     
-    for reunion in reunions:
-        existing = db.query(Alerte).filter(
-            Alerte.reunion_id == reunion.id,
-            Alerte.type_alerte == "REUNION_COMITE"
-        ).first()
+    for comite in comites:
+        # ✅ Extraire les réunions du champ JSON
+        reunions = comite.reunions or []
         
-        if not existing:
-            comite = db.query(Comite).filter(
-                Comite.id == reunion.comite_id
-            ).first()
-            
-            convention = db.query(Convention).filter(
-                Convention.id == comite.convention_id
-            ).first()
-            
-            if comite and convention:
-                success = email_service.send_reunion_alert(comite, reunion, convention)
+        for reunion in reunions:
+            try:
+                # ✅ Convertir la date de la réunion (format: 'YYYY-MM-DD')
+                reunion_date = datetime.strptime(reunion.get('date', ''), '%Y-%m-%d').date()
                 
-                alerte = Alerte(
-                    convention_id=convention.id,
-                    type_alerte="REUNION_COMITE",
-                    objet=f"Réunion du comité {comite.nom} - {reunion.date_reunion}",
-                    date_declenchement=datetime.now(),
-                    envoyee=success,
-                    traitee=success
-                )
-                db.add(alerte)
-                alerts_sent.append({
-                    "reunion_id": str(reunion.id),
-                    "comite": comite.nom,
-                    "date_reunion": str(reunion.date_reunion),
-                    "success": success
-                })
+                # ✅ Vérifier si la réunion est dans la fenêtre J-7
+                if today <= reunion_date <= alert_date:
+                    # ✅ Vérifier si une alerte existe déjà
+                    existing = db.query(Alerte).filter(
+                        Alerte.convention_id == comite.convention_id,
+                        Alerte.objet.like(f"%Réunion du comité {comite.type}%"),
+                        Alerte.type_alerte == "REUNION_COMITE"
+                    ).first()
+                    
+                    if not existing:
+                        # ✅ Récupérer la convention
+                        convention = db.query(Convention).filter(
+                            Convention.id == comite.convention_id
+                        ).first()
+                        
+                        if convention:
+                            # ✅ Envoyer l'alerte
+                            success = email_service.send_reunion_alert(comite, reunion, convention)
+                            
+                            # ✅ Créer l'alerte en base
+                            alerte = Alerte(
+                                convention_id=convention.id,
+                                type_alerte="REUNION_COMITE",
+                                objet=f"Réunion du comité {comite.type} - {reunion_date}",
+                                date_declenchement=datetime.now(),
+                                envoyee=success,
+                                traitee=success
+                            )
+                            db.add(alerte)
+                            alerts_sent.append({
+                                "comite_id": str(comite.id),
+                                "comite": comite.type,
+                                "date_reunion": str(reunion_date),
+                                "success": success
+                            })
+            except (ValueError, TypeError):
+                # ✅ Ignorer les réunions avec des dates invalides
+                continue
     
     db.commit()
     return {
