@@ -16,6 +16,7 @@ import { FileDown } from 'lucide-react';
 import { createComite, updateComite, getComites } from '../../services/comiteService';
 import { createBudget, updateBudget, getBudget } from '../../services/budgetService';
 import { getComitesByConvention } from '../../services/comiteService';
+import { createAlerte, updateAlerte, getAlertesByConvention } from '../../services/alerteService';
 
 const TABS = [
   { id: 'general', label: 'Infos générales' },
@@ -393,21 +394,25 @@ export default function ConventionForm() {
       // ✅ CHARGER LES COMITÉS
       try {
         const comitesResponse = await getComitesByConvention(id);
-        const comitesFiltres = comitesResponse.data;       if (comitesFiltres && comitesFiltres.length > 0) {
+        const comitesFiltres = comitesResponse.data;
+        if (comitesFiltres && comitesFiltres.length > 0) {
           setCommittees(comitesFiltres.map(c => ({
             ...c,
             expanded: false,
             reunions: c.reunions || [],
             taches: c.taches || [],
-            // ✅ Transformer les destinataires en membres Um5 et Partenaires
             membresUm5: c.destinataires_internes || [],
             membresPartenaires: c.destinataires_externes || []
           })));
+          console.log('📋 Comités chargés:', comitesFiltres.length);
+        } else {
+          setCommittees([]);
         }
       } catch (err) {
         console.error('Erreur chargement comités:', err);
+        setCommittees([]);
       }
-      
+
       // ✅ CHARGER LE BUDGET
       try {
         console.log('💰 Chargement du budget pour la convention:', id);
@@ -416,7 +421,6 @@ export default function ConventionForm() {
         if (budgetResponse.data) {
           const budgetData = budgetResponse.data;
           
-          // ✅ Mapper les champs backend → frontend
           const mappedBudget = {
             id: budgetData.id,
             modalitePaiement: budgetData.modalites_paiement || '',
@@ -426,7 +430,7 @@ export default function ConventionForm() {
               parseFloat(budgetData.montant) || 0 : 0,
             montantDepense: budgetData.montant_depense || 0,
             commentaire: budgetData.commentaire || '',
-            justificatifs: []  // Sera rempli ci-dessous
+            justificatifs: []
           };
           
           // ✅ Charger les justificatifs
@@ -464,6 +468,39 @@ export default function ConventionForm() {
           setError('Erreur lors du chargement du budget');
         }
       }
+
+      // ✅ CHARGER LES ALERTES MANUELLES
+// ✅ CHARGER LES ALERTES MANUELLES
+    try {
+      const alertesResponse = await getAlertesByConvention(id);
+      console.log('🔔 Alertes chargées:', alertesResponse.data);
+      
+      if (alertesResponse.data && alertesResponse.data.length > 0) {
+        // ✅ Filtrer les alertes manuelles
+        const manualAlerts = alertesResponse.data
+          .filter(a => a.type_alerte === "MANUELLE")
+          .map(a => ({
+            id: a.id,
+            titre: a.objet || 'Alerte manuelle',
+            description: a.objet || '',
+            date: a.date_declenchement,
+            niveau: 'info',
+            active: !a.traitee,
+            auto: false,
+            _new: false,
+            _deleted: false
+          }));
+        
+        console.log('🔔 Alertes manuelles chargées:', manualAlerts);
+        
+        setAlertsData(prev => ({
+          ...prev,
+          manual: manualAlerts
+        }));
+      }
+    } catch (err) {
+      console.error('❌ Erreur chargement alertes:', err);
+    }
       setIsEditing(false);
 
     } catch (err) {
@@ -565,193 +602,281 @@ export default function ConventionForm() {
   };
 
   const handleSubmit = async (e) => {
-      e.preventDefault();
-      setSaving(true);
-      setError(null);
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
 
-      const requiredFields = [
-          { field: 'intitule', label: 'Intitulé de la convention' },
-          { field: 'type', label: 'Type de convention' },
-          { field: 'date_signature', label: 'Date de signature' },
-          { field: 'signataire_um5', label: 'Signataire UM5' }
-      ];
+    const requiredFields = [
+      { field: 'intitule', label: 'Intitulé de la convention' },
+      { field: 'type', label: 'Type de convention' },
+      { field: 'date_signature', label: 'Date de signature' },
+      { field: 'signataire_um5', label: 'Signataire UM5' }
+    ];
 
-      const missingFields = requiredFields.filter(f => !formData[f.field]);
-      if (missingFields.length > 0) {
-          setError(`Veuillez remplir les champs obligatoires : ${missingFields.map(f => f.label).join(', ')}`);
+    const missingFields = requiredFields.filter(f => !formData[f.field]);
+    if (missingFields.length > 0) {
+      setError(`Veuillez remplir les champs obligatoires : ${missingFields.map(f => f.label).join(', ')}`);
+      setSaving(false);
+      return;
+    }
+
+    const dataToSend = {
+      intitule: formData.intitule,
+      type: formData.type,
+      date_signature: formData.date_signature,
+      date_expiration: formData.date_expiration || null,
+      duree_annees: formData.duree_annees || null,
+      mode_renouvellement: formData.mode_renouvellement || null,
+      signataire_um5: formData.signataire_um5,
+      signataire_um5_autre: formData.signataire_um5_autre || null,
+      signataire_partenaire: formData.signataire_partenaire || null,
+      signataire_partenaire_autre: formData.signataire_partenaire_autre || null,
+      avec_budget: formData.avec_budget || false,
+      validation_conseil: formData.validation_conseil || false,
+      formation_continue: formData.formation_continue || false,
+      mots_cles: formData.mots_cles || [],
+      articles: formData.articles || {},
+      articles_personnalises: formData.articles_personnalises || [],
+      statut: formData.statut || 'EN_COURS',
+      expiree_manuellement: formData.expiree_manuellement || false,
+      signe: formData.signe || false
+    };
+
+    try {
+      let conventionId;
+
+      if (id) {
+        // ── UPDATE ──
+        await updateConvention(id, dataToSend);
+        conventionId = id;
+
+        // ── PARTENAIRES ──
+        for (const partenaire of partenaires) {
+          if (partenaire.nom) {
+            if (partenaire.id) {
+              await updatePartenaire(partenaire.id, {
+                nom: partenaire.nom,
+                type: partenaire.type,
+                ville: partenaire.ville || '',
+                region: partenaire.region || '',
+                pays: partenaire.pays || 'Maroc',
+                signataire: partenaire.signataire || '',
+              });
+            } else {
+              await createPartenaire({ ...partenaire, convention_id: conventionId });
+            }
+          }
+        }
+
+        // ── COMITÉS ──
+        console.log('📋 Comités à sauvegarder:', committees);
+        
+        // 1. Supprimer les comités marqués _deleted
+        const toDelete = committees.filter(c => c._deleted && c.id && !c.id.toString().startsWith('temp_'));
+        for (const comite of toDelete) {
+          try {
+            await deleteComite(comite.id);
+            console.log('🗑️ Comité supprimé:', comite.id);
+          } catch (err) {
+            console.error('❌ Erreur suppression comité:', err);
+          }
+        }
+
+        // 2. Créer ou mettre à jour les comités
+        const toSave = committees.filter(c => !c._deleted);
+        for (const comite of toSave) {
+          if (!comite.type) continue;
+
+          const comiteData = {
+            type: comite.type,
+            frequence: comite.frequence || null,
+            taches: comite.taches || [],
+            convention_id: conventionId,
+            destinataires_internes: comite.membresUm5?.map(m => m.id).filter(Boolean) || [],
+            destinataires_externes: comite.membresPartenaires?.map(m => m.email).filter(Boolean) || []
+          };
+
+          const isTemp = !comite.id || comite.id.toString().startsWith('temp_');
+
+          if (!isTemp) {
+            console.log('✏️ Update comité:', comite.id);
+            await updateComite(comite.id, comiteData);
+          } else {
+            console.log('➕ Création comité:', comite.type);
+            const newComite = await createComite(comiteData);
+            // ✅ Mettre à jour l'ID dans le state
+            comite.id = newComite.data?.id || newComite.id;
+            comite._new = false;
+          }
+        }
+
+        // ── BUDGET ──
+        if (budgetData) {
+          const budgetToSend = {
+            montant: budgetData.montantTotal || budgetData.montant || 0,
+            modalites_paiement: budgetData.modalitePaiement || budgetData.modalites_paiement || '',
+            budget_recu: budgetData.montantRecu && budgetData.montantRecu > 0 ? 'OUI' : 'NON',
+            montant_depense: budgetData.montantDepense || 0,
+            reste_a_payer: (budgetData.montantTotal || 0) - (budgetData.montantRecu || 0),
+            commentaire: budgetData.commentaire || '',
+            devise: budgetData.devise || 'MAD',
+            convention_id: conventionId,
+            justificatifs: budgetData.justificatifs || []
+          };
+
+          if (budgetData.id) {
+            console.log('💰 Update budget:', budgetData.id);
+            await updateBudget(budgetData.id, budgetToSend);
+          } else {
+            console.log('💰 Création budget');
+            const newBudget = await createBudget(budgetToSend);
+            budgetData.id = newBudget.data?.id || newBudget.id;
+          }
+        }
+
+        // ── ALERTES MANUELLES ──
+      if (alertsData && alertsData.manual && alertsData.manual.length > 0) {
+        console.log('🔔 Sauvegarde des alertes manuelles:', alertsData.manual);
+        
+        for (const alerte of alertsData.manual) {
+          // ✅ Ignorer les alertes supprimées
+          if (alerte._deleted) continue;
+          
+          try {
+            // ✅ Préparer les données pour le backend
+            const alerteData = {
+              type_alerte: "MANUELLE",
+              objet: alerte.titre || 'Alerte manuelle',
+              date_declenchement: alerte.date || new Date().toISOString().split('T')[0],
+              convention_id: conventionId,
+              envoyee: false,
+              traitee: !alerte.active,
+              destinataires: alerte.destinataires || []
+            };
+
+            // ✅ Vérifier si c'est un ID temporaire
+            const isTemp = !alerte.id || alerte.id.toString().startsWith('temp_');
+            
+            if (!isTemp) {
+              // ✅ Mise à jour d'une alerte existante
+              console.log('✏️ Update alerte:', alerte.id);
+              await updateAlerte(alerte.id, alerteData);
+            } else {
+              // ✅ Création d'une nouvelle alerte
+              console.log('➕ Création alerte manuelle');
+              const newAlerte = await createAlerte(alerteData);
+              // ✅ Mettre à jour l'ID dans le state
+              alerte.id = newAlerte.data?.id || newAlerte.id;
+              alerte._new = false;
+            }
+          } catch (err) {
+            console.error('❌ Erreur sauvegarde alerte:', err);
+          }
+        }
+      }
+
+      } else {
+        // ── CREATE ──
+        const convResponse = await createConvention(dataToSend);
+        conventionId = convResponse.data?.id;
+
+        if (!conventionId) {
+          setError('Erreur lors de la création de la convention');
           setSaving(false);
           return;
+        }
+
+        console.log('✅ Convention créée avec ID:', conventionId);
+
+        // Partenaires
+        for (const partenaire of partenaires) {
+          if (partenaire.nom) {
+            await createPartenaire({ ...partenaire, convention_id: conventionId });
+          }
+        }
+
+        // Comités
+        const toSave = committees.filter(c => !c._deleted);
+        for (const comite of toSave) {
+          if (comite.type) {
+            const newComite = await createComite({
+              type: comite.type,
+              frequence: comite.frequence || null,
+              convention_id: conventionId,
+              taches: comite.taches || [],
+              destinataires_internes: comite.membresUm5?.map(m => m.id).filter(Boolean) || [],
+              destinataires_externes: comite.membresPartenaires?.map(m => m.email).filter(Boolean) || []
+            });
+            comite.id = newComite.data?.id || newComite.id;
+          }
+        }
+
+        // Budget
+        if (budgetData) {
+          const newBudget = await createBudget({
+            montant: budgetData.montantTotal || budgetData.montant || 0,
+            modalites_paiement: budgetData.modalitePaiement || '',
+            budget_recu: budgetData.montantRecu && budgetData.montantRecu > 0 ? 'OUI' : 'NON',
+            montant_depense: budgetData.montantDepense || 0,
+            reste_a_payer: (budgetData.montantTotal || 0) - (budgetData.montantRecu || 0),
+            commentaire: budgetData.commentaire || '',
+            devise: budgetData.devise || 'MAD',
+            convention_id: conventionId,
+            justificatifs: budgetData.justificatifs || []
+          });
+          budgetData.id = newBudget.data?.id || newBudget.id;
+        }
+
+        // Alertes manuelles
+        if (alertsData && alertsData.manual && alertsData.manual.length > 0) {
+          for (const alerte of alertsData.manual) {
+            if (alerte._deleted) continue;
+            
+            try {
+              const newAlerte = await createAlerte({
+                type_alerte: "MANUELLE",
+                objet: alerte.titre || 'Alerte manuelle',
+                date_declenchement: alerte.date || new Date().toISOString().split('T')[0],
+                convention_id: conventionId,
+                envoyee: false,
+                traitee: !alerte.active
+              });
+              alerte.id = newAlerte.data?.id || newAlerte.id;
+            } catch (err) {
+              console.error('❌ Erreur sauvegarde alerte:', err);
+            }
+          }
+        }
       }
 
-      const dataToSend = {
-          intitule: formData.intitule,
-          type: formData.type,
-          date_signature: formData.date_signature,
-          date_expiration: formData.date_expiration || null,
-          duree_annees: formData.duree_annees || null,
-          mode_renouvellement: formData.mode_renouvellement || null,
-          signataire_um5: formData.signataire_um5,
-          signataire_um5_autre: formData.signataire_um5_autre || null,
-          signataire_partenaire: formData.signataire_partenaire || null,
-          signataire_partenaire_autre: formData.signataire_partenaire_autre || null,
-          avec_budget: formData.avec_budget || false,
-          validation_conseil: formData.validation_conseil || false,
-          formation_continue: formData.formation_continue || false,
-          mots_cles: formData.mots_cles || [],
-          articles: formData.articles || {},
-          articles_personnalises: formData.articles_personnalises || [],
-          statut: formData.statut || 'EN_COURS',
-          expiree_manuellement: formData.expiree_manuellement || false,
-          signe: formData.signe || false
-      };
-
-      try {
-          let conventionId;
-
-          if (id) {
-              // ── UPDATE ──
-              await updateConvention(id, dataToSend);
-              conventionId = id;
-
-              // Partenaires
-              for (const partenaire of partenaires) {
-                  if (partenaire.nom) {
-                      if (partenaire.id) {
-                          await updatePartenaire(partenaire.id, {
-                              nom: partenaire.nom,
-                              type: partenaire.type,
-                              ville: partenaire.ville || '',
-                              region: partenaire.region || '',
-                              pays: partenaire.pays || 'Maroc',
-                              signataire: partenaire.signataire || '',
-                          });
-                      } else {
-                          await createPartenaire({ ...partenaire, convention_id: conventionId });
-                      }
-                  }
-              }
-
-              // Comités
-              console.log('📋 Comités à sauvegarder:', committees)
-              for (const comite of committees) {
-                  if (!comite.type) continue;
-
-                  const comiteData = {
-                      type: comite.type,
-                      frequence: comite.frequence || null,
-                      taches: comite.taches || [],
-                      convention_id: conventionId,
-                      destinataires_internes: comite.membresUm5?.map(m => m.id).filter(Boolean) || [],
-                      destinataires_externes: comite.membresPartenaires?.map(m => m.email).filter(Boolean) || []
-                  };
-
-                  const isTemp = !comite.id || comite.id.toString().startsWith('temp_')
-
-                  if (!isTemp) {
-                      // Existant → update
-                      console.log('✏️ Update comité:', comite.id)
-                      await updateComite(comite.id, comiteData);
-                  } else {
-                      // Nouveau → create
-                      console.log('➕ Création comité:', comite.type)
-                      await createComite(comiteData);
-                  }
-              }
-
-              // Budget
-              if (budgetData) {
-                  const budgetToSend = {
-                      montant: budgetData.montantTotal || budgetData.montant || 0,
-                      modalites_paiement: budgetData.modalitePaiement || budgetData.modalites_paiement || '',
-                      budget_recu: budgetData.budget_recu || 'NON',
-                      montant_depense: budgetData.montantDepense || budgetData.montant_depense || 0,
-                      reste_a_payer: budgetData.reste_a_payer || 0,
-                      commentaire: budgetData.commentaire || '',
-                      devise: budgetData.devise || 'MAD', 
-                      convention_id: conventionId
-                  };
-
-                  if (budgetData.id) {
-                      await updateBudget(budgetData.id, budgetToSend);
-                  } else {
-                      await createBudget(budgetToSend);
-                  }
-              }
-
-          } else {
-              // ── CREATE ──
-              const convResponse = await createConvention(dataToSend);
-              conventionId = convResponse.data?.id;
-
-              if (!conventionId) {
-                  setError('Erreur lors de la création de la convention');
-                  setSaving(false);
-                  return;
-              }
-
-              // Partenaires
-              for (const partenaire of partenaires) {
-                  if (partenaire.nom) {
-                      await createPartenaire({ ...partenaire, convention_id: conventionId });
-                  }
-              }
-
-              // Comités
-              for (const comite of committees) {
-                  if (comite.type) {
-                      await createComite({
-                          type: comite.type,
-                          frequence: comite.frequence || null,
-                          convention_id: conventionId,
-                          taches: comite.taches || [],
-                          destinataires_internes: comite.membresUm5?.map(m => m.id).filter(Boolean) || [],
-                          destinataires_externes: comite.membresPartenaires?.map(m => m.email).filter(Boolean) || []
-                      });
-                  }
-              }
-
-              // Budget
-              if (budgetData) {
-                  await createBudget({
-                      montant: budgetData.montantTotal || budgetData.montant || 0,
-                      modalites_paiement: budgetData.modalitePaiement || budgetData.modalites_paiement || '',
-                      budget_recu: budgetData.budget_recu || 'NON',
-                      montant_depense: budgetData.montantDepense || budgetData.montant_depense || 0,
-                      reste_a_payer: budgetData.reste_a_payer || 0,
-                      commentaire: budgetData.commentaire || '',
-                      convention_id: conventionId
-                  });
-              }
-          }
-
-          // Upload fichier
-          const fileToUpload = fileRef.current || file;
-          if (fileToUpload instanceof File) {
-              const formDataFile = new FormData();
-              formDataFile.append('file', fileToUpload);
-              formDataFile.append('convention_id', conventionId);
-              await uploadFichier(formDataFile);
-              sessionStorage.removeItem('uploadedFileInfo');
-              sessionStorage.removeItem('isFromUpload');
-              fileRef.current = null;
-              setFile(null);
-          }
-
-          setIsEditing(false);
-          navigate(`/conventions/${conventionId}`, { replace: true });
-
-      } catch (err) {
-          console.error('❌ Erreur:', err);
-          console.error('📋 Réponse:', err.response?.data);
-          const detail = err.response?.data?.detail;
-          setError(
-              typeof detail === 'string' ? detail :
-              detail ? JSON.stringify(detail) :
-              "Erreur lors de l'enregistrement"
-          );
-      } finally {
-          setSaving(false);
+      // ── UPLOAD FICHIER ──
+      const fileToUpload = fileRef.current || file;
+      if (fileToUpload instanceof File) {
+        const formDataFile = new FormData();
+        formDataFile.append('file', fileToUpload);
+        formDataFile.append('convention_id', conventionId);
+        await uploadFichier(formDataFile);
+        sessionStorage.removeItem('uploadedFileInfo');
+        sessionStorage.removeItem('isFromUpload');
+        fileRef.current = null;
+        setFile(null);
       }
+
+      setIsEditing(false);
+      navigate(`/conventions/${conventionId}`, { replace: true });
+
+    } catch (err) {
+      console.error('❌ Erreur:', err);
+      console.error('📋 Réponse:', err.response?.data);
+      const detail = err.response?.data?.detail;
+      setError(
+        typeof detail === 'string' ? detail :
+        detail ? JSON.stringify(detail) :
+        "Erreur lors de l'enregistrement"
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -885,6 +1010,7 @@ export default function ConventionForm() {
                   comites: committees,
                   budget: budgetData
                 }}
+                initialManualAlerts={alertsData.manual}
                 onChange={setAlertsData}
               />
             )}

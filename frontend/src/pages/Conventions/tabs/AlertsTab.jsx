@@ -6,9 +6,14 @@ import Input from '../../../components/common/Input';
 import Textarea from '../../../components/common/Textarea';
 import Modal from '../../../components/common/Modal';
 
-export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
+export default function AlertsTab({ 
+  readOnly, 
+  conventionData = {}, 
+  onChange,
+  initialManualAlerts = []  // ✅ AJOUTER CETTE PROP
+}) {
   const [autoAlerts, setAutoAlerts] = useState([]);
-  const [manualAlerts, setManualAlerts] = useState([]);
+  const [manualAlerts, setManualAlerts] = useState(initialManualAlerts || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newAlert, setNewAlert] = useState({
     titre: '',
@@ -17,10 +22,25 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
     niveau: 'info'
   });
 
-  // 🔄 Génération des alertes automatiques basées sur les données de la convention
+  // ✅ Initialiser les alertes manuelles quand elles sont chargées
+  useEffect(() => {
+    if (initialManualAlerts && initialManualAlerts.length > 0) {
+      console.log('🔔 Alertes manuelles reçues dans AlertsTab:', initialManualAlerts);
+      setManualAlerts(initialManualAlerts);
+    }
+  }, [initialManualAlerts]);
+
+  // 🔄 Génération des alertes automatiques
   useEffect(() => {
     generateAutomaticAlerts();
   }, [conventionData]);
+
+  // ✅ Synchronisation avec le parent
+  useEffect(() => {
+    if (onChange) {
+      onChange({ auto: autoAlerts, manual: manualAlerts });
+    }
+  }, [manualAlerts, autoAlerts]);
 
   const generateAutomaticAlerts = () => {
     const newAlerts = [];
@@ -134,6 +154,7 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
       }
     }
 
+    console.log('🔔 Alertes auto générées:', newAlerts);
     setAutoAlerts(newAlerts);
   };
 
@@ -144,10 +165,13 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
         ...manualAlerts,
         {
           ...newAlert,
-          id: `manuel-${Date.now()}`,
+          id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           type: 'manuel',
           active: true,
-          auto: false
+          auto: false,
+          _new: true,
+          _deleted: false,
+          destinataires: []
         }
       ];
       setManualAlerts(newManualAlerts);
@@ -159,7 +183,9 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
 
   // ❌ Supprimer une alerte manuelle
   const deleteAlert = (id) => {
-    const newManualAlerts = manualAlerts.filter(a => a.id !== id);
+    const newManualAlerts = manualAlerts.map(a =>
+      a.id === id ? { ...a, _deleted: true, active: false } : a
+    );
     setManualAlerts(newManualAlerts);
     if (onChange) onChange({ auto: autoAlerts, manual: newManualAlerts });
   };
@@ -173,7 +199,7 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
     if (onChange) onChange({ auto: autoAlerts, manual: newManualAlerts });
   };
 
-  // 📊 Fusion des alertes automatiques + manuelles
+  // 📊 Fusion des alertes
   const allAlerts = [...autoAlerts, ...manualAlerts];
 
   const getNiveauBorder = (niveau) => {
@@ -247,7 +273,6 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
                   </p>
                 </div>
                 
-                {/* Actions uniquement pour les alertes manuelles */}
                 {!alert.auto && !readOnly && (
                   <div className="flex items-center gap-2 ml-4">
                     <button
@@ -271,7 +296,6 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
                   </div>
                 )}
                 
-                {/* Info pour les alertes auto */}
                 {alert.auto && (
                   <div className="text-xs text-gray-400 ml-4">
                     <Clock size={14} className="inline mr-1" />
@@ -284,7 +308,6 @@ export default function AlertsTab({ readOnly, conventionData = {}, onChange }) {
         </div>
       )}
 
-      {/* Modal de création d'alerte manuelle */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <div className="p-6 space-y-4">
           <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
