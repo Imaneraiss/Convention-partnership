@@ -1,12 +1,11 @@
-import { useState, useRef , useEffect} from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { UploadCloud, Download, FileText } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import Textarea from '../../../components/common/Textarea';
-import { uploadFichier } from '../../../services/fichierService';
-import { deleteFichier } from '../../../services/fichierService';
-
+import { uploadFichier, deleteFichier, downloadFile } from '../../../services/fichierService';
+import DownloadButton from '../../../components/common/DownloadButton';
 
 // ✅ Devises disponibles
 const DEVISES = [
@@ -15,10 +14,10 @@ const DEVISES = [
   { value: 'USD', label: '🇺🇸 USD (Dollar)' }
 ];
 
-export default function BudgetTab({ readOnly, initialBudget = null, onChange, conventionId  }) {
+export default function BudgetTab({ readOnly, initialBudget = null, onChange, conventionId }) {
   const [budget, setBudget] = useState(initialBudget || {
     modalitePaiement: '',
-    devise: 'MAD', // ✅ Devise par défaut
+    devise: 'MAD',
     montantTotal: 0,
     montantRecu: 0,
     montantDepense: 0,
@@ -27,6 +26,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
   });
 
   const [dragActive, setDragActive] = useState(false);
+  const [downloading, setDownloading] = useState({});
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -35,30 +35,28 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
       setBudget(initialBudget);
     }
   }, [initialBudget]);
-    const updateBudget = (newBudget) => {
-      setBudget(newBudget);
-      if (onChange) onChange(newBudget);
-    };
 
+  const updateBudget = (newBudget) => {
+    setBudget(newBudget);
+    if (onChange) onChange(newBudget);
+  };
 
+  // ─── UPLOAD ───
   const handleFileUpload = async (file) => {
     if (!file) return;
 
-    // ✅ Vérifier que conventionId existe
     if (!conventionId) {
       alert('Veuillez d\'abord enregistrer la convention avant d\'uploader des justificatifs.');
       return;
     }
 
     try {
-      // ✅ Upload du fichier sur le serveur
       const formData = new FormData();
       formData.append('file', file);
       formData.append('convention_id', conventionId);
       
       const response = await uploadFichier(formData);
       
-      // ✅ Ajouter le justificatif dans le state avec l'ID retourné
       const newJustificatif = {
         id: response.data.id,
         nom: file.name,
@@ -79,11 +77,52 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
     }
   };
 
+  // ─── TÉLÉCHARGEMENT ───
+  const handleDownload = async (fichierId, nomFichier) => {
+    if (!fichierId) {
+      alert('Fichier non trouvé');
+      return;
+    }
+
+    setDownloading(prev => ({ ...prev, [fichierId]: true }));
+    
+    try {
+      await downloadFile(fichierId, nomFichier);
+    } catch (error) {
+      console.error('❌ Erreur téléchargement:', error);
+      alert('Erreur lors du téléchargement du justificatif');
+    } finally {
+      setDownloading(prev => ({ ...prev, [fichierId]: false }));
+    }
+  };
+
+  // ─── SUPPRESSION ───
+  const removeJustificatif = async (index) => {
+    const justificatif = budget.justificatifs[index];
+    
+    if (justificatif.id) {
+      try {
+        await deleteFichier(justificatif.id);
+      } catch (error) {
+        console.error('❌ Erreur suppression justificatif:', error);
+        alert('Erreur lors de la suppression du justificatif');
+        return;
+      }
+    }
+    
+    const newBudget = {
+      ...budget,
+      justificatifs: (budget.justificatifs || []).filter((_, i) => i !== index)
+    };
+    updateBudget(newBudget);
+  };
+
+  // ─── DRAG & DROP ───
   const handleDrop = (e) => {
     e.preventDefault();
     setDragActive(false);
     const file = e.dataTransfer.files[0];
-    handleFileUpload(file);
+    if (file) handleFileUpload(file);
   };
 
   const handleDragOver = (e) => {
@@ -98,31 +137,10 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
 
   const handleFileInput = (e) => {
     const file = e.target.files[0];
-    handleFileUpload(file);
+    if (file) handleFileUpload(file);
   };
 
-
-  const removeJustificatif = async (index) => {
-    const justificatif = budget.justificatifs[index];
-    
-    // ✅ Supprimer du serveur si l'ID existe
-    if (justificatif.id) {
-      try {
-        await deleteFichier(justificatif.id);
-      } catch (error) {
-        console.error('❌ Erreur suppression justificatif:', error);
-        alert('Erreur lors de la suppression du justificatif');
-        return;
-      }
-    }
-    
-    // ✅ Supprimer du state
-    const newBudget = {
-      ...budget,
-      justificatifs: (budget.justificatifs || []).filter((_, i) => i !== index)
-    };
-    updateBudget(newBudget);
-  };
+  // ─── CALCULS ───
   const totalRestant = (budget.montantTotal || 0) - (budget.montantRecu || 0);
   const pourcentageRecu = budget.montantTotal > 0 ? (budget.montantRecu / budget.montantTotal) * 100 : 0;
 
@@ -136,13 +154,8 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
 
   const statut = getStatutBudget();
 
-  // ✅ Symbole de la devise
   const getDeviseSymbol = (devise) => {
-    const symbols = {
-      MAD: 'DH',
-      EUR: '€',
-      USD: '$'
-    };
+    const symbols = { MAD: 'DH', EUR: '€', USD: '$' };
     return symbols[devise] || devise;
   };
 
@@ -162,7 +175,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
         )}
       </Card>
 
-      {/* ✅ Sélection de la devise */}
+      {/* Devise */}
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-gray-700">Devise</h3>
@@ -249,30 +262,46 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
         <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
           <FileText size={16} />
           Justificatifs
+          {!readOnly && (
+            <span className="text-xs text-gray-400 ml-2">
+              ({(budget.justificatifs || []).length} fichiers)
+            </span>
+          )}
         </h3>
 
         {(budget.justificatifs || []).length > 0 && (
           <div className="space-y-2 mb-4">
             {(budget.justificatifs || []).map((j, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+              <div key={j.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex items-center gap-3">
                   <FileText size={16} className="text-blue-600" />
-                  <span className="text-sm text-gray-700">{j.nom}</span>
-                  <span className="text-xs text-gray-400">{j.uploadDate}</span>
+                  <div>
+                    <span className="text-sm text-gray-700">{j.nom}</span>
+                    <span className="text-xs text-gray-400 ml-2">{j.uploadDate}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* ✅ Téléchargement avec bouton réutilisable */}
                   <button
                     type="button"
-                    className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
+                    onClick={() => handleDownload(j.id, j.nom)}
+                    disabled={downloading[j.id]}
+                    className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 transition-colors disabled:opacity-50"
                   >
-                    <Download size={14} />
-                    Télécharger
+                    {downloading[j.id] ? (
+                      <span className="text-xs">Chargement...</span>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        Télécharger
+                      </>
+                    )}
                   </button>
                   {!readOnly && (
                     <button
                       type="button"
                       onClick={() => removeJustificatif(index)}
-                      className="text-red-600 hover:text-red-700 text-sm"
+                      className="text-red-600 hover:text-red-700 text-sm transition-colors"
                     >
                       Supprimer
                     </button>
@@ -290,7 +319,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
             onDragLeave={handleDragLeave}
             onClick={() => fileInputRef.current?.click()}
             className={`
-              border-2 border-dashed rounded p-6 text-center cursor-pointer transition-colors
+              border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
               ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
             `}
           >
@@ -303,7 +332,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
               ref={fileInputRef}
               type="file"
               hidden
-              accept=".pdf,.jpg,.jpeg,.png"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
               onChange={handleFileInput}
             />
           </div>

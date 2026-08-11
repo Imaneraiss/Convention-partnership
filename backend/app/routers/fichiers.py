@@ -13,6 +13,9 @@ from app.models.convention import Convention
 from app.models.comite import Comite  # ✅ AJOUTÉ pour mettre à jour les réunions
 import json
 from datetime import datetime, timedelta 
+from fastapi.responses import FileResponse
+
+
 router = APIRouter(prefix="/api/fichiers", tags=["Fichiers"])
 
 ALLOWED_TYPES = [
@@ -173,3 +176,29 @@ async def extract_convention(
     result = process_document(file_bytes, file.content_type)
     
     return result
+
+
+@router.get("/{fichier_id}")
+def download_fichier(
+    fichier_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Télécharger n'importe quel fichier par son ID
+    Utilisé pour : PV, conventions, justificatifs, etc.
+    """
+    fichier = db.query(Fichier).filter(Fichier.id == fichier_id).first()
+    if not fichier:
+        raise HTTPException(status_code=404, detail="Fichier non trouvé")
+    
+    # Vérifier que le fichier existe physiquement
+    if not os.path.exists(fichier.chemin):
+        raise HTTPException(status_code=404, detail="Fichier physique non trouvé")
+    
+    # Retourner le fichier
+    return FileResponse(
+        path=fichier.chemin,
+        filename=fichier.nom_fichier,
+        media_type=fichier.type_fichier or "application/octet-stream"
+    )

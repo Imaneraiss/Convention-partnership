@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback  } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Input from '../../../components/common/Input';
 import Select from '../../../components/common/Select';
 import Textarea from '../../../components/common/Textarea';
 import Button from '../../../components/common/Button';
+import DownloadButton from '../../../components/common/DownloadButton';
+
 import { 
   TYPES_CONVENTION, 
   MODES_RENOUVELLEMENT,
@@ -241,16 +243,17 @@ export default function GeneralTab({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm"
-                onClick={() => {
-                  console.log('Télécharger:', fileInfo);
-                }}
-              >
-                <Download size={16} />
-                Télécharger
-              </button>
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-600">
+                  {uploadedFileInfo?.name || 'Aucun fichier'}
+                </p>
+                {uploadedFileInfo?.id && (
+                  <DownloadButton 
+                    fichierId={uploadedFileInfo.id} 
+                    nomFichier={uploadedFileInfo.name}
+                  />
+                )}
+              </div>
             </div>
           </div>
         ) : null}

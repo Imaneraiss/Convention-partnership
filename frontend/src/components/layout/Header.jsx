@@ -15,7 +15,33 @@ export default function Header() {
         "/gestion-comptes": "Gestion des comptes",
     };
 
-    const title = pageTitles[location.pathname] || "Dashboard";
+    // ✅ Fonction pour obtenir le titre
+    const getTitle = () => {
+        const path = location.pathname;
+
+        // Vérifier les titres statiques
+        if (pageTitles[path]) {
+            return pageTitles[path];
+        }
+
+        // ✅ Titres dynamiques
+        if (path.startsWith("/conventions/")) {
+            return "Détail de la convention";
+        }
+
+        if (path.startsWith("/comites/")) {
+            return "Détail du comité";
+        }
+
+        if (path.startsWith("/alertes/")) {
+            return "Détail de l'alerte";
+        }
+
+        // Titre par défaut
+        return "Dashboard";
+    };
+
+    const title = getTitle();
 
     return (
         <header className="flex justify-between items-center bg-white px-10 py-5 border-b border-l border-gray-200 ">

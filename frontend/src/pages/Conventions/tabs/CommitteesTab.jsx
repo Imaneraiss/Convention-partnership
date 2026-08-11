@@ -24,7 +24,7 @@ import Modal from '../../../components/common/Modal';
 import { TYPES_COMITE, FREQUENCES_REUNION } from '../../../utils/constants';
 import { uploadFichier, deleteFichier } from '../../../services/fichierService';
 import { createComite, updateComite, deleteComite, getComitesByConvention } from '../../../services/comiteService';
-
+import DownloadButton from '../../../components/common/DownloadButton';
 // Jours fériés au Maroc
 const JOURS_FERIES = [
   '2026-01-01', '2026-01-11', '2026-05-01', '2026-07-30',
@@ -58,6 +58,40 @@ export default function CommitteesTab({
   const frequenceOptions = FREQUENCES_REUNION || ['Hebdomadaire', 'Mensuelle', 'Bimestrielle', 'Trimestrielle', 'Semestrielle', 'Annuelle'];
   const typeOptions = TYPES_COMITE || ['PILOTAGE', 'SUIVI', 'TECHNIQUE', 'SCIENTIFIQUE'];
   const etablissementsOptions = ['UM5R', 'FLSH', 'FMD', 'FMPH', 'ENS', 'ENSAM', 'ENSET', 'EST', 'FSR', 'FSJES AGDAL', 'FSJES SOUISSI', 'FSJES SALE', 'EST SALE', 'EMI', 'ENSIAS', 'IS'];
+  // ✅ Fonction pour télécharger un fichier
+  const downloadFile = async (fichierId, nomFichier) => {
+    try {
+      // Appel à l'API pour récupérer le fichier
+      const response = await fetch(`/api/fichiers/${fichierId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du téléchargement');
+      }
+
+      // Récupérer le blob
+      const blob = await response.blob();
+      
+      // Créer un URL pour le téléchargement
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = nomFichier || 'document';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log(`✅ Fichier ${nomFichier} téléchargé avec succès`);
+    } catch (error) {
+      console.error('❌ Erreur téléchargement:', error);
+      alert('Erreur lors du téléchargement du fichier');
+    }
+  };
 
   // Effet pour initialiser les comités
   useEffect(() => {
@@ -762,6 +796,7 @@ export default function CommitteesTab({
                       <p className="text-sm text-gray-400">Aucun PV uploadé</p>
                     ) : (
                       <div className="space-y-2">
+                        {/* Dans la section des réunions*/}
                         {(committee.reunions || []).map((reunion) => (
                           <div key={reunion.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                             <div className="flex items-center gap-3">
@@ -771,19 +806,16 @@ export default function CommitteesTab({
                                   {reunion.pv?.titre || `PV_${reunion.date}`}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {reunion.pv?.nom || 'Fichier'} 
+                                  {reunion.pv?.nom || 'Fichier'}
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <button 
-                                className="text-blue-600 hover:text-blue-700 p-1"
-                                onClick={() => {
-                                  console.log('Télécharger:', reunion.pv);
-                                }}
-                              >
-                                <Download size={16} />
-                              </button>
+                              {/* ✅ Utilisation du composant DownloadButton */}
+                              <DownloadButton 
+                                fichierId={reunion.pv?.id} 
+                                nomFichier={reunion.pv?.nom}
+                              />
                               {!readOnly && (
                                 <button 
                                   className="text-red-600 hover:text-red-700 p-1"

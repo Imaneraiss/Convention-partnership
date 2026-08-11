@@ -306,12 +306,11 @@ export default function ConventionForm() {
 
     // ✅ Mettre à jour les comités (avec leurs tâches)
     if (extractedData.comites && extractedData.comites.length > 0) {
-      const comitesAvecTaches = extractedData.comites.map(c => ({
+      const comitesAvecTaches = extractedData.comites.map((c, index) => ({
         ...c,
         id:`temp_${Date.now()}_${index}`,
         expanded: false,
         reunions: c.reunions || [],
-        // ✅ Les tâches sont déjà dans c.taches (extraites par Groq)
         taches: c.taches || []
       }));
       setCommittees(comitesAvecTaches);
