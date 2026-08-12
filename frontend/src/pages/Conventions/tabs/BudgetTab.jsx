@@ -14,7 +14,7 @@ const DEVISES = [
   { value: 'USD', label: '🇺🇸 USD (Dollar)' }
 ];
 
-export default function BudgetTab({ readOnly, initialBudget = null, onChange, conventionId }) {
+export default function BudgetTab({ readOnly, initialBudget = null, onChange, conventionId, budgetId }) {
   const [budget, setBudget] = useState(initialBudget || {
     modalitePaiement: '',
     devise: 'MAD',
@@ -32,13 +32,22 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
   useEffect(() => {
     console.log('📊 Budget reçu dans BudgetTab:', initialBudget);
     if (initialBudget) {
-      setBudget(initialBudget);
+      // ✅ S'assurer que _modified est false au chargement
+      setBudget({
+        ...initialBudget,
+        _modified: false
+      });
     }
   }, [initialBudget]);
 
   const updateBudget = (newBudget) => {
-    setBudget(newBudget);
-    if (onChange) onChange(newBudget);
+    // ✅ Ajouter _modified: true
+    const updatedBudget = {
+      ...newBudget,
+      _modified: true
+    };
+    setBudget(updatedBudget);
+    if (onChange) onChange(updatedBudget);
   };
 
   // ─── UPLOAD ───
@@ -54,6 +63,7 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
       const formData = new FormData();
       formData.append('file', file);
       formData.append('convention_id', conventionId);
+      formData.append('budget_id', budgetId);
       
       const response = await uploadFichier(formData);
       

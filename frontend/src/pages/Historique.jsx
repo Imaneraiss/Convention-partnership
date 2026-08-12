@@ -4,13 +4,8 @@ import {
   History, 
   Calendar, 
   User, 
-  FileText, 
-  Clock, 
   X, 
-  Eye,
-  RefreshCw,
-  ChevronDown,
-  ChevronRight
+  RefreshCw
 } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -26,7 +21,6 @@ export default function Historique() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
-  const [expandedItems, setExpandedItems] = useState({});
 
   useEffect(() => {
     fetchHistorique();
@@ -36,7 +30,12 @@ export default function Historique() {
     setLoading(true);
     try {
       const response = await getHistorique();
-      setHistorique(response.data || []);
+      const normalizedData = (response.data || []).map(item => ({
+        ...item,
+        action: item.action || item.type_action || 'autre',
+        type_action: item.type_action || item.action || 'autre'
+      }));
+      setHistorique(normalizedData);
     } catch (error) {
       console.error('Erreur lors du chargement de l\'historique:', error);
       setHistorique([]);
@@ -49,45 +48,55 @@ export default function Historique() {
     setLoading(true);
     try {
       const response = await getHistoriqueByUser(userId);
-      setHistorique(response.data || []);
+      const normalizedData = (response.data || []).map(item => ({
+        ...item,
+        action: item.action || item.type_action || 'autre',
+        type_action: item.type_action || item.action || 'autre'
+      }));
+      setHistorique(normalizedData);
     } catch (error) {
-      console.error('Erreur lors du chargement de l\'historique:', error);
+      console.error(' Erreur lors du chargement de l\'historique:', error);
       setHistorique([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleExpand = (id) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
-  };
-
   const filteredHistorique = historique.filter(item => {
-    if (typeFilter !== 'all' && item.type_action !== typeFilter) return false;
+    const action = item.action || item.type_action || '';
+    console.log(`🔍 Action: ${item.action}, Convention: ${item.convention_intitule || '❌ MANQUANT'}`);
+    
+    if (typeFilter !== 'all' && action !== typeFilter) return false;
     if (dateDebut && item.date_action < dateDebut) return false;
     if (dateFin && item.date_action > dateFin) return false;
     if (search) {
       const s = search.toLowerCase();
       const inDescription = item.description?.toLowerCase().includes(s);
       const inUtilisateur = item.utilisateur_nom?.toLowerCase().includes(s) || 
-                           item.utilisateur_email?.toLowerCase().includes(s);
+                          item.utilisateur_email?.toLowerCase().includes(s);
       const inConvention = item.convention_intitule?.toLowerCase().includes(s);
-      const inDetails = item.details ? JSON.stringify(item.details).toLowerCase().includes(s) : false;
-      if (!inDescription && !inUtilisateur && !inConvention && !inDetails) return false;
+      if (!inDescription && !inUtilisateur && !inConvention) return false;
     }
     return true;
   });
 
   const stats = {
     total: historique.length,
-    creations: historique.filter(h => h.type_action === 'creation').length,
-    modifications: historique.filter(h => h.type_action === 'modification').length,
-    suppressions: historique.filter(h => h.type_action === 'suppression').length,
-    uploads: historique.filter(h => h.type_action === 'upload').length,
-    autres: historique.filter(h => !['creation', 'modification', 'suppression', 'upload'].includes(h.type_action)).length
+    creations: historique.filter(h => 
+      (h.action === 'creation' || h.type_action === 'creation')
+    ).length,
+    modifications: historique.filter(h => 
+      (h.action === 'modification' || h.type_action === 'modification')
+    ).length,
+    suppressions: historique.filter(h => 
+      (h.action === 'suppression' || h.type_action === 'suppression')
+    ).length,
+    uploads: historique.filter(h => 
+      (h.action === 'upload' || h.type_action === 'upload')
+    ).length,
+    autres: historique.filter(h => 
+      !['creation', 'modification', 'suppression', 'upload'].includes(h.action || h.type_action)
+    ).length
   };
 
   const getActionColor = (type) => {
@@ -128,77 +137,6 @@ export default function Historique() {
     });
   };
 
-  const renderDetails = (item) => {
-    if (!item.details) return null;
-    
-    try {
-      const details = typeof item.details === 'string' ? JSON.parse(item.details) : item.details;
-      
-      if (item.type_action === 'modification') {
-        return (
-          <div className="mt-3 space-y-2">
-            <p className="text-sm font-medium text-gray-700">Champs modifiés :</p>
-            <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-              {Object.entries(details).map(([key, value]) => (
-                <div key={key} className="flex items-center gap-2 text-sm">
-                  <span className="font-medium text-gray-600">{key}:</span>
-                  {Array.isArray(value) ? (
-                    <span className="text-gray-800">{value.join(', ')}</span>
-                  ) : (
-                    <span className="text-gray-800">{value}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-      
-      if (item.type_action === 'creation') {
-        return (
-          <div className="mt-3 space-y-2">
-            <p className="text-sm font-medium text-gray-700">Informations créées :</p>
-            <div className="bg-green-50 rounded-lg p-3 space-y-1">
-              {Object.entries(details).map(([key, value]) => (
-                <div key={key} className="flex items-center gap-2 text-sm">
-                  <span className="font-medium text-gray-600">{key}:</span>
-                  <span className="text-gray-800">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-      
-      if (item.type_action === 'upload') {
-        return (
-          <div className="mt-3">
-            <div className="bg-purple-50 rounded-lg p-3 flex items-center gap-3">
-              <span className="text-sm text-gray-700">
-                Fichier: {details.fichier_nom || 'Document'}
-              </span>
-              {details.fichier_taille && (
-                <span className="text-xs text-gray-500">
-                  ({(details.fichier_taille / 1024).toFixed(2)} KB)
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      }
-      
-      return null;
-    } catch (e) {
-      return (
-        <div className="mt-3 bg-gray-50 rounded-lg p-3">
-          <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-            {typeof item.details === 'string' ? item.details : JSON.stringify(item.details, null, 2)}
-          </pre>
-        </div>
-      );
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -215,7 +153,6 @@ export default function Historique() {
           <h1 className="text-2xl text-gray-500 flex items-center gap-2">
             Suivez toutes les actions effectuées sur les conventions
           </h1>
-         
         </div>
         <Button 
           variant="secondary" 
@@ -326,88 +263,39 @@ export default function Historique() {
       ) : (
         <div className="space-y-3">
           {filteredHistorique.map((item) => (
-            <Card 
-              key={item.id} 
-              className="overflow-hidden hover:shadow-md transition-shadow"
-            >
-              <div 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => toggleExpand(item.id)}
-              >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    {/* Ligne 1: Type + Description */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {expandedItems[item.id] ? (
-                        <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronRight size={18} className="text-gray-400 flex-shrink-0" />
-                      )}
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${getActionColor(item.type_action)}`}>
-                        {getActionLabel(item.type_action)}
-                      </span>
-                      <span className="font-medium text-gray-900">
-                        {item.description || item.type_action}
-                      </span>
-                      {item.convention_intitule && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/conventions/${item.convention_id}`);
-                          }}
-                          className="text-xs text-blue-600 hover:text-blue-700 underline"
-                        >
-                          Voir convention
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Ligne 2: Utilisateur + Date */}
-                    <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <User size={14} />
-                        {item.utilisateur_nom || 'Utilisateur inconnu'}
-                        {item.utilisateur_email && (
-                          <span className="text-xs text-gray-400">({item.utilisateur_email})</span>
-                        )}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar size={14} />
-                        {formatDate(item.date_action)}
-                      </span>
-                      {item.ip_address && (
-                        <span className="text-xs text-gray-400">
-                          IP: {item.ip_address}
-                        </span>
-                      )}
-                    </div>
+            <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow">
+              <div className="p-4">
+                <div className="flex flex-col gap-2">
+                  {/* Ligne 1: Type + Description */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${getActionColor(item.action || item.type_action)}`}>
+                      {getActionLabel(item.action || item.type_action)}
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {item.description}
+                    </span>
                   </div>
 
-                  {/* Badge de statut si présent */}
-                  {item.statut && (
-                    <div className="flex-shrink-0">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        item.statut === 'success' ? 'bg-green-100 text-green-700' :
-                        item.statut === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                        item.statut === 'error' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>
-                        {item.statut}
-                      </span>
+                  {/* Ligne 2: Convention (si présente) */}
+                  {item.convention_intitule && (
+                    <div className="text-sm text-blue-600">
+                      📄 {item.convention_intitule}
                     </div>
                   )}
+
+                  {/* Ligne 3: Utilisateur + Date */}
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <User size={14} />
+                      {item.utilisateur_nom || 'Utilisateur inconnu'}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Calendar size={14} />
+                      {formatDate(item.date_action)}
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              {/* Détails expansés */}
-              {expandedItems[item.id] && (
-                <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
-                  {renderDetails(item)}
-                  {!item.details && (
-                    <p className="text-sm text-gray-500">Aucun détail disponible</p>
-                  )}
-                </div>
-              )}
             </Card>
           ))}
         </div>

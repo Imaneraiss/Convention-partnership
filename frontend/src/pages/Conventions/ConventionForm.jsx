@@ -74,7 +74,8 @@ export default function ConventionForm() {
     articles_masques: [],
     statut: 'EN_COURS',
     signe: false,
-    expiree_manuellement: false
+    expiree_manuellement: false,
+    _modified: false  
   });
 
   const [partenaires, setPartenaires] = useState([
@@ -515,7 +516,7 @@ export default function ConventionForm() {
   };
 
   const handleFormChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => ({ ...prev, [field]: value, _modified: true  }));
   };
 
   const handlePartenaireChange = (index, field, value) => {
@@ -604,319 +605,362 @@ export default function ConventionForm() {
     }
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setSaving(true);
-  setError(null);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
 
-  const requiredFields = [
-    { field: 'intitule', label: 'Intitulé de la convention' },
-    { field: 'type', label: 'Type de convention' },
-    { field: 'date_signature', label: 'Date de signature' },
-    { field: 'signataire_um5', label: 'Signataire UM5' }
-  ];
+    const requiredFields = [
+      { field: 'intitule', label: 'Intitulé de la convention' },
+      { field: 'type', label: 'Type de convention' },
+      { field: 'date_signature', label: 'Date de signature' },
+      { field: 'signataire_um5', label: 'Signataire UM5' }
+    ];
 
-  const missingFields = requiredFields.filter(f => !formData[f.field]);
-  if (missingFields.length > 0) {
-    setError(`Veuillez remplir les champs obligatoires : ${missingFields.map(f => f.label).join(', ')}`);
-    setSaving(false);
-    return;
-  }
+    const missingFields = requiredFields.filter(f => !formData[f.field]);
+    if (missingFields.length > 0) {
+      setError(`Veuillez remplir les champs obligatoires : ${missingFields.map(f => f.label).join(', ')}`);
+      setSaving(false);
+      return;
+    }
 
-  const dataToSend = {
-    intitule: formData.intitule,
-    type: formData.type,
-    date_signature: formData.date_signature,
-    date_expiration: formData.date_expiration || null,
-    duree_annees: formData.duree_annees || null,
-    mode_renouvellement: formData.mode_renouvellement || null,
-    signataire_um5: formData.signataire_um5,
-    signataire_um5_autre: formData.signataire_um5_autre || null,
-    signataire_partenaire: formData.signataire_partenaire || null,
-    signataire_partenaire_autre: formData.signataire_partenaire_autre || null,
-    avec_budget: formData.avec_budget || false,
-    validation_conseil: formData.validation_conseil || false,
-    formation_continue: formData.formation_continue || false,
-    mots_cles: formData.mots_cles || [],
-    articles: formData.articles || {},
-    articles_personnalises: formData.articles_personnalises || [],
-    statut: formData.statut || 'EN_COURS',
-    expiree_manuellement: formData.expiree_manuellement || false,
-    signe: formData.signe || false
-  };
+    const dataToSend = {
+      intitule: formData.intitule,
+      type: formData.type,
+      date_signature: formData.date_signature,
+      date_expiration: formData.date_expiration || null,
+      duree_annees: formData.duree_annees || null,
+      mode_renouvellement: formData.mode_renouvellement || null,
+      signataire_um5: formData.signataire_um5,
+      signataire_um5_autre: formData.signataire_um5_autre || null,
+      signataire_partenaire: formData.signataire_partenaire || null,
+      signataire_partenaire_autre: formData.signataire_partenaire_autre || null,
+      avec_budget: formData.avec_budget || false,
+      validation_conseil: formData.validation_conseil || false,
+      formation_continue: formData.formation_continue || false,
+      mots_cles: formData.mots_cles || [],
+      articles: formData.articles || {},
+      articles_personnalises: formData.articles_personnalises || [],
+      statut: formData.statut || 'EN_COURS',
+      expiree_manuellement: formData.expiree_manuellement || false,
+      signe: formData.signe || false
+    };
 
-  try {
-    let conventionId;
+    try {
+      let conventionId;
 
-    if (id) {
-      // ── UPDATE ──
-      await updateConvention(id, dataToSend);
-      conventionId = id;
+      if (id) {
+        // ── UPDATE CONVENTION ──
+        // ✅ Vérifier si la convention a vraiment changé
+        const conventionHasChanges = formData._modified;
+        
+        if (conventionHasChanges) {
+          await updateConvention(id, dataToSend);
+          console.log('📝 Convention mise à jour');
+          formData._modified = false; // Reset après sauvegarde
+        } else {
+          console.log('⏭️ Convention inchangée, pas de log');
+        }
+        conventionId = id;
 
-      // ── PARTENAIRES ──
-      for (const partenaire of partenaires) {
-        if (partenaire.nom) {
-          if (partenaire.id) {
-            await updatePartenaire(partenaire.id, {
-              nom: partenaire.nom,
-              type: partenaire.type,
-              ville: partenaire.ville || '',
-              region: partenaire.region || '',
-              pays: partenaire.pays || 'Maroc',
-              signataire: partenaire.signataire || '',
-            });
+        // ── PARTENAIRES ──
+        for (const partenaire of partenaires) {
+          if (partenaire.nom) {
+            if (partenaire.id) {
+              await updatePartenaire(partenaire.id, {
+                nom: partenaire.nom,
+                type: partenaire.type,
+                ville: partenaire.ville || '',
+                region: partenaire.region || '',
+                pays: partenaire.pays || 'Maroc',
+                signataire: partenaire.signataire || '',
+              });
+            } else {
+              await createPartenaire({ ...partenaire, convention_id: conventionId });
+            }
+          }
+        }
+
+        // ── COMITÉS ──
+        console.log('📋 Comités à sauvegarder:', committees);
+
+        // 1. Supprimer les comités marqués _deleted
+        const toDelete = committees.filter(c => c._deleted && c.id && !c.id.toString().startsWith('temp_'));
+        for (const comite of toDelete) {
+          try {
+            await deleteComite(comite.id);
+            console.log('🗑️ Comité supprimé:', comite.id);
+          } catch (err) {
+            console.error('❌ Erreur suppression comité:', err);
+          }
+        }
+
+        // 2. Créer ou mettre à jour les comités (UNIQUEMENT s'ils ont changé)
+        const toSave = committees.filter(c => !c._deleted);
+        for (const comite of toSave) {
+          if (!comite.type) continue;
+
+          // ✅ Vérifier si le comité a vraiment changé
+          const hasChanges = comite._modified || comite._new;
+          
+          // ✅ Vérifier si c'est un ID temporaire
+          const isTemp = !comite.id || comite.id.toString().startsWith('temp_');
+
+          // ✅ Si pas de changements et pas temporaire → passer
+          if (!hasChanges && !isTemp) {
+            console.log(`⏭️ Comité ${comite.type} inchangé, pas de log`);
+            continue;
+          }
+
+          // ✅ Préparer les données avec la nouvelle structure JSON
+          const comiteData = {
+            type: comite.type,
+            frequence: comite.frequence || null,
+            date_debut: comite.date_debut || null,
+            prochaine_reunion: comite.prochaineReunion || comite.prochaine_reunion || null,
+            convention_id: conventionId,
+            taches: (comite.taches || []).map(t => typeof t === 'string' ? t : t.description || t),
+            membres_um5: (comite.membres_um5 || comite.membresUm5 || []).map(m => ({
+              id: m.id || String(Date.now()),
+              nom: m.nom,
+              email: m.email,
+              etablissement: m.etablissement || ''
+            })),
+            membres_partenaires: (comite.membres_partenaires || comite.membresPartenaires || []).map(m => ({
+              id: m.id || String(Date.now()),
+              nom: m.nom,
+              email: m.email,
+              organisme: m.organisme || ''
+            }))
+          };
+
+          if (!isTemp && comite._existing) {
+            // ✅ Mise à jour
+            console.log('✏️ Update comité:', comite.id);
+            await updateComite(comite.id, comiteData);
+            comite._modified = false;
           } else {
+            // ✅ Création
+            console.log('➕ Création comité:', comite.type);
+            const response = await createComite(comiteData);
+            comite.id = response.data?.id || response.id;
+            comite._new = false;
+            comite._existing = true;
+            comite._modified = false;
+          }
+        }
+
+        // ── BUDGET (UNIQUEMENT s'il a changé) ──
+        if (budgetData) {
+          // ✅ Vérifier si le budget a changé
+          const budgetHasChanges = budgetData._modified || budgetData._new;
+          const budgetExists = budgetData.id && !budgetData.id.toString().startsWith('temp_');
+          
+          if (!budgetHasChanges && budgetExists) {
+            console.log('⏭️ Budget inchangé, pas de log');
+          } else {
+            const budgetToSend = {
+              montant: budgetData.montantTotal || budgetData.montant || 0,
+              modalites_paiement: budgetData.modalitePaiement || budgetData.modalites_paiement || '',
+              budget_recu: budgetData.montantRecu && budgetData.montantRecu > 0 ? 'OUI' : 'NON',
+              montant_depense: budgetData.montantDepense || 0,
+              reste_a_payer: (budgetData.montantTotal || 0) - (budgetData.montantRecu || 0),
+              commentaire: budgetData.commentaire || '',
+              devise: budgetData.devise || 'MAD',
+              convention_id: conventionId,
+              justificatifs: budgetData.justificatifs || []
+            };
+
+            if (budgetData.id && !budgetData.id.toString().startsWith('temp_')) {
+              console.log('💰 Update budget:', budgetData.id);
+              await updateBudget(budgetData.id, budgetToSend);
+              budgetData._modified = false;
+            } else {
+              console.log('💰 Création budget');
+              const newBudget = await createBudget(budgetToSend);
+              budgetData.id = newBudget.data?.id || newBudget.id;
+              budgetData._new = false;
+              budgetData._modified = false;
+            }
+          }
+        }
+
+        // ── ALERTES MANUELLES ──
+        if (alertsData && alertsData.manual && alertsData.manual.length > 0) {
+          console.log('🔔 Sauvegarde des alertes manuelles:', alertsData.manual);
+          
+          for (const alerte of alertsData.manual) {
+            if (alerte._deleted) continue;
+            
+            // ✅ Vérifier si l'alerte a changé
+            const alerteHasChanges = alerte._modified || alerte._new;
+            const isTempAlerte = !alerte.id || alerte.id.toString().startsWith('temp_');
+            
+            if (!alerteHasChanges && !isTempAlerte) {
+              console.log(`⏭️ Alerte ${alerte.titre} inchangée, pas de log`);
+              continue;
+            }
+            
+            try {
+              const alerteData = {
+                type_alerte: "MANUELLE",
+                objet: alerte.titre || 'Alerte manuelle',
+                date_declenchement: alerte.date || new Date().toISOString().split('T')[0],
+                convention_id: conventionId,
+                envoyee: false,
+                traitee: !alerte.active,
+                destinataires: alerte.destinataires || []
+              };
+
+              if (!isTempAlerte) {
+                console.log('✏️ Update alerte:', alerte.id);
+                await updateAlerte(alerte.id, alerteData);
+                alerte._modified = false;
+              } else {
+                console.log('➕ Création alerte manuelle');
+                const newAlerte = await createAlerte(alerteData);
+                alerte.id = newAlerte.data?.id || newAlerte.id;
+                alerte._new = false;
+                alerte._modified = false;
+              }
+            } catch (err) {
+              console.error('❌ Erreur sauvegarde alerte:', err);
+            }
+          }
+        }
+
+      } else {
+        // ── CREATE ──
+        const convResponse = await createConvention(dataToSend);
+        conventionId = convResponse.data?.id;
+
+        if (!conventionId) {
+          setError('Erreur lors de la création de la convention');
+          setSaving(false);
+          return;
+        }
+
+        console.log('✅ Convention créée avec ID:', conventionId);
+
+        // ── PARTENAIRES ──
+        for (const partenaire of partenaires) {
+          if (partenaire.nom) {
             await createPartenaire({ ...partenaire, convention_id: conventionId });
           }
         }
-      }
 
-      // ── COMITÉS ──
-      console.log('📋 Comités à sauvegarder:', committees);
+        // ── COMITÉS ──
+        const toSave = committees.filter(c => !c._deleted);
+        for (const comite of toSave) {
+          if (!comite.type) continue;
 
-      // 1. Supprimer les comités marqués _deleted
-      const toDelete = committees.filter(c => c._deleted && c.id && !c.id.toString().startsWith('temp_'));
-      for (const comite of toDelete) {
-        try {
-          await deleteComite(comite.id);
-          console.log('🗑️ Comité supprimé:', comite.id);
-        } catch (err) {
-          console.error('❌ Erreur suppression comité:', err);
-        }
-      }
+          const comiteData = {
+            type: comite.type,
+            frequence: comite.frequence || null,
+            date_debut: comite.date_debut || null,
+            prochaine_reunion: comite.prochaineReunion || comite.prochaine_reunion || null,
+            convention_id: conventionId,
+            taches: (comite.taches || []).map(t => typeof t === 'string' ? t : t.description || t),
+            membres_um5: (comite.membres_um5 || comite.membresUm5 || []).map(m => ({
+              id: m.id || String(Date.now()),
+              nom: m.nom,
+              email: m.email,
+              etablissement: m.etablissement || ''
+            })),
+            membres_partenaires: (comite.membres_partenaires || comite.membresPartenaires || []).map(m => ({
+              id: m.id || String(Date.now()),
+              nom: m.nom,
+              email: m.email,
+              organisme: m.organisme || ''
+            }))
+          };
 
-      // 2. Créer ou mettre à jour les comités
-      const toSave = committees.filter(c => !c._deleted);
-      for (const comite of toSave) {
-        if (!comite.type) continue;
-
-        // ✅ Préparer les données avec la nouvelle structure JSON
-        const comiteData = {
-          type: comite.type,
-          frequence: comite.frequence || null,
-          date_debut: comite.date_debut || null,
-          prochaine_reunion: comite.prochaineReunion || comite.prochaine_reunion || null,
-          convention_id: conventionId,
-          taches: (comite.taches || []).map(t => typeof t === 'string' ? t : t.description || t),
-          membres_um5: (comite.membres_um5 || comite.membresUm5 || []).map(m => ({
-            id: m.id || String(Date.now()),
-            nom: m.nom,
-            email: m.email,
-            etablissement: m.etablissement || ''
-          })),
-          membres_partenaires: (comite.membres_partenaires || comite.membresPartenaires || []).map(m => ({
-            id: m.id || String(Date.now()),
-            nom: m.nom,
-            email: m.email,
-            organisme: m.organisme || ''
-          }))
-        };
-
-        const isTemp = !comite.id || comite.id.toString().startsWith('temp_');
-
-        if (!isTemp && comite._existing) {
-          // ✅ Mise à jour
-          console.log('✏️ Update comité:', comite.id);
-          await updateComite(comite.id, comiteData);
-          comite._modified = false;
-        } else {
-          // ✅ Création
           console.log('➕ Création comité:', comite.type);
-          const response = await createComite(comiteData);
-          comite.id = response.data?.id || response.id;
+          const newComite = await createComite(comiteData);
+          comite.id = newComite.data?.id || newComite.id;
           comite._new = false;
           comite._existing = true;
+          comite._modified = false;
         }
-      }
 
-      // ── BUDGET ──
-      if (budgetData) {
-        const budgetToSend = {
-          montant: budgetData.montantTotal || budgetData.montant || 0,
-          modalites_paiement: budgetData.modalitePaiement || budgetData.modalites_paiement || '',
-          budget_recu: budgetData.montantRecu && budgetData.montantRecu > 0 ? 'OUI' : 'NON',
-          montant_depense: budgetData.montantDepense || 0,
-          reste_a_payer: (budgetData.montantTotal || 0) - (budgetData.montantRecu || 0),
-          commentaire: budgetData.commentaire || '',
-          devise: budgetData.devise || 'MAD',
-          convention_id: conventionId,
-          justificatifs: budgetData.justificatifs || []
-        };
+        // ── BUDGET ──
+        if (budgetData) {
+          const budgetToSend = {
+            montant: budgetData.montantTotal || budgetData.montant || 0,
+            modalites_paiement: budgetData.modalitePaiement || '',
+            budget_recu: budgetData.montantRecu && budgetData.montantRecu > 0 ? 'OUI' : 'NON',
+            montant_depense: budgetData.montantDepense || 0,
+            reste_a_payer: (budgetData.montantTotal || 0) - (budgetData.montantRecu || 0),
+            commentaire: budgetData.commentaire || '',
+            devise: budgetData.devise || 'MAD',
+            convention_id: conventionId,
+            justificatifs: budgetData.justificatifs || []
+          };
 
-        if (budgetData.id) {
-          console.log('💰 Update budget:', budgetData.id);
-          await updateBudget(budgetData.id, budgetToSend);
-        } else {
           console.log('💰 Création budget');
           const newBudget = await createBudget(budgetToSend);
           budgetData.id = newBudget.data?.id || newBudget.id;
+          budgetData._new = false;
+          budgetData._modified = false;
         }
-      }
 
-      // ── ALERTES MANUELLES ──
-      if (alertsData && alertsData.manual && alertsData.manual.length > 0) {
-        console.log('🔔 Sauvegarde des alertes manuelles:', alertsData.manual);
-        
-        for (const alerte of alertsData.manual) {
-          if (alerte._deleted) continue;
-          
-          try {
-            const alerteData = {
-              type_alerte: "MANUELLE",
-              objet: alerte.titre || 'Alerte manuelle',
-              date_declenchement: alerte.date || new Date().toISOString().split('T')[0],
-              convention_id: conventionId,
-              envoyee: false,
-              traitee: !alerte.active,
-              destinataires: alerte.destinataires || []
-            };
-
-            const isTemp = !alerte.id || alerte.id.toString().startsWith('temp_');
+        // ── ALERTES MANUELLES ──
+        if (alertsData && alertsData.manual && alertsData.manual.length > 0) {
+          for (const alerte of alertsData.manual) {
+            if (alerte._deleted) continue;
             
-            if (!isTemp) {
-              console.log('✏️ Update alerte:', alerte.id);
-              await updateAlerte(alerte.id, alerteData);
-            } else {
+            try {
+              const alerteData = {
+                type_alerte: "MANUELLE",
+                objet: alerte.titre || 'Alerte manuelle',
+                date_declenchement: alerte.date || new Date().toISOString().split('T')[0],
+                convention_id: conventionId,
+                envoyee: false,
+                traitee: !alerte.active,
+                destinataires: alerte.destinataires || []
+              };
+
               console.log('➕ Création alerte manuelle');
               const newAlerte = await createAlerte(alerteData);
               alerte.id = newAlerte.data?.id || newAlerte.id;
               alerte._new = false;
+              alerte._modified = false;
+            } catch (err) {
+              console.error('❌ Erreur sauvegarde alerte:', err);
             }
-          } catch (err) {
-            console.error('❌ Erreur sauvegarde alerte:', err);
           }
         }
       }
 
-    } else {
-      // ── CREATE ──
-      const convResponse = await createConvention(dataToSend);
-      conventionId = convResponse.data?.id;
-
-      if (!conventionId) {
-        setError('Erreur lors de la création de la convention');
-        setSaving(false);
-        return;
+      // ── UPLOAD FICHIER ──
+      const fileToUpload = fileRef.current || file;
+      if (fileToUpload instanceof File) {
+        const formDataFile = new FormData();
+        formDataFile.append('file', fileToUpload);
+        formDataFile.append('convention_id', conventionId);
+        await uploadFichier(formDataFile);
+        sessionStorage.removeItem('uploadedFileInfo');
+        sessionStorage.removeItem('isFromUpload');
+        fileRef.current = null;
+        setFile(null);
       }
 
-      console.log('✅ Convention créée avec ID:', conventionId);
+      setIsEditing(false);
+      navigate(`/conventions/${conventionId}`, { replace: true });
 
-      // ── PARTENAIRES ──
-      for (const partenaire of partenaires) {
-        if (partenaire.nom) {
-          await createPartenaire({ ...partenaire, convention_id: conventionId });
-        }
-      }
-
-      // ── COMITÉS ──
-      const toSave = committees.filter(c => !c._deleted);
-      for (const comite of toSave) {
-        if (!comite.type) continue;
-
-        // ✅ Utiliser la nouvelle structure JSON
-        const comiteData = {
-          type: comite.type,
-          frequence: comite.frequence || null,
-          date_debut: comite.date_debut || null,
-          prochaine_reunion: comite.prochaineReunion || comite.prochaine_reunion || null,
-          convention_id: conventionId,
-          taches: (comite.taches || []).map(t => typeof t === 'string' ? t : t.description || t),
-          membres_um5: (comite.membres_um5 || comite.membresUm5 || []).map(m => ({
-            id: m.id || String(Date.now()),
-            nom: m.nom,
-            email: m.email,
-            etablissement: m.etablissement || ''
-          })),
-          membres_partenaires: (comite.membres_partenaires || comite.membresPartenaires || []).map(m => ({
-            id: m.id || String(Date.now()),
-            nom: m.nom,
-            email: m.email,
-            organisme: m.organisme || ''
-          }))
-        };
-
-        console.log('➕ Création comité:', comite.type);
-        const newComite = await createComite(comiteData);
-        comite.id = newComite.data?.id || newComite.id;
-        comite._new = false;
-        comite._existing = true;
-      }
-
-      // ── BUDGET ──
-      if (budgetData) {
-        const budgetToSend = {
-          montant: budgetData.montantTotal || budgetData.montant || 0,
-          modalites_paiement: budgetData.modalitePaiement || '',
-          budget_recu: budgetData.montantRecu && budgetData.montantRecu > 0 ? 'OUI' : 'NON',
-          montant_depense: budgetData.montantDepense || 0,
-          reste_a_payer: (budgetData.montantTotal || 0) - (budgetData.montantRecu || 0),
-          commentaire: budgetData.commentaire || '',
-          devise: budgetData.devise || 'MAD',
-          convention_id: conventionId,
-          justificatifs: budgetData.justificatifs || []
-        };
-
-        console.log('💰 Création budget');
-        const newBudget = await createBudget(budgetToSend);
-        budgetData.id = newBudget.data?.id || newBudget.id;
-      }
-
-      // ── ALERTES MANUELLES ──
-      if (alertsData && alertsData.manual && alertsData.manual.length > 0) {
-        for (const alerte of alertsData.manual) {
-          if (alerte._deleted) continue;
-          
-          try {
-            const alerteData = {
-              type_alerte: "MANUELLE",
-              objet: alerte.titre || 'Alerte manuelle',
-              date_declenchement: alerte.date || new Date().toISOString().split('T')[0],
-              convention_id: conventionId,
-              envoyee: false,
-              traitee: !alerte.active,
-              destinataires: alerte.destinataires || []
-            };
-
-            console.log('➕ Création alerte manuelle');
-            const newAlerte = await createAlerte(alerteData);
-            alerte.id = newAlerte.data?.id || newAlerte.id;
-            alerte._new = false;
-          } catch (err) {
-            console.error('❌ Erreur sauvegarde alerte:', err);
-          }
-        }
-      }
+    } catch (err) {
+      console.error('❌ Erreur:', err);
+      console.error('📋 Réponse:', err.response?.data);
+      const detail = err.response?.data?.detail;
+      setError(
+        typeof detail === 'string' ? detail :
+        detail ? JSON.stringify(detail) :
+        "Erreur lors de l'enregistrement"
+      );
+    } finally {
+      setSaving(false);
     }
-
-    // ── UPLOAD FICHIER ──
-    const fileToUpload = fileRef.current || file;
-    if (fileToUpload instanceof File) {
-      const formDataFile = new FormData();
-      formDataFile.append('file', fileToUpload);
-      formDataFile.append('convention_id', conventionId);
-      await uploadFichier(formDataFile);
-      sessionStorage.removeItem('uploadedFileInfo');
-      sessionStorage.removeItem('isFromUpload');
-      fileRef.current = null;
-      setFile(null);
-    }
-
-    setIsEditing(false);
-    navigate(`/conventions/${conventionId}`, { replace: true });
-
-  } catch (err) {
-    console.error('❌ Erreur:', err);
-    console.error('📋 Réponse:', err.response?.data);
-    const detail = err.response?.data?.detail;
-    setError(
-      typeof detail === 'string' ? detail :
-      detail ? JSON.stringify(detail) :
-      "Erreur lors de l'enregistrement"
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   if (loading) {
     return (
@@ -1036,8 +1080,11 @@ const handleSubmit = async (e) => {
               <BudgetTab
                 readOnly={!isEditing}
                 initialBudget={budgetData}
-                onChange={setBudgetData}
+                onChange={(newBudget) => {
+                  setBudgetData(newBudget);
+                }}
                 conventionId={id}
+                budgetId={budgetData?.id} 
               />
             )}
 

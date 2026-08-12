@@ -9,11 +9,15 @@ class Historique(Base):
     __tablename__ = "historique"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    action = Column(String, nullable=False)
+    action = Column(String, nullable=False)  # creation, modification, suppression, upload, download, consultation
+    description = Column(Text, nullable=True)
+    details = Column(Text, nullable=True)  # Peut contenir du JSON en string
     date_action = Column(DateTime, default=datetime.utcnow)
-    details = Column(Text, nullable=True)
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    ip_address = Column(String(45), nullable=True)
+    statut = Column(String(20), nullable=True)  # success, warning, error
+    user_agent = Column(String(255), nullable=True)
 
     # Relations
     convention = relationship("Convention", back_populates="historique")

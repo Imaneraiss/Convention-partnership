@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -9,10 +9,10 @@ from app.models.alerte import Alerte
 from app.models.user import User
 from app.models.convention import Convention
 from app.models.comite import Comite
-# from app.models.reunion import Reunion  # ❌ SUPPRIMER
 from app.schemas.alerte import AlerteCreate, AlerteUpdate, AlerteResponse
 from app.auth import get_current_user, require_role
 from app.services.email_service import EmailService
+from app.services.historique_service import HistoriqueService
 
 router = APIRouter(prefix="/api/alertes", tags=["Alertes"])
 
@@ -21,11 +21,20 @@ router = APIRouter(prefix="/api/alertes", tags=["Alertes"])
 # ============================================
 
 @router.get("/", response_model=List[AlerteResponse])
-def get_alertes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_alertes(
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     return db.query(Alerte).all()
 
+# ✅ POST - Créer une alerte manuelle
 @router.post("/", response_model=AlerteResponse)
-def create_alerte(data: AlerteCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("CHARGE"))):
+def create_alerte(
+    data: AlerteCreate,
+    request: Request,  # ✅ Ajouté pour l'historique
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_role("CHARGE"))
+):
     alerte = Alerte(
         type_alerte="MANUELLE",
         date_declenchement=data.date_declenchement,
@@ -38,8 +47,25 @@ def create_alerte(data: AlerteCreate, db: Session = Depends(get_db), current_use
     db.add(alerte)
     db.commit()
     db.refresh(alerte)
+
+    # ✅ Enregistrer dans l'historique
+    historique_service = HistoriqueService(db)
+    historique_service.log_action(
+        user_id=current_user.id,
+        action="creation",
+        description=f"Alerte manuelle créée: {alerte.objet}",
+        details={
+            "objet": alerte.objet,
+            "date_declenchement": str(alerte.date_declenchement),
+            "convention_id": str(alerte.convention_id)
+        },
+        convention_id=alerte.convention_id,
+        request=request
+    )
+
     return alerte
 
+# ✅ GET - Alertes par convention
 @router.get("/convention/{convention_id}", response_model=List[AlerteResponse])
 def get_alertes_by_convention(
     convention_id: UUID,
@@ -50,34 +76,86 @@ def get_alertes_by_convention(
              .filter(Alerte.convention_id == convention_id)\
              .all()
 
+# ✅ PUT - Modifier une alerte manuelle
 @router.put("/{alerte_id}", response_model=AlerteResponse)
-def update_alerte(alerte_id: UUID, data: AlerteUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role("CHARGE"))):
+def update_alerte(
+    alerte_id: UUID, 
+    data: AlerteUpdate,
+    request: Request,  # ✅ Ajouté pour l'historique
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_role("CHARGE"))
+):
     alerte = db.query(Alerte).filter(Alerte.id == alerte_id).first()
     if not alerte:
         raise HTTPException(status_code=404, detail="Alerte non trouvée")
     if alerte.type_alerte != "MANUELLE":
         raise HTTPException(status_code=403, detail="Impossible de modifier une alerte automatique")
+    
+    # ✅ Récupérer les champs modifiés
+    champs_modifies = list(data.model_dump(exclude_unset=True).keys())
+    
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(alerte, key, value)
+    
     db.commit()
     db.refresh(alerte)
+
+    # ✅ Enregistrer dans l'historique
+    historique_service = HistoriqueService(db)
+    historique_service.log_action(
+        user_id=current_user.id,
+        action="modification",
+        description=f"Alerte manuelle modifiée: {alerte.objet}",
+        details={
+            "champs_modifies": champs_modifies,
+            "objet": alerte.objet,
+            "convention_id": str(alerte.convention_id)
+        },
+        convention_id=alerte.convention_id,
+        request=request
+    )
+
     return alerte
 
+# ✅ PATCH - Marquer une alerte comme traitée
 @router.patch("/{alerte_id}/traiter")
-def traiter_alerte(alerte_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(require_role("CHARGE"))):
+def traiter_alerte(
+    alerte_id: UUID,
+    request: Request,  # ✅ Ajouté pour l'historique
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_role("CHARGE"))
+):
     alerte = db.query(Alerte).filter(Alerte.id == alerte_id).first()
     if not alerte:
         raise HTTPException(status_code=404, detail="Alerte non trouvée")
+    
     alerte.traitee = True
     db.commit()
+
+    # ✅ Enregistrer dans l'historique
+    historique_service = HistoriqueService(db)
+    historique_service.log_action(
+        user_id=current_user.id,
+        action="traitement",
+        description=f"Alerte traitée: {alerte.objet}",
+        details={
+            "objet": alerte.objet,
+            "convention_id": str(alerte.convention_id)
+        },
+        convention_id=alerte.convention_id,
+        request=request
+    )
+
     return {"message": "Alerte marquée comme traitée"}
 
 # ============================================
-# ALERTES AUTOMATIQUES - VERSION CORRIGÉE
+# ALERTES AUTOMATIQUES
 # ============================================
 
+# ✅ POST - Vérifier les alertes d'expiration
 @router.post("/check-expiration")
 async def check_expiration_alerts(
+    request: Request,  # ✅ Ajouté pour l'historique
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("CHARGE"))
 ):
@@ -134,6 +212,21 @@ async def check_expiration_alerts(
                             "rappel": rappel_type,
                             "success": success
                         })
+                        
+                        # ✅ Enregistrer dans l'historique
+                        historique_service = HistoriqueService(db)
+                        historique_service.log_action(
+                            user_id=current_user.id,
+                            action="creation",
+                            description=f"Alerte d'expiration générée: {rappel_type} - {convention.intitule}",
+                            details={
+                                "rappel_type": rappel_type,
+                                "convention_id": str(convention.id),
+                                "convention": convention.intitule
+                            },
+                            convention_id=convention.id,
+                            request=request
+                        )
     
     db.commit()
     return {
@@ -141,37 +234,32 @@ async def check_expiration_alerts(
         "alertes_envoyees": alerts_sent
     }
 
-
+# ✅ POST - Vérifier les alertes de réunion
 @router.post("/check-reunions")
 async def check_reunion_alerts(
+    request: Request,  # ✅ Ajouté pour l'historique
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("CHARGE"))
 ):
     """
     Vérifier et envoyer les alertes de réunion (J-7)
-    ✅ VERSION CORRIGÉE - Utilise les réunions stockées dans Comite.reunions (JSON)
+    Utilise les réunions stockées dans Comite.reunions (JSON)
     """
     email_service = EmailService()
     today = datetime.now().date()
     alert_date = today + timedelta(days=7)
     
-    # ✅ Récupérer tous les comités avec leurs réunions (stockées dans le JSON reunions)
     comites = db.query(Comite).all()
-    
     alerts_sent = []
     
     for comite in comites:
-        # ✅ Extraire les réunions du champ JSON
         reunions = comite.reunions or []
         
         for reunion in reunions:
             try:
-                # ✅ Convertir la date de la réunion (format: 'YYYY-MM-DD')
                 reunion_date = datetime.strptime(reunion.get('date', ''), '%Y-%m-%d').date()
                 
-                # ✅ Vérifier si la réunion est dans la fenêtre J-7
                 if today <= reunion_date <= alert_date:
-                    # ✅ Vérifier si une alerte existe déjà
                     existing = db.query(Alerte).filter(
                         Alerte.convention_id == comite.convention_id,
                         Alerte.objet.like(f"%Réunion du comité {comite.type}%"),
@@ -179,16 +267,13 @@ async def check_reunion_alerts(
                     ).first()
                     
                     if not existing:
-                        # ✅ Récupérer la convention
                         convention = db.query(Convention).filter(
                             Convention.id == comite.convention_id
                         ).first()
                         
                         if convention:
-                            # ✅ Envoyer l'alerte
                             success = email_service.send_reunion_alert(comite, reunion, convention)
                             
-                            # ✅ Créer l'alerte en base
                             alerte = Alerte(
                                 convention_id=convention.id,
                                 type_alerte="REUNION_COMITE",
@@ -204,8 +289,22 @@ async def check_reunion_alerts(
                                 "date_reunion": str(reunion_date),
                                 "success": success
                             })
+                            
+                            # ✅ Enregistrer dans l'historique
+                            historique_service = HistoriqueService(db)
+                            historique_service.log_action(
+                                user_id=current_user.id,
+                                action="creation",
+                                description=f"Alerte de réunion générée: {comite.type} - {reunion_date}",
+                                details={
+                                    "comite_id": str(comite.id),
+                                    "comite": comite.type,
+                                    "date_reunion": str(reunion_date)
+                                },
+                                convention_id=convention.id,
+                                request=request
+                            )
             except (ValueError, TypeError):
-                # ✅ Ignorer les réunions avec des dates invalides
                 continue
     
     db.commit()
@@ -214,10 +313,11 @@ async def check_reunion_alerts(
         "alertes_envoyees": alerts_sent
     }
 
-
+# ✅ POST - Envoyer une alerte manuelle personnalisée
 @router.post("/manuelle")
 async def send_manual_alert(
     data: dict,
+    request: Request,  # ✅ Ajouté pour l'historique
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("CHARGE"))
 ):
@@ -249,13 +349,28 @@ async def send_manual_alert(
         )
         db.add(alerte)
         db.commit()
+        
+        # ✅ Enregistrer dans l'historique
+        historique_service = HistoriqueService(db)
+        historique_service.log_action(
+            user_id=current_user.id,
+            action="creation",
+            description=f"Alerte manuelle envoyée: {sujet}",
+            details={
+                "sujet": sujet,
+                "emails": emails,
+                "convention_id": str(convention_id) if convention_id else None
+            },
+            convention_id=convention_id,
+            request=request
+        )
     
     return {
         "message": "Alerte manuelle envoyée" if success else "Erreur lors de l'envoi",
         "success": success
     }
 
-
+# ✅ GET - Statistiques des alertes
 @router.get("/stats")
 async def get_alertes_stats(
     db: Session = Depends(get_db),
