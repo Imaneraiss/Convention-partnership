@@ -148,6 +148,44 @@ def traiter_alerte(
 
     return {"message": "Alerte marquée comme traitée"}
 
+
+
+
+# ✅ PATCH - Toggle une alerte (traiter / détraiter)
+@router.patch("/{alerte_id}/toggle")
+def toggle_alerte(
+    alerte_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_role("CHARGE"))
+):
+    alerte = db.query(Alerte).filter(Alerte.id == alerte_id).first()
+    if not alerte:
+        raise HTTPException(status_code=404, detail="Alerte non trouvée")
+    
+    # ✅ Inverser le statut
+    alerte.traitee = not alerte.traitee
+    db.commit()
+
+    # ✅ Enregistrer dans l'historique
+    historique_service = HistoriqueService(db)
+    historique_service.log_action(
+        user_id=current_user.id,
+        action="traitement",
+        description=f"Alerte {'traitée' if alerte.traitee else 'réactivée'}: {alerte.objet}",
+        details={
+            "objet": alerte.objet,
+            "convention_id": str(alerte.convention_id) if alerte.convention_id else None,
+            "statut": "traitee" if alerte.traitee else "active"
+        },
+        convention_id=alerte.convention_id,
+        request=request
+    )
+
+    return {
+        "message": f"Alerte {'traitée' if alerte.traitee else 'réactivée'} avec succès",
+        "traitee": alerte.traitee
+    }
 # ============================================
 # ALERTES AUTOMATIQUES
 # ============================================

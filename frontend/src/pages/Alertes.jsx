@@ -11,16 +11,16 @@ import {
   getAlertesByConvention,
   createAlerte, 
   updateAlerte, 
-  traiterAlerte 
+  traiterAlerte,
+  toggleAlerte
 } from '../services/alerteService';
 
 export default function Alertes() {
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, auto, manual
-  const [niveauFilter, setNiveauFilter] = useState('all'); // all, critique, warning, info
-  const [statutFilter, setStatutFilter] = useState('all'); // all, active, traitee
+  const [filter, setFilter] = useState('all');
+  const [statutFilter, setStatutFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAlert, setEditingAlert] = useState(null);
@@ -28,9 +28,6 @@ export default function Alertes() {
     titre: '',
     description: '',
     date_rappel: '',
-    niveau: 'info',
-    convention_id: '',
-    type: 'manuel'
   });
 
   // Récupération des alertes
@@ -51,39 +48,18 @@ export default function Alertes() {
     }
   };
 
-  // Récupération des alertes par convention
-  const fetchAlertsByConvention = async (conventionId) => {
-    setLoading(true);
-    try {
-      const response = await getAlertesByConvention(conventionId);
-      setAlerts(response.data || []);
-    } catch (error) {
-      console.error('Erreur lors du chargement des alertes:', error);
-      setAlerts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Filtrage des alertes
   const filteredAlerts = alerts.filter(alert => {
-    // Filtre par statut (active/traitee)
-    if (statutFilter === 'active' && alert.est_traitee) return false;
-    if (statutFilter === 'traitee' && !alert.est_traitee) return false;
+    if (statutFilter === 'active' && alert.traitee) return false;
+    if (statutFilter === 'traitee' && !alert.traitee) return false;
     
-    // Filtre par type (auto/manual)
-    if (filter === 'auto' && alert.type !== 'auto') return false;
-    if (filter === 'manual' && alert.type !== 'manuel') return false;
+    if (filter === 'fin_convention' && alert.type_alerte !== 'FIN_CONVENTION') return false;
+    if (filter === 'reunion' && alert.type_alerte !== 'REUNION_COMITE') return false;
     
-    // Filtre par niveau
-    if (niveauFilter !== 'all' && alert.niveau !== niveauFilter) return false;
-    
-    // Recherche
     if (search) {
       const s = search.toLowerCase();
-      const inTitre = alert.titre?.toLowerCase().includes(s);
-      const inDescription = alert.description?.toLowerCase().includes(s);
-      if (!inTitre && !inDescription) return false;
+      const inObjet = alert.objet?.toLowerCase().includes(s);
+      if (!inObjet) return false;
     }
     
     return true;
@@ -92,53 +68,63 @@ export default function Alertes() {
   // Statistiques
   const stats = {
     total: alerts.length,
-    actives: alerts.filter(a => !a.est_traitee).length,
-    traitees: alerts.filter(a => a.est_traitee).length,
-    critiques: alerts.filter(a => a.niveau === 'critique' && !a.est_traitee).length,
-    warnings: alerts.filter(a => a.niveau === 'warning' && !a.est_traitee).length,
-    info: alerts.filter(a => a.niveau === 'info' && !a.est_traitee).length,
-    auto: alerts.filter(a => a.type === 'auto').length,
-    manual: alerts.filter(a => a.type === 'manuel').length
+    actives: alerts.filter(a => !a.traitee).length,
+    traitees: alerts.filter(a => a.traitee).length,
+    fin_convention: alerts.filter(a => a.type_alerte === 'FIN_CONVENTION').length,
+    reunion: alerts.filter(a => a.type_alerte === 'REUNION_COMITE').length,
   };
 
-  // Gestion des alertes
-  const handleTraiterAlerte = async (id) => {
+  // ✅ TOGGLE - Marquer / Démarrer une alerte
+  const handleToggleAlerte = async (id) => {
     try {
-      await traiterAlerte(id);
+      await toggleAlerte(id);
       fetchAlerts();
     } catch (error) {
-      console.error('Erreur lors du traitement:', error);
+      console.error('Erreur lors du changement de statut:', error);
     }
   };
 
+  // ✅ CREATE - Créer une alerte
+  const handleCreateAlerte = async () => {
+    if (!formData.titre || !formData.date_rappel) {
+      alert('Veuillez remplir le titre et la date de rappel');
+      return;
+    }
+
+    try {
+      await createAlerte({
+        objet: formData.titre,
+        description: formData.description || '',
+        date_declenchement: formData.date_rappel,
+        type_alerte: "MANUELLE"
+      });
+      fetchAlerts();
+      setFormData({ 
+        titre: '', 
+        description: '', 
+        date_rappel: '' 
+      });
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Erreur lors de la création:', error);
+      alert('Erreur lors de la création de l\'alerte');
+    }
+  };
+
+  // ✅ UPDATE - Modifier une alerte
   const handleUpdateAlerte = async (id, data) => {
     try {
-      await updateAlerte(id, data);
+      await updateAlerte(id, {
+        objet: data.titre,
+        description: data.description,
+        date_declenchement: data.date_rappel
+      });
       fetchAlerts();
       setEditingAlert(null);
       setIsModalOpen(false);
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
-    }
-  };
-
-  const handleCreateAlerte = async () => {
-    if (formData.titre && formData.date_rappel) {
-      try {
-        await createAlerte(formData);
-        fetchAlerts();
-        setFormData({ 
-          titre: '', 
-          description: '', 
-          date_rappel: '', 
-          niveau: 'info', 
-          convention_id: '',
-          type: 'manuel' 
-        });
-        setIsModalOpen(false);
-      } catch (error) {
-        console.error('Erreur lors de la création:', error);
-      }
+      alert('Erreur lors de la mise à jour de l\'alerte');
     }
   };
 
@@ -146,12 +132,9 @@ export default function Alertes() {
   const openEditModal = (alert) => {
     setEditingAlert(alert);
     setFormData({
-      titre: alert.titre,
+      titre: alert.objet || '',
       description: alert.description || '',
-      date_rappel: alert.date_rappel || '',
-      niveau: alert.niveau || 'info',
-      convention_id: alert.convention_id || '',
-      type: alert.type || 'manuel'
+      date_rappel: alert.date_declenchement || '',
     });
     setIsModalOpen(true);
   };
@@ -162,38 +145,26 @@ export default function Alertes() {
       titre: '',
       description: '',
       date_rappel: '',
-      niveau: 'info',
-      convention_id: '',
-      type: 'manuel'
     });
     setEditingAlert(null);
   };
 
-  const getNiveauColor = (niveau) => {
-    const colors = {
-      critique: 'bg-red-100 text-red-800 border-red-200',
-      warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      info: 'bg-blue-100 text-blue-800 border-blue-200'
+  const getTypeLabel = (type) => {
+    const labels = {
+      'FIN_CONVENTION': ' Fin de convention',
+      'REUNION_COMITE': ' Réunion',
+      'MANUELLE': ' Manuelle'
     };
-    return colors[niveau] || colors.info;
+    return labels[type] || type;
   };
 
-  const getNiveauBorder = (niveau) => {
-    return niveau === 'critique' ? 'border-l-4 border-l-red-500' :
-           niveau === 'warning' ? 'border-l-4 border-l-yellow-500' :
-           'border-l-4 border-l-blue-500';
-  };
-
-  const getNiveauIcon = (niveau) => {
-    return niveau === 'critique' ? '🔴' :
-           niveau === 'warning' ? '🟡' :
-           '🟢';
-  };
-
-  const getNiveauLabel = (niveau) => {
-    return niveau === 'critique' ? 'Critique' :
-           niveau === 'warning' ? 'Avertissement' :
-           'Information';
+  const getTypeColor = (type) => {
+    const colors = {
+      'FIN_CONVENTION': 'bg-red-100 text-red-800',
+      'REUNION_COMITE': 'bg-blue-100 text-blue-800',
+      'MANUELLE': 'bg-purple-100 text-purple-700'
+    };
+    return colors[type] || 'bg-gray-100 text-gray-600';
   };
 
   if (loading) {
@@ -212,7 +183,6 @@ export default function Alertes() {
           <h1 className="text-2xl text-gray-500 flex items-center gap-2">
             Gérez toutes vos alertes en un seul endroit
           </h1>
-        
         </div>
         <Button onClick={() => { resetForm(); setIsModalOpen(true); }} className='flex items-center'>
           <Plus size={16} className="mr-2" />
@@ -221,42 +191,26 @@ export default function Alertes() {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="p-4 text-center">
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
           <p className="text-sm text-gray-500">Total alertes</p>
         </Card>
         <Card className="p-4 text-center border-l-4 border-l-green-500">
           <p className="text-2xl font-bold text-green-600">{stats.actives}</p>
-          <p className="text-sm text-gray-500"> Actives</p>
+          <p className="text-sm text-gray-500">Actives</p>
         </Card>
         <Card className="p-4 text-center border-l-4 border-l-gray-400">
           <p className="text-2xl font-bold text-gray-400">{stats.traitees}</p>
-          <p className="text-sm text-gray-500"> Traitées</p>
+          <p className="text-sm text-gray-500">Traitées</p>
         </Card>
         <Card className="p-4 text-center border-l-4 border-l-red-500">
-          <p className="text-2xl font-bold text-red-600">{stats.critiques}</p>
-          <p className="text-sm text-gray-500"> Critiques</p>
-        </Card>
-      </div>
-
-      {/* Deuxième ligne de stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 text-center border-l-4 border-l-yellow-500">
-          <p className="text-2xl font-bold text-yellow-600">{stats.warnings}</p>
-          <p className="text-sm text-gray-500"> Avertissements</p>
+          <p className="text-2xl font-bold text-red-600">{stats.fin_convention}</p>
+          <p className="text-sm text-gray-500">Fin de convention</p>
         </Card>
         <Card className="p-4 text-center border-l-4 border-l-blue-500">
-          <p className="text-2xl font-bold text-blue-600">{stats.info}</p>
-          <p className="text-sm text-gray-500"> Informations</p>
-        </Card>
-        <Card className="p-4 text-center border-l-4 border-l-purple-500">
-          <p className="text-2xl font-bold text-purple-600">{stats.auto}</p>
-          <p className="text-sm text-gray-500"> Automatiques</p>
-        </Card>
-        <Card className="p-4 text-center border-l-4 border-l-orange-500">
-          <p className="text-2xl font-bold text-orange-600">{stats.manual}</p>
-          <p className="text-sm text-gray-500"> Manuelles</p>
+          <p className="text-2xl font-bold text-blue-600">{stats.reunion}</p>
+          <p className="text-sm text-gray-500">Réunions</p>
         </Card>
       </div>
 
@@ -276,9 +230,9 @@ export default function Alertes() {
               value={statutFilter}
               onChange={(e) => setStatutFilter(e.target.value)}
               options={[
-                { value: 'all', label: ' Tous statuts' },
-                { value: 'active', label: '  Actives' },
-                { value: 'traitee', label: ' Traitées' }
+                { value: 'all', label: 'Tous statuts' },
+                { value: 'active', label: 'Actives' },
+                { value: 'traitee', label: 'Traitées' }
               ]}
               className="w-40"
             />
@@ -286,29 +240,17 @@ export default function Alertes() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               options={[
-                { value: 'all', label: '  Tous types' },
-                { value: 'auto', label: ' Automatiques' },
-                { value: 'manual', label: ' Manuelles' }
-              ]}
-              className="w-40"
-            />
-            <Select
-              value={niveauFilter}
-              onChange={(e) => setNiveauFilter(e.target.value)}
-              options={[
-                { value: 'all', label: ' Tous niveaux' },
-                { value: 'critique', label: ' Critique' },
-                { value: 'warning', label: ' Warning' },
-                { value: 'info', label: ' Info' }
+                { value: 'all', label: 'Tous types' },
+                { value: 'fin_convention', label: 'Fin de convention' },
+                { value: 'reunion', label: 'Réunion' }
               ]}
               className="w-44"
             />
-            {(filter !== 'all' || niveauFilter !== 'all' || statutFilter !== 'all' || search) && (
+            {(filter !== 'all' || statutFilter !== 'all' || search) && (
               <Button
                 variant="secondary"
                 onClick={() => {
                   setFilter('all');
-                  setNiveauFilter('all');
                   setStatutFilter('all');
                   setSearch('');
                 }}
@@ -331,7 +273,6 @@ export default function Alertes() {
                 ? 'Aucune alerte n\'a été créée pour le moment.'
                 : 'Aucune alerte ne correspond à vos filtres.'}
             </p>
-            
           </div>
         </Card>
       ) : (
@@ -339,34 +280,22 @@ export default function Alertes() {
           {filteredAlerts.map((alert) => (
             <Card 
               key={alert.id} 
-              className={`p-4 ${getNiveauBorder(alert.niveau)} ${
-                alert.est_traitee ? 'opacity-60' : 'opacity-100'
-              }`}
+              className={`p-4 ${alert.traitee ? 'opacity-60' : 'opacity-100'}`}
             >
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-lg">{getNiveauIcon(alert.niveau)}</span>
-                    <span className="font-medium text-gray-900">{alert.titre}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${getNiveauColor(alert.niveau)}`}>
-                      {getNiveauLabel(alert.niveau)}
+                    <span className="font-medium text-gray-900">{alert.objet}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${getTypeColor(alert.type_alerte)}`}>
+                      {getTypeLabel(alert.type_alerte)}
                     </span>
-                    {alert.type === 'auto' ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                        ⚙️ Auto
-                      </span>
-                    ) : (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                        ✏️ Manuelle
-                      </span>
-                    )}
-                    {alert.est_traitee ? (
+                    {alert.traitee ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                          Traitée
+                        Traitée
                       </span>
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                        ⏳ En attente
+                        En attente
                       </span>
                     )}
                     {alert.convention_id && (
@@ -379,36 +308,29 @@ export default function Alertes() {
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{alert.description}</p>
+                  {alert.description && (
+                    <p className="text-sm text-gray-600 mt-1">{alert.description}</p>
+                  )}
                   <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                     <Calendar size={12} />
-                    {alert.date_rappel ? new Date(alert.date_rappel).toLocaleDateString('fr-FR', {
+                    {alert.date_declenchement ? new Date(alert.date_declenchement).toLocaleDateString('fr-FR', {
                       day: '2-digit',
                       month: '2-digit',
                       year: 'numeric'
                     }) : 'Non définie'}
                   </p>
-                  {alert.date_traitement && (
-                    <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                      <Clock size={12} />
-                      Traitée le : {new Date(alert.date_traitement).toLocaleDateString('fr-FR')}
-                    </p>
-                  )}
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {!alert.est_traitee && (
-                    <Button
-                      size="sm"
-                      variant="success"
-                      onClick={() => handleTraiterAlerte(alert.id)}
-                    >
-                      Marquer traitée
-                    </Button>
-                  )}
-                  {/* Seules les alertes manuelles peuvent être modifiées */}
-                  {alert.type === 'manuel' && (
+                  <Button
+                    size="sm"
+                    variant={alert.traitee ? "secondary" : "success"}
+                    onClick={() => handleToggleAlerte(alert.id)}
+                  >
+                    {alert.traitee ? ' Démarrer' : ' Marquer traitée'}
+                  </Button>
+                  {alert.type_alerte === 'MANUELLE' && (
                     <Button
                       size="sm"
                       variant="secondary"
@@ -416,11 +338,6 @@ export default function Alertes() {
                     >
                       Modifier
                     </Button>
-                  )}
-                  {alert.type === 'auto' && (
-                    <span className="text-xs text-gray-400 italic">
-                      (générée auto)
-                    </span>
                   )}
                 </div>
               </div>
@@ -444,23 +361,8 @@ export default function Alertes() {
             {editingAlert ? 'Modifier l\'alerte' : 'Nouvelle alerte'}
           </h3>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Niveau de criticité
-            </label>
-            <select
-              value={formData.niveau}
-              onChange={(e) => setFormData({ ...formData, niveau: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="info">🟢 Information</option>
-              <option value="warning">🟡 Avertissement</option>
-              <option value="critique">🔴 Critique</option>
-            </select>
-          </div>
-
           <Input
-            label="Titre de l'alerte"
+            label="Titre de l'alerte *"
             value={formData.titre}
             onChange={(e) => setFormData({ ...formData, titre: e.target.value })}
             placeholder="Ex: Relancer le partenaire"
@@ -481,27 +383,12 @@ export default function Alertes() {
           </div>
 
           <Input
-            label="Date de rappel"
+            label="Date de rappel *"
             type="date"
             value={formData.date_rappel}
             onChange={(e) => setFormData({ ...formData, date_rappel: e.target.value })}
             required
           />
-
-          <Input
-            label="ID de la convention (optionnel)"
-            type="number"
-            value={formData.convention_id}
-            onChange={(e) => setFormData({ ...formData, convention_id: e.target.value })}
-            placeholder="Ex: 123"
-          />
-
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700 flex items-center gap-2">
-              <AlertCircle size={16} />
-              Cette alerte sera visible dans votre tableau de bord et pourra être marquée comme traitée
-            </p>
-          </div>
 
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="secondary" onClick={() => { setIsModalOpen(false); resetForm(); }}>

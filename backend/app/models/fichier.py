@@ -15,7 +15,7 @@ class Fichier(Base):
     taille = Column(Integer, nullable=True)  # Taille en octets
     chemin = Column(Text, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=True)
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=False)    
     budget_id = Column(UUID(as_uuid=True), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=True)
 
     # Relations

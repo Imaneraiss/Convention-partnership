@@ -22,14 +22,14 @@ export default function Sidebar() {
             label: "Dashboard",
             path: "/dashboard",
             icon: LayoutDashboard,
-            roles: null,
+            roles: [ROLES.CHARGE, ROLES.PRESIDENT],
             adminOnly: false
         },
         {
             label: "Conventions",
             path: "/conventions",
             icon: FileText,
-            roles: [ROLES.CHARGE, ROLES.PRESIDENT],
+            roles: null,
             adminOnly: false
         },
         {

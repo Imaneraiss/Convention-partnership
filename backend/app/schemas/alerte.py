@@ -7,7 +7,7 @@ from datetime import date
 class AlerteCreate(BaseModel):
     date_declenchement: date
     objet: str
-    convention_id: UUID
+    convention_id: Optional[UUID] = None
     destinataires: List[UUID] = []  # liste des user_id
 
 # Schema pour modifier une alerte manuelle

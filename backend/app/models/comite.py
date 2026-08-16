@@ -10,8 +10,7 @@ class Comite(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     type = Column(String, nullable=False)
     frequence = Column(String, nullable=True)
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=False)
-    
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=False)    
     taches = Column(JSON, nullable=False, default=list)
     reunions = Column(JSON, nullable=False, default=list)  # ✅ Présent
     membres_um5 = Column(JSON, nullable=False, default=list)

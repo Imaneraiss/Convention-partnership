@@ -15,8 +15,7 @@ class Budget(Base):
     reste_a_payer = Column(Float, default=0.0)
     commentaire = Column(Text, nullable=True)
     devise = Column(String, default="MAD")
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=False)
-
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=False)
     # Relation
     convention = relationship("Convention", back_populates="budget")
     fichiers_justificatifs = relationship("Fichier", back_populates="budget")

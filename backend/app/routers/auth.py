@@ -4,6 +4,9 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.user import LoginSchema, ChangePasswordSchema, UserResponse
 from app.auth import hash_password, verify_password, create_access_token, get_current_user
+from datetime import datetime, timedelta  # ✅ AJOUTER
+import secrets  # ✅ AJOUTER
+from app.services.email_service import EmailService  # ✅ AJOUTER
 
 
 router = APIRouter(prefix="/api/auth", tags=["Authentification"])
@@ -49,3 +52,52 @@ def change_password(data: ChangePasswordSchema, current_user: User = Depends(get
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/forgot-password")
+def forgot_password(email: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        return {"message": "Si cet email existe, un lien de réinitialisation vous a été envoyé"}
+    
+    token = secrets.token_urlsafe(32)
+    user.reset_token = token
+    user.reset_token_expires = datetime.utcnow() + timedelta(hours=24)
+    db.commit()
+    
+    email_service = EmailService()
+    reset_link = f"http://localhost:5173/reset-password?token={token}"
+    
+    email_service.send_email(
+        to_emails=[email],
+        subject="🔐 Réinitialisation de votre mot de passe",
+        html_content=f"""
+        <h2>Réinitialisation du mot de passe</h2>
+        <p>Bonjour {user.nom},</p>
+        <p>Vous avez demandé à réinitialiser votre mot de passe.</p>
+        <p>Cliquez sur le lien ci-dessous :</p>
+        <p><a href="{reset_link}">Réinitialiser mon mot de passe</a></p>
+        <p>Ce lien est valable <strong>24 heures</strong>.</p>
+        """
+    )
+    
+    return {"message": "Un lien de réinitialisation vous a été envoyé"}
+
+# ✅ NOUVEAU - Réinitialiser le mot de passe
+@router.post("/reset-password")
+def reset_password(token: str, new_password: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(
+        User.reset_token == token,
+        User.reset_token_expires > datetime.utcnow()
+    ).first()
+    
+    if not user:
+        raise HTTPException(400, "Lien invalide ou expiré")
+    
+    user.mot_de_passe = hash_password(new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+    
+    return {"message": "Mot de passe réinitialisé avec succès"}

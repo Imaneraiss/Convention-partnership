@@ -13,7 +13,7 @@ class Historique(Base):
     description = Column(Text, nullable=True)
     details = Column(Text, nullable=True)  # Peut contenir du JSON en string
     date_action = Column(DateTime, default=datetime.utcnow)
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=True)
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="SET NULL"), nullable=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
     ip_address = Column(String(45), nullable=True)
     statut = Column(String(20), nullable=True)  # success, warning, error

@@ -2,7 +2,7 @@ import { useState } from "react"
 import um5_logo from "../assets/um5.png"
 import { Eye , EyeOff, MoveRight} from "lucide-react"
 import { useAuth } from "../context/AuthContext"
-import { useNavigate } from "react-router-dom"
+import { useNavigate , Link } from "react-router-dom"
 
 export default function Login() {
 
@@ -65,8 +65,9 @@ export default function Login() {
                         <div className="flex flex-col gap-2">
                            <div className="flex justify-between">
                              <label htmlFor="password" className="font-mono " >Mot de passe  </label>
-                             <a href="#" className="underline ">Mot de passe oublié ?</a>
-                            </div>
+                            <Link to="/forgot-password" className="underline hover:text-blue-600">
+                            Mot de passe oublié ?
+                            </Link>                            </div>
                             <div className="flex bg-white p-3 relative ">
                                 <input id="password"  type ={showPassword ? "text" :"password" } 
                                         value={password}

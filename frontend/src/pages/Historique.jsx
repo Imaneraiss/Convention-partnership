@@ -91,9 +91,6 @@ export default function Historique() {
     suppressions: historique.filter(h => 
       (h.action === 'suppression' || h.type_action === 'suppression')
     ).length,
-    uploads: historique.filter(h => 
-      (h.action === 'upload' || h.type_action === 'upload')
-    ).length,
     autres: historique.filter(h => 
       !['creation', 'modification', 'suppression', 'upload'].includes(h.action || h.type_action)
     ).length
@@ -103,11 +100,7 @@ export default function Historique() {
     const colors = {
       creation: 'bg-green-100 text-green-800',
       modification: 'bg-blue-100 text-blue-800',
-      suppression: 'bg-red-100 text-red-800',
-      upload: 'bg-purple-100 text-purple-800',
-      download: 'bg-indigo-100 text-indigo-800',
-      consultation: 'bg-gray-100 text-gray-800',
-      traitement: 'bg-green-100 text-green-800'
+      suppression: 'bg-red-100 text-red-800'
     };
     return colors[type] || 'bg-gray-100 text-gray-600';
   };
@@ -116,11 +109,7 @@ export default function Historique() {
     const labels = {
       creation: 'Création',
       modification: 'Modification',
-      suppression: 'Suppression',
-      upload: 'Upload',
-      download: 'Téléchargement',
-      consultation: 'Consultation',
-      traitement: 'Traitement'
+      suppression: 'Suppression'
     };
     return labels[type] || type;
   };
@@ -182,10 +171,6 @@ export default function Historique() {
           <p className="text-2xl font-bold text-red-600">{stats.suppressions}</p>
           <p className="text-sm text-gray-500">Suppressions</p>
         </Card>
-        <Card className="p-4 text-center border-l-4 border-l-purple-500">
-          <p className="text-2xl font-bold text-purple-600">{stats.uploads}</p>
-          <p className="text-sm text-gray-500">Uploads</p>
-        </Card>
       </div>
 
       {/* Filtres */}
@@ -207,10 +192,7 @@ export default function Historique() {
                 { value: 'all', label: 'Tous types' },
                 { value: 'creation', label: 'Création' },
                 { value: 'modification', label: 'Modification' },
-                { value: 'suppression', label: 'Suppression' },
-                { value: 'upload', label: 'Upload' },
-                { value: 'consultation', label: 'Consultation' },
-                { value: 'traitement', label: 'Traitement' }
+                { value: 'suppression', label: 'Suppression' }
               ]}
               className="w-44"
             />
@@ -307,15 +289,6 @@ export default function Historique() {
           <p className="text-sm text-gray-500">
             {filteredHistorique.length} action{filteredHistorique.length > 1 ? 's' : ''} affichée{filteredHistorique.length > 1 ? 's' : ''}
           </p>
-          <Button 
-            variant="secondary" 
-            size="sm"
-            onClick={fetchHistorique}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw size={14} />
-            Rafraîchir
-          </Button>
         </div>
       )}
     </div>

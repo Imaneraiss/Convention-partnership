@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, DateTime, String, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
@@ -14,6 +14,9 @@ class User(Base):
     role = Column(String, nullable=False)  # CHARGE, SG, PRESIDENT
     is_admin = Column(Boolean, default=False)
     premiere_connexion = Column(Boolean, default=True)
+
+    reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
     
     conventions = relationship("Convention", back_populates="user")
     historique = relationship("Historique", back_populates="user")

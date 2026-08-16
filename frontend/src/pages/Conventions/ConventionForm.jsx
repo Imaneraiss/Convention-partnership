@@ -12,7 +12,7 @@ import BudgetTab from './tabs/BudgetTab';
 import AlertsTab from './tabs/AlertsTab';
 import { createPartenaire, updatePartenaire } from '../../services/partenaireService';
 import { exportConventionToWord } from '../../services/wordExportService';
-import { FileDown } from 'lucide-react';
+import { FileDown, ArrowLeft } from 'lucide-react';
 import { createComite, updateComite, getComites } from '../../services/comiteService';
 import { createBudget, updateBudget, getBudget } from '../../services/budgetService';
 import { getComitesByConvention } from '../../services/comiteService';
@@ -49,9 +49,12 @@ export default function ConventionForm() {
   const fileRef = useRef(null);
 
   const canEdit = user?.role === ROLES.CHARGE;
+  const canEditBudget = user?.role === ROLES.CHARGE || user?.role === ROLES.SG;
+
   const isExisting = !!id;
 
-  const [isEditing, setIsEditing] = useState(!isExisting ? true : (isExisting && !canEdit ? false : false));
+  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
 
   const [formData, setFormData] = useState({
     intitule: '',
@@ -828,6 +831,7 @@ export default function ConventionForm() {
             }
           }
         }
+            alert('✅ Convention enregistrée avec succès !');
 
       } else {
         // ── CREATE ──
@@ -973,14 +977,17 @@ export default function ConventionForm() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <button onClick={()=> {navigate('/conventions')}}>
+          <ArrowLeft className="w-4 h-4" />
+        </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {id ? `Convention ${formData.intitule || ''}` : 'Nouvelle convention'}
-          </h1>
-          {id && <p className="text-sm text-gray-500">Réf: {formData.numero_reference}</p>}
+            <h1 className="text-2xl font-bold text-gray-900">
+              {id ? `Convention ${formData.intitule || ''}` : 'Nouvelle convention'}
+            </h1>
+            {id && <p className="text-sm text-gray-500">Réf: {formData.numero_reference}</p>}
         </div>
         <div className="flex gap-2">
-          {id && !isEditing && (
+          {id && !isEditing && !isEditingBudget && (
             <>
               <Button
                 onClick={handleExportWord}
@@ -991,7 +998,10 @@ export default function ConventionForm() {
                 Exporter Word
               </Button>
               {canEdit && (
-                <Button onClick={handleEdit}>Modifier</Button>
+                <Button onClick={() => setIsEditing(true)}>Modifier</Button>
+              )}
+              {canEditBudget && (
+                <Button onClick={() => setIsEditingBudget(true)}>Modifier le budget</Button>
               )}
               {canEdit && (
                 <Button variant="danger" onClick={handleDelete}>
@@ -1001,12 +1011,9 @@ export default function ConventionForm() {
             </>
           )}
 
-
-          {(!id || isEditing) && (
+          {(isEditing || isEditingBudget) && (
             <>
-              <Button variant="secondary" onClick={handleCancel}>
-                Annuler
-              </Button>
+              <Button variant="secondary" onClick={handleCancel}>Annuler</Button>
               <Button onClick={handleSubmit} disabled={saving}>
                 {saving ? 'Enregistrement...' : 'Enregistrer'}
               </Button>
@@ -1078,7 +1085,7 @@ export default function ConventionForm() {
 
             {activeTab === 'budget' && (
               <BudgetTab
-                readOnly={!isEditing}
+                readOnly={!isEditingBudget}
                 initialBudget={budgetData}
                 onChange={(newBudget) => {
                   setBudgetData(newBudget);

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getConventions, exportConventions } from '../../services/conventionService';
 import { formatDate } from '../../utils/formatDate';
-import { TYPES_CONVENTION, STATUTS, TYPES_PARTENAIRE } from '../../utils/constants';
+import { TYPES_CONVENTION, STATUTS, TYPES_PARTENAIRE, ROLES } from '../../utils/constants';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
@@ -31,6 +32,10 @@ export default function ConventionsList() {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState({});
   const [expandedGroups, setExpandedGroups] = useState({});
+  const { user } = useAuth();  
+  const isCharge = user?.role === ROLES.CHARGE;
+  const isSG = user?.role === ROLES.SG;
+
 
   const allColumns = {
     'Identification': [
@@ -84,6 +89,9 @@ export default function ConventionsList() {
   };
 
   const conventionsFiltrees = conventions.filter(c => {
+    // ✅ Filtre SG : seulement les conventions avec budget
+    if (isSG && !c.avec_budget) return false;
+
     if (search) {
       const s = search.toLowerCase();
       const inIntitule = c.intitule?.toLowerCase().includes(s);
@@ -392,9 +400,9 @@ export default function ConventionsList() {
               Exporter & Imprimer
             </Button>
             
-            <Button onClick={() => navigate('/conventions/new')}>
+            {isCharge && (<Button onClick={() => navigate('/conventions/new')}>
               Nouvelle convention
-            </Button>
+            </Button>)}
           </div>
         </div>
 
@@ -488,16 +496,18 @@ export default function ConventionsList() {
             <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-gray-200">
               <span className="text-sm text-gray-600 font-medium">Options :</span>
               
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filtreBudget}
-                  onChange={(e) => setFiltreBudget(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-gray-700"> Avec budget</span>
-              </label>
-              
+              {!isSG && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filtreBudget}
+                    onChange={(e) => setFiltreBudget(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700"> Avec budget</span>
+                </label>
+              )}
+                            
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="checkbox"

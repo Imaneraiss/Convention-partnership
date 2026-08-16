@@ -48,4 +48,4 @@ class Convention(Base):
     fichiers = relationship("Fichier", back_populates="convention", cascade="all, delete-orphan")
     alertes = relationship("Alerte", back_populates="convention", cascade="all, delete-orphan")
     budget = relationship("Budget", back_populates="convention", uselist=False, cascade="all, delete-orphan")
-    historique = relationship("Historique", back_populates="convention", cascade="all, delete-orphan")
+    historique = relationship("Historique", back_populates="convention", passive_deletes=True)

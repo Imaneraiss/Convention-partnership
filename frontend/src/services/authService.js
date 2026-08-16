@@ -27,6 +27,14 @@ const logout = () => {
     localStorage.removeItem('user')
 }
 
-const authService = { login, changePassword, getMe, logout }
+// services/authService.js
+const forgotPassword = (email) =>
+    api.post('/auth/forgot-password', { email });
+
+const resetPassword = (token, new_password) =>
+    api.post('/auth/reset-password', { token, new_password });
+
+const authService = { login, changePassword, getMe, logout,forgotPassword, resetPassword }
 
 export default authService
+

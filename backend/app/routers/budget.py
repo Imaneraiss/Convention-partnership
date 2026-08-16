@@ -28,7 +28,7 @@ def create_budget(
     data: BudgetCreate,
     request: Request,  # ✅ Ajouté pour l'historique
     db: Session = Depends(get_db), 
-    current_user: User = Depends(require_role("CHARGE"))
+    current_user: User = Depends(require_role("CHARGE","SG"))
 ):
     budget = Budget(**data.model_dump())
     db.add(budget)
@@ -112,7 +112,7 @@ def delete_budget(
     budget_id: UUID,
     request: Request,  # ✅ Ajouté pour l'historique
     db: Session = Depends(get_db), 
-    current_user: User = Depends(require_role("CHARGE"))
+    current_user: User = Depends(require_role("CHARGE","SG"))
 ):
     budget = db.query(Budget).filter(Budget.id == budget_id).first()
     if not budget:

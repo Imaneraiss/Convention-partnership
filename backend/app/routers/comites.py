@@ -163,6 +163,43 @@ def update_comite(
 
 
 
+# ✅ DELETE - Supprimer un comité
+@router.delete("/{comite_id}")
+def delete_comite(
+    comite_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    comite = db.query(Comite).filter(Comite.id == comite_id).first()
+    if not comite:
+        raise HTTPException(status_code=404, detail="Comité non trouvé")
+    
+    # Sauvegarder les infos avant suppression
+    comite_type = comite.type
+    convention_id = comite.convention_id
+    
+    # Enregistrer dans l'historique
+    historique_service = HistoriqueService(db)
+    historique_service.log_action(
+        user_id=current_user.id,
+        action="suppression",
+        description=f"Comité supprimé: {comite_type}",
+        details={
+            "type": comite_type,
+            "frequence": comite.frequence,
+            "convention_id": str(convention_id)
+        },
+        convention_id=convention_id,
+        request=request
+    )
+    
+    db.delete(comite)
+    db.commit()
+    
+    return {"message": "Comité supprimé avec succès"}
+
+
 
 
 # ✅ DELETE - Supprimer un membre UM5

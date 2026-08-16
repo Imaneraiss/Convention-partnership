@@ -22,7 +22,7 @@ class Alerte(Base):
     objet = Column(String, nullable=True)
     envoyee = Column(Boolean, default=False)
     traitee = Column(Boolean, default=False)
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id"), nullable=False)
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=True)    
     
     # Champs optionnels pour les alertes de réunion
     comite_id = Column(UUID(as_uuid=True), ForeignKey("comites.id"), nullable=True)

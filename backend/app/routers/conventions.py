@@ -177,7 +177,7 @@ def delete_convention(
             "numero_reference": numero_reference,
             "type": convention.type
         },
-        convention_id=convention_id,
+        convention_id=None,
         request=request
     )
     
@@ -212,6 +212,7 @@ def update_all_statuses(
             "conventions_mises_a_jour": resultats.get("mis_a_jour", 0),
             "conventions_verifiees": resultats.get("total", 0)
         },
+        
         request=request
     )
     
@@ -250,7 +251,7 @@ def export_conventions_excel(
         df.to_excel(writer, sheet_name='Conventions', index=False)
         
         worksheet = writer.sheets['Conventions']
-        for column in worksheet.columns:
+        for column in worksheet.columns: 
             max_length = 0
             column_letter = column[0].column_letter
             for cell in column:

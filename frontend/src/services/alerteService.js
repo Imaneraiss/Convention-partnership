@@ -26,3 +26,7 @@ export const updateAlerte = (id, data) =>
 // Traiter une alerte
 export const traiterAlerte = (id) =>
     api.patch(`/alertes/${id}/traiter`)
+
+// ✅ Toggle une alerte (traiter / détraiter)
+export const toggleAlerte = (id) =>
+    api.patch(`/alertes/${id}/toggle`);
