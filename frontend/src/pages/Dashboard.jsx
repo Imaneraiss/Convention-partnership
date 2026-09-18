@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getConventions } from '../services/conventionService'
 import { getAlertes } from '../services/alerteService'
 import { formatDate } from '../utils/formatDate'
@@ -13,87 +14,87 @@ import Card from '../components/common/Card'
 import { Settings, Plus, Trash2, Edit, RotateCcw, Copy, Download, FileText, Calendar } from 'lucide-react'
 import html2canvas from 'html2canvas'
 
-// Types de graphiques
+// ✅ Types de graphiques (traduits)
 const CHART_TYPES = [
-    { value: 'pie', label: 'Camembert' },
-    { value: 'bar', label: 'Barres' },
-    { value: 'line', label: 'Ligne' },
+    { value: 'pie', labelKey: 'dashboard.pie' },
+    { value: 'bar', labelKey: 'dashboard.bar' },
+    { value: 'line', labelKey: 'dashboard.line' },
 ]
 
-// Variables disponibles pour les axes X
+// ✅ Variables disponibles (traduits)
 const X_AXIS_VARIABLES = {
-    'statut': 'Statut de la convention',
-    'type': 'Type de convention',
-    'annee': 'Année de signature',
-    'partenaire': 'Partenaire',
-    'budget': 'Avec budget',
-    'validation': 'Validation conseil',
-    'formation': 'Formation continue',
-    'mois': 'Mois de signature',
-    'etablissement': 'Établissement UM5',
-    'signataire': 'Signataire UM5'
+    'statut': 'dashboard.xStatut',
+    'type': 'dashboard.xType',
+    'annee': 'dashboard.xAnnee',
+    'partenaire': 'dashboard.xPartenaire',
+    'budget': 'dashboard.xBudget',
+    'validation': 'dashboard.xValidation',
+    'formation': 'dashboard.xFormation',
+    'mois': 'dashboard.xMois',
+    'etablissement': 'dashboard.xEtablissement',
+    'signataire': 'dashboard.xSignataire'
 }
 
 // ✅ Périodes disponibles
 const PERIOD_OPTIONS = [
-    { value: 'all', label: 'Toutes les périodes' },
-    { value: 'this_month', label: 'Ce mois-ci' },
-    { value: 'this_quarter', label: 'Ce trimestre' },
-    { value: 'this_year', label: 'Cette année' },
-    { value: 'last_year', label: 'Année dernière' },
-    { value: 'last_3_years', label: '3 dernières années' },
-    { value: 'last_5_years', label: '5 dernières années' },
-    { value: 'custom', label: 'Personnalisée...' },
+    { value: 'all', labelKey: 'dashboard.periodAll' },
+    { value: 'this_month', labelKey: 'dashboard.periodThisMonth' },
+    { value: 'this_quarter', labelKey: 'dashboard.periodThisQuarter' },
+    { value: 'this_year', labelKey: 'dashboard.periodThisYear' },
+    { value: 'last_year', labelKey: 'dashboard.periodLastYear' },
+    { value: 'last_3_years', labelKey: 'dashboard.periodLast3Years' },
+    { value: 'last_5_years', labelKey: 'dashboard.periodLast5Years' },
+    { value: 'custom', labelKey: 'dashboard.periodCustom' },
 ]
 
-// Configuration par défaut
+// Configuration par défaut (sans textes en dur)
 const DEFAULT_WIDGETS = {
     statut: {
         id: 'statut',
         isDefault: true,
         type: 'pie',
         colors: ['#0F6E56', '#993C1D', '#BA7517', '#185FA5'],
-        title: 'Répartition par statut',
+        titleKey: 'dashboard.chartStatut',
         showLegend: true,
         showTooltip: true,
         xAxis: 'statut',
         yAxis: 'count',
-        period: 'all'
+        period: null
     },
     type: {
         id: 'type',
         isDefault: true,
         type: 'bar',
         colors: ['#003087', '#0F6E56', '#993C1D', '#BA7517', '#185FA5'],
-        title: 'Répartition par type',
+        titleKey: 'dashboard.chartType',
         showLegend: true,
         showTooltip: true,
         xAxis: 'type',
         yAxis: 'count',
-        period: 'all'
+        period: null
     },
     annee: {
         id: 'annee',
         isDefault: true,
         type: 'bar',
         colors: ['#003087'],
-        title: 'Conventions par année',
+        titleKey: 'dashboard.chartAnnee',
         showLegend: false,
         showTooltip: true,
         xAxis: 'annee',
         yAxis: 'count',
-        period: 'all'
+        period: null
     }
 }
 
 export default function Dashboard() {
+    const { t } = useTranslation()
     const [conventions, setConventions] = useState([])
     const [alertes, setAlertes] = useState([])
     const [loading, setLoading] = useState(true)
     const [copyStatus, setCopyStatus] = useState({})
     const [downloadStatus, setDownloadStatus] = useState({})
 
-    // ✅ Période globale du dashboard
     const [globalPeriod, setGlobalPeriod] = useState('all')
     const [customDateStart, setCustomDateStart] = useState('')
     const [customDateEnd, setCustomDateEnd] = useState('')
@@ -106,12 +107,7 @@ export default function Dashboard() {
                 const defaultKeys = Object.keys(DEFAULT_WIDGETS)
                 const existingKeys = parsed.map(w => w.id)
                 const missingKeys = defaultKeys.filter(k => !existingKeys.includes(k))
-
-                const restoredWidgets = missingKeys.map(k => ({
-                    ...DEFAULT_WIDGETS[k],
-                    isDefault: true
-                }))
-
+                const restoredWidgets = missingKeys.map(k => ({ ...DEFAULT_WIDGETS[k], isDefault: true }))
                 return [...parsed, ...restoredWidgets]
             } catch {
                 return Object.values(DEFAULT_WIDGETS)
@@ -124,14 +120,14 @@ export default function Dashboard() {
     const [editingWidget, setEditingWidget] = useState(null)
     const [showAddWidget, setShowAddWidget] = useState(false)
     const [newWidgetConfig, setNewWidgetConfig] = useState({
-        title: 'Nouveau graphique',
+        title: '',
         type: 'bar',
         colors: ['#003087'],
         xAxis: 'statut',
         yAxis: 'count',
         showLegend: true,
         showTooltip: true,
-        period: 'all'
+        period: null
     })
 
     useEffect(() => {
@@ -149,8 +145,7 @@ export default function Dashboard() {
                 getConventions(),
                 getAlertes().catch(() => ({ data: [] }))
             ])
-            const convs = convData.data || []
-            setConventions(convs)
+            setConventions(convData.data || [])
             setAlertes(alertData.data || [])
         } catch (err) {
             console.error(err)
@@ -159,12 +154,11 @@ export default function Dashboard() {
         }
     }
 
-    // ✅ Calculer les dates de début et fin selon la période
+    // ✅ Calculer dates
     const getPeriodDates = (period, customStart = '', customEnd = '') => {
         const now = new Date()
         const year = now.getFullYear()
         const month = now.getMonth()
-
         let startDate = null
         let endDate = null
 
@@ -174,9 +168,9 @@ export default function Dashboard() {
                 endDate = new Date(year, month + 1, 0)
                 break
             case 'this_quarter':
-                const quarterStartMonth = Math.floor(month / 3) * 3
-                startDate = new Date(year, quarterStartMonth, 1)
-                endDate = new Date(year, quarterStartMonth + 3, 0)
+                const q = Math.floor(month / 3) * 3
+                startDate = new Date(year, q, 1)
+                endDate = new Date(year, q + 3, 0)
                 break
             case 'this_year':
                 startDate = new Date(year, 0, 1)
@@ -198,38 +192,28 @@ export default function Dashboard() {
                 startDate = customStart ? new Date(customStart) : null
                 endDate = customEnd ? new Date(customEnd) : null
                 break
-            case 'all':
             default:
                 return { startDate: null, endDate: null }
         }
-
         return { startDate, endDate }
     }
 
-    // ✅ Filtrer les conventions selon la période
     const getFilteredConventions = (period, customStart = '', customEnd = '') => {
         const { startDate, endDate } = getPeriodDates(period, customStart, customEnd)
-
-        if (!startDate && !endDate) {
-            return conventions
-        }
-
+        if (!startDate && !endDate) return conventions
         return conventions.filter(c => {
             if (!c.date_signature) return false
             const convDate = new Date(c.date_signature)
-
             if (startDate && convDate < startDate) return false
             if (endDate && convDate > endDate) return false
             return true
         })
     }
 
-    // ✅ Conventions filtrées par la période globale (pour les stats)
     const filteredConventions = useMemo(() => {
         return getFilteredConventions(globalPeriod, customDateStart, customDateEnd)
     }, [conventions, globalPeriod, customDateStart, customDateEnd])
 
-    // ✅ Statistiques basées sur les conventions filtrées
     const stats = useMemo(() => {
         const convs = filteredConventions
         return {
@@ -241,179 +225,118 @@ export default function Dashboard() {
         }
     }, [filteredConventions])
 
-    // ✅ Générer les données selon la variable et la période
+    // ✅ Générer les données
     const getDataForVariable = (xAxis, yAxis = 'count', period = 'all') => {
-        // Filtrer les conventions selon la période du widget
         const convs = getFilteredConventions(period, customDateStart, customDateEnd)
-
         let data = []
 
         switch (xAxis) {
             case 'statut':
                 data = [
-                    { name: 'En cours', value: convs.filter(c => c.statut === STATUTS.EN_COURS).length },
-                    { name: 'Expirées', value: convs.filter(c => c.statut === STATUTS.EXPIREE).length },
-                    { name: 'À renouveler', value: convs.filter(c => c.statut === STATUTS.A_RENOUVELER).length },
-                    { name: 'Renouvelées', value: convs.filter(c => c.statut === STATUTS.RENOUVELEES).length }
+                    { name: t('status.EN_COURS'), value: convs.filter(c => c.statut === STATUTS.EN_COURS).length },
+                    { name: t('status.EXPIREE'), value: convs.filter(c => c.statut === STATUTS.EXPIREE).length },
+                    { name: t('status.A_RENOUVELER'), value: convs.filter(c => c.statut === STATUTS.A_RENOUVELER).length },
+                    { name: t('status.RENOUVELEE'), value: convs.filter(c => c.statut === STATUTS.RENOUVELEES).length }
                 ].filter(d => d.value > 0)
                 break
-
             case 'type':
-                data = Object.entries(
-                    convs.reduce((acc, c) => {
-                        acc[c.type] = (acc[c.type] || 0) + 1
-                        return acc
-                    }, {})
-                ).map(([name, value]) => ({ name, value }))
+                data = Object.entries(convs.reduce((acc, c) => {
+                    acc[c.type] = (acc[c.type] || 0) + 1
+                    return acc
+                }, {})).map(([name, value]) => ({ name, value }))
                 break
-
             case 'annee':
-                data = Object.entries(
-                    convs.reduce((acc, c) => {
-                        if (!c.date_signature) return acc
-                        const year = new Date(c.date_signature).getFullYear()
-                        acc[year] = (acc[year] || 0) + 1
-                        return acc
-                    }, {})
-                ).map(([name, value]) => ({ name, value })).sort((a, b) => a.name - b.name)
+                data = Object.entries(convs.reduce((acc, c) => {
+                    if (!c.date_signature) return acc
+                    const y = new Date(c.date_signature).getFullYear()
+                    acc[y] = (acc[y] || 0) + 1
+                    return acc
+                }, {})).map(([name, value]) => ({ name, value })).sort((a, b) => a.name - b.name)
                 break
-
             case 'partenaire':
-                const partenaireCount = {}
+                const pc = {}
                 convs.forEach(c => {
-                    if (c.partenaires) {
-                        c.partenaires.forEach(p => {
-                            partenaireCount[p.nom] = (partenaireCount[p.nom] || 0) + 1
-                        })
-                    }
+                    if (c.partenaires) c.partenaires.forEach(p => { pc[p.nom] = (pc[p.nom] || 0) + 1 })
                 })
-                data = Object.entries(partenaireCount)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a, b) => b.value - a.value)
-                    .slice(0, 10)
+                data = Object.entries(pc).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10)
                 break
-
             case 'budget':
-                const avecBudget = convs.filter(c => c.avec_budget).length
-                const sansBudget = convs.length - avecBudget
+                const ab = convs.filter(c => c.avec_budget).length
                 data = [
-                    { name: 'Avec budget', value: avecBudget },
-                    { name: 'Sans budget', value: sansBudget }
+                    { name: t('conventions.withBudget'), value: ab },
+                    { name: t('common.no'), value: convs.length - ab }
                 ].filter(d => d.value > 0)
                 break
-
             case 'validation':
-                const valide = convs.filter(c => c.validation_conseil).length
-                const nonValide = convs.length - valide
+                const v = convs.filter(c => c.validation_conseil).length
                 data = [
-                    { name: 'Validé', value: valide },
-                    { name: 'Non validé', value: nonValide }
+                    { name: t('common.yes'), value: v },
+                    { name: t('common.no'), value: convs.length - v }
                 ].filter(d => d.value > 0)
                 break
-
             case 'formation':
-                const avecFormation = convs.filter(c => c.formation_continue).length
-                const sansFormation = convs.length - avecFormation
+                const f = convs.filter(c => c.formation_continue).length
                 data = [
-                    { name: 'Avec formation', value: avecFormation },
-                    { name: 'Sans formation', value: sansFormation }
+                    { name: t('common.yes'), value: f },
+                    { name: t('common.no'), value: convs.length - f }
                 ].filter(d => d.value > 0)
                 break
-
             case 'mois':
-                const moisCount = {}
+                const mc = {}
                 convs.forEach(c => {
                     if (c.date_signature) {
-                        const mois = new Date(c.date_signature).toLocaleString('fr-FR', { month: 'long' })
-                        moisCount[mois] = (moisCount[mois] || 0) + 1
+                        const m = new Date(c.date_signature).toLocaleString(t('common.locale') || 'fr-FR', { month: 'long' })
+                        mc[m] = (mc[m] || 0) + 1
                     }
                 })
-                data = Object.entries(moisCount).map(([name, value]) => ({ name, value }))
+                data = Object.entries(mc).map(([name, value]) => ({ name, value }))
                 break
-
             case 'etablissement':
-                const etabCount = {}
-                convs.forEach(c => {
-                    if (c.signataire_um5) {
-                        etabCount[c.signataire_um5] = (etabCount[c.signataire_um5] || 0) + 1
-                    }
-                })
-                data = Object.entries(etabCount)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a, b) => b.value - a.value)
-                    .slice(0, 10)
-                break
-
             case 'signataire':
-                const signataireCount = {}
+                const sc = {}
                 convs.forEach(c => {
-                    if (c.signataire_um5) {
-                        signataireCount[c.signataire_um5] = (signataireCount[c.signataire_um5] || 0) + 1
-                    }
+                    if (c.signataire_um5) sc[c.signataire_um5] = (sc[c.signataire_um5] || 0) + 1
                 })
-                data = Object.entries(signataireCount)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a, b) => b.value - a.value)
-                    .slice(0, 10)
+                data = Object.entries(sc).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10)
                 break
-
             default:
                 data = []
         }
-
         return data
     }
 
-    // ✅ Label de la période
     const getPeriodLabel = (period) => {
         const option = PERIOD_OPTIONS.find(p => p.value === period)
-        return option ? option.label : period
+        return option ? t(option.labelKey) : period
     }
 
-    // Rendu du graphique
     const renderChart = (data, config) => {
         if (!data || data.length === 0) {
             return (
                 <div className="w-full h-[280px] flex flex-col items-center justify-center text-gray-400">
                     <div className="text-4xl mb-2 opacity-60">📊</div>
-                    <p className="text-sm font-medium">Aucune donnée disponible</p>
-                    <p className="text-xs text-gray-400 mt-1">pour cette période</p>
+                    <p className="text-sm font-medium">{t('dashboard.noData')}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t('dashboard.forThisPeriod')}</p>
                 </div>
             )
         }
 
         const { type, colors, showLegend, showTooltip } = config
-        const commonProps = {
-            data,
-            margin: { top: 20, right: 30, left: 20, bottom: 20 }
-        }
+        const commonProps = { data, margin: { top: 20, right: 30, left: 20, bottom: 20 } }
 
         switch (type) {
             case 'pie':
                 return (
                     <PieChart {...commonProps}>
-                        <Pie
-                            data={data}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={50}
-                            outerRadius={90}
-                            label
-                        >
+                        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label>
                             {data.map((entry, index) => (
-                                <Cell
-                                    key={`cell-${index}`}
-                                    fill={colors[index % colors.length] || colors[0]}
-                                />
+                                <Cell key={`cell-${index}`} fill={colors[index % colors.length] || colors[0]} />
                             ))}
                         </Pie>
                         {showTooltip && <Tooltip />}
                         {showLegend && <Legend />}
                     </PieChart>
                 )
-
             case 'line':
                 return (
                     <LineChart {...commonProps}>
@@ -422,17 +345,9 @@ export default function Dashboard() {
                         <YAxis />
                         {showTooltip && <Tooltip />}
                         {showLegend && <Legend />}
-                        <Line
-                            type="monotone"
-                            dataKey="value"
-                            stroke={colors[0] || '#003087'}
-                            strokeWidth={2}
-                            dot={{ r: 4 }}
-                        />
+                        <Line type="monotone" dataKey="value" stroke={colors[0] || '#003087'} strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>
                 )
-
-            case 'bar':
             default:
                 return (
                     <BarChart {...commonProps}>
@@ -443,10 +358,7 @@ export default function Dashboard() {
                         {showLegend && <Legend />}
                         <Bar dataKey="value">
                             {data.map((entry, index) => (
-                                <Cell
-                                    key={`cell-${index}`}
-                                    fill={colors[index % colors.length] || colors[0]}
-                                />
+                                <Cell key={`cell-${index}`} fill={colors[index % colors.length] || colors[0]} />
                             ))}
                         </Bar>
                     </BarChart>
@@ -454,158 +366,105 @@ export default function Dashboard() {
         }
     }
 
-    // Copier le graphique
     const copyChartToClipboard = async (widgetId) => {
         const element = document.getElementById(`chart-${widgetId}`)
         if (!element) return
-
         setCopyStatus(prev => ({ ...prev, [widgetId]: 'loading' }))
-
         try {
-            const canvas = await html2canvas(element, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                allowTaint: true,
-            })
-
+            const canvas = await html2canvas(element, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false, allowTaint: true })
             canvas.toBlob(async (blob) => {
                 try {
-                    await navigator.clipboard.write([
-                        new ClipboardItem({ [blob.type]: blob })
-                    ])
+                    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
                     setCopyStatus(prev => ({ ...prev, [widgetId]: 'success' }))
                 } catch (err) {
                     setCopyStatus(prev => ({ ...prev, [widgetId]: 'error' }))
                 } finally {
-                    setTimeout(() => {
-                        setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
-                    }, 2000)
+                    setTimeout(() => setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' })), 2000)
                 }
             }, 'image/png')
         } catch (error) {
             setCopyStatus(prev => ({ ...prev, [widgetId]: 'error' }))
-            setTimeout(() => {
-                setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
-            }, 2000)
+            setTimeout(() => setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' })), 2000)
         }
     }
 
-    // Télécharger le graphique
     const downloadChartAsPNG = async (widgetId, title) => {
         const element = document.getElementById(`chart-${widgetId}`)
         if (!element) return
-
         setDownloadStatus(prev => ({ ...prev, [widgetId]: 'loading' }))
-
         try {
-            const canvas = await html2canvas(element, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                allowTaint: true,
-            })
-
+            const canvas = await html2canvas(element, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false, allowTaint: true })
             const link = document.createElement('a')
-            link.download = `${title || 'graphique'}.png`
+            link.download = `${title || 'chart'}.png`
             link.href = canvas.toDataURL('image/png')
             link.click()
-
             setDownloadStatus(prev => ({ ...prev, [widgetId]: 'success' }))
-            setTimeout(() => {
-                setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
-            }, 2000)
+            setTimeout(() => setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' })), 2000)
         } catch (error) {
             setDownloadStatus(prev => ({ ...prev, [widgetId]: 'error' }))
-            setTimeout(() => {
-                setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
-            }, 2000)
+            setTimeout(() => setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' })), 2000)
         }
     }
 
-    // Exporter en Word
     const exportDashboardAsWord = async () => {
         try {
             const chartImages = []
             const chartTitles = []
-
             for (const widget of widgets) {
                 const element = document.getElementById(`chart-${widget.id}`)
                 if (element) {
-                    const canvas = await html2canvas(element, {
-                        backgroundColor: '#ffffff',
-                        scale: 1.5,
-                        useCORS: true,
-                        logging: false,
-                        allowTaint: true,
-                    })
+                    const canvas = await html2canvas(element, { backgroundColor: '#ffffff', scale: 1.5, useCORS: true, logging: false, allowTaint: true })
                     chartImages.push(canvas.toDataURL('image/png'))
-                    chartTitles.push(`${widget.title} (${getPeriodLabel(widget.period || 'all')})`)
+                    chartTitles.push(`${getWidgetTitle(widget)} (${getPeriodLabel(widget.period || globalPeriod)})`)
                 }
             }
 
             let chartsHtml = ''
-            chartImages.forEach((img, index) => {
+            chartImages.forEach((img, i) => {
                 chartsHtml += `
                     <div style="page-break-inside: avoid; margin-bottom: 30px;">
-                        <h3 style="font-size: 16px; color: #1a56db; margin-bottom: 10px;">${chartTitles[index]}</h3>
-                        <img src="${img}" alt="${chartTitles[index]}" style="width: 100%; max-width: 1000px; display: block; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px;" />
+                        <h3 style="font-size: 16px; color: #1a56db; margin-bottom: 10px;">${chartTitles[i]}</h3>
+                        <img src="${img}" style="width: 100%; max-width: 1000px; display: block; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px;" />
                     </div>
                 `
             })
 
             const html = `
                 <!DOCTYPE html>
-                <html xmlns:o='urn:schemas-microsoft-com:office:office' 
-                    xmlns:w='urn:schemas-microsoft-com:office:word' 
-                    xmlns='http://www.w3.org/TR/REC-html40'>
+                <html>
                 <head>
                     <meta charset="UTF-8">
-                    <title>Rapport Dashboard</title>
+                    <title>${t('dashboard.title')}</title>
                     <style>
                         body { font-family: Arial, sans-serif; padding: 40px; margin: 40px; background: white; }
                         .header { text-align: center; border-bottom: 3px solid #1a56db; padding-bottom: 20px; margin-bottom: 30px; }
-                        .header h1 { font-size: 26px; color: #1a56db; margin: 0; }
-                        .header p { color: #666; font-size: 14px; margin: 5px 0 0; }
-                        .period-badge { display: inline-block; background: #e5e7eb; padding: 5px 15px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
-                        h2 { font-size: 20px; color: #1a56db; margin-top: 30px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-                        .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 11px; color: #999; }
+                        .header h1 { font-size: 26px; color: #1a56db; }
+                        .header p { color: #666; font-size: 14px; }
+                        h2 { font-size: 20px; color: #1a56db; margin-top: 30px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
                     </style>
                 </head>
                 <body>
                     <div class="header">
-                        <h1>📊 Rapport du Dashboard</h1>
-                        <p>Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
-                        <div class="period-badge">Période : ${getPeriodLabel(globalPeriod)}</div>
+                        <h1>📊 ${t('dashboard.title')}</h1>
+                        <p>${t('dashboard.generatedOn')} ${new Date().toLocaleDateString()} - ${t('dashboard.period')}: ${getPeriodLabel(globalPeriod)}</p>
                     </div>
-
                     ${chartsHtml}
-
                     ${alertes.length > 0 ? `
-                    <h2>🔔 Dernières alertes</h2>
+                    <h2>🔔 ${t('dashboard.lastAlerts')}</h2>
                     <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #1a56db; color: white;">
-                                <th style="padding: 8px 12px; text-align: left;">Message</th>
-                                <th style="padding: 8px 12px; text-align: center;">Date</th>
-                            </tr>
-                        </thead>
+                        <thead><tr style="background: #1a56db; color: white;">
+                            <th style="padding: 8px;">${t('alerts.message')}</th>
+                            <th style="padding: 8px;">${t('alerts.date')}</th>
+                        </tr></thead>
                         <tbody>
-                            ${alertes.slice(0, 5).map(alerte => `
+                            ${alertes.slice(0, 5).map(a => `
                             <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 6px 12px;">${alerte.objet || alerte.type_alerte}</td>
-                                <td style="padding: 6px 12px; text-align: center;">${formatDate(alerte.date_declenchement)}</td>
+                                <td style="padding: 6px;">${a.objet || a.type_alerte}</td>
+                                <td style="padding: 6px; text-align: center;">${formatDate(a.date_declenchement)}</td>
                             </tr>
                             `).join('')}
                         </tbody>
-                    </table>
-                    ` : ''}
-
-                    <div class="footer">
-                        Université Mohammed V de Rabat - Direction des Partenariats
-                    </div>
+                    </table>` : ''}
                 </body>
                 </html>
             `
@@ -617,440 +476,266 @@ export default function Dashboard() {
             link.click()
             URL.revokeObjectURL(link.href)
         } catch (error) {
-            console.error('Erreur export Word:', error)
-            alert('Erreur lors de l\'export.')
+            console.error(error)
+            alert(t('common.error'))
         }
     }
 
-    // Supprimer un widget
-    const removeWidget = (id) => {
-        setWidgets(widgets.filter(w => w.id !== id))
-    }
+    const getWidgetTitle = (widget) => widget.titleKey ? t(widget.titleKey) : widget.title
 
-    // Restaurer les défauts
-    const restoreDefaults = () => {
-        setWidgets(Object.values(DEFAULT_WIDGETS))
-    }
+    const removeWidget = (id) => setWidgets(widgets.filter(w => w.id !== id))
+    const restoreDefaults = () => setWidgets(Object.values(DEFAULT_WIDGETS))
 
-    // Sauvegarder config
     const saveConfig = (widgetId, newConfig) => {
-        setWidgets(widgets.map(w =>
-            w.id === widgetId ? { ...w, ...newConfig } : w
-        ))
+        setWidgets(widgets.map(w => w.id === widgetId ? { ...w, ...newConfig } : w))
         setConfigModal(null)
     }
 
-    // Ajouter/modifier widget
     const saveCustomWidget = () => {
-        const data = getDataForVariable(newWidgetConfig.xAxis, 'count', newWidgetConfig.period || 'all')
-        if (data.length === 0) {
-            alert('Aucune donnée disponible pour cette variable et cette période')
-            return
-        }
+        const data = getDataForVariable(newWidgetConfig.xAxis, 'count', newWidgetConfig.period || globalPeriod)
+        if (data.length === 0) { alert(t('dashboard.noData')); return }
 
         const widgetData = {
-            title: newWidgetConfig.title,
+            title: newWidgetConfig.title || t('dashboard.titleLabel'),
             type: newWidgetConfig.type,
             colors: [...newWidgetConfig.colors],
             xAxis: newWidgetConfig.xAxis,
             yAxis: newWidgetConfig.yAxis,
             showLegend: newWidgetConfig.showLegend,
             showTooltip: newWidgetConfig.showTooltip,
-            period: newWidgetConfig.period || 'all',
+            period: newWidgetConfig.period || null,
             isDefault: false
         }
 
         if (editingWidget) {
-            setWidgets(widgets.map(w =>
-                w.id === editingWidget ? { ...w, ...widgetData } : w
-            ))
+            setWidgets(widgets.map(w => w.id === editingWidget ? { ...w, ...widgetData } : w))
             setEditingWidget(null)
         } else {
-            const newWidget = {
-                id: `custom-${Date.now()}`,
-                ...widgetData
-            }
-            setWidgets([...widgets, newWidget])
+            setWidgets([...widgets, { id: `custom-${Date.now()}`, ...widgetData }])
         }
 
         setShowAddWidget(false)
         setNewWidgetConfig({
-            title: 'Nouveau graphique',
-            type: 'bar',
-            colors: ['#003087'],
-            xAxis: 'statut',
-            yAxis: 'count',
-            showLegend: true,
-            showTooltip: true,
-            period: 'all'
+            title: '', type: 'bar', colors: ['#003087'], xAxis: 'statut',
+            yAxis: 'count', showLegend: true, showTooltip: true, period: null
         })
     }
 
-    // ✅ Composant Période Selector
-    const PeriodSelector = ({ value, onChange, showCustom = false }) => {
-        return (
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-gray-500" />
-                    <select
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        {PERIOD_OPTIONS.map(p => (
-                            <option key={p.value} value={p.value}>{p.label}</option>
-                        ))}
-                    </select>
-                </div>
-
-                {value === 'custom' && showCustom && (
-                    <div className="flex items-center gap-2 mt-1">
-                        <input
-                            type="date"
-                            value={customDateStart}
-                            onChange={(e) => setCustomDateStart(e.target.value)}
-                            className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
-                            placeholder="Début"
-                        />
-                        <span className="text-xs text-gray-400">→</span>
-                        <input
-                            type="date"
-                            value={customDateEnd}
-                            onChange={(e) => setCustomDateEnd(e.target.value)}
-                            className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
-                            placeholder="Fin"
-                        />
-                    </div>
-                )}
+    // ✅ PeriodSelector responsive
+    const PeriodSelector = ({ value, onChange, showCustom = false }) => (
+        <div className="flex flex-col gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-gray-500 flex-shrink-0" />
+                <select
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+                >
+                    {PERIOD_OPTIONS.map(p => (
+                        <option key={p.value} value={p.value}>{t(p.labelKey)}</option>
+                    ))}
+                </select>
             </div>
-        )
-    }
+            {value === 'custom' && showCustom && (
+                <div className="flex items-center gap-2 mt-1">
+                    <input type="date" value={customDateStart} onChange={(e) => setCustomDateStart(e.target.value)}
+                        className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1 min-w-0" />
+                    <span className="text-xs text-gray-400">→</span>
+                    <input type="date" value={customDateEnd} onChange={(e) => setCustomDateEnd(e.target.value)}
+                        className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1 min-w-0" />
+                </div>
+            )}
+        </div>
+    )
 
-    // Widget de configuration
     const ConfigWidget = ({ widget, onClose, onSave }) => {
         const [localConfig, setLocalConfig] = useState(widget)
-
         return (
             <Modal isOpen={true} onClose={onClose}>
-                <div className="p-6 space-y-4 max-w-md">
-                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                        <Settings size={20} />
-                        Configuration
+                <div className="p-4 sm:p-6 space-y-4 max-w-md w-full">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <Settings size={20} /> {t('dashboard.config')}
                     </h3>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Type de graphique
-                        </label>
-                        <select
-                            value={localConfig.type}
-                            onChange={(e) => setLocalConfig({ ...localConfig, type: e.target.value })}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                        >
-                            {CHART_TYPES.map(t => (
-                                <option key={t.value} value={t.value}>{t.label}</option>
-                            ))}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.chartType')}</label>
+                        <select value={localConfig.type} onChange={(e) => setLocalConfig({ ...localConfig, type: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            {CHART_TYPES.map(ct => <option key={ct.value} value={ct.value}>{t(ct.labelKey)}</option>)}
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Titre
-                        </label>
-                        <input
-                            type="text"
-                            value={localConfig.title}
-                            onChange={(e) => setLocalConfig({ ...localConfig, title: e.target.value })}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.titleLabel')}</label>
+                        <input type="text" value={localConfig.title || ''} onChange={(e) => setLocalConfig({ ...localConfig, title: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
                     </div>
 
-                    {/* ✅ Sélection de période pour ce widget */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Période
-                        </label>
-                        <select
-                            value={localConfig.period || 'all'}
-                            onChange={(e) => setLocalConfig({ ...localConfig, period: e.target.value })}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                        >
-                            {PERIOD_OPTIONS.map(p => (
-                                <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.period')}</label>
+                        <select value={localConfig.period || ''} onChange={(e) => setLocalConfig({ ...localConfig, period: e.target.value || null })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <option value="">🎯 {t('dashboard.followGlobal')}</option>
+                            {PERIOD_OPTIONS.map(p => <option key={p.value} value={p.value}>{t(p.labelKey)}</option>)}
                         </select>
-                        {localConfig.period === 'custom' && (
-                            <div className="flex items-center gap-2 mt-2">
-                                <input
-                                    type="date"
-                                    value={customDateStart}
-                                    onChange={(e) => setCustomDateStart(e.target.value)}
-                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
-                                />
-                                <span className="text-xs text-gray-400">→</span>
-                                <input
-                                    type="date"
-                                    value={customDateEnd}
-                                    onChange={(e) => setCustomDateEnd(e.target.value)}
-                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
-                                />
-                            </div>
-                        )}
                     </div>
 
                     {localConfig.type !== 'pie' && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Axe X (catégories)
-                            </label>
-                            <select
-                                value={localConfig.xAxis}
-                                onChange={(e) => setLocalConfig({ ...localConfig, xAxis: e.target.value })}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                            >
-                                {Object.entries(X_AXIS_VARIABLES).map(([key, label]) => (
-                                    <option key={key} value={key}>{label}</option>
-                                ))}
+                            <label className="block text-sm font-medium text-gray-700 mb-1">X-Axis</label>
+                            <select value={localConfig.xAxis} onChange={(e) => setLocalConfig({ ...localConfig, xAxis: e.target.value })}
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                {Object.entries(X_AXIS_VARIABLES).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                             </select>
                         </div>
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Couleurs
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('dashboard.colors')}</label>
                         <div className="flex flex-wrap gap-2">
-                            {localConfig.colors.map((color, index) => (
-                                <div key={index} className="relative group">
-                                    <input
-                                        type="color"
-                                        value={color}
+                            {localConfig.colors.map((color, i) => (
+                                <div key={i} className="relative group">
+                                    <input type="color" value={color}
                                         onChange={(e) => {
-                                            const newColors = [...localConfig.colors]
-                                            newColors[index] = e.target.value
-                                            setLocalConfig({ ...localConfig, colors: newColors })
+                                            const nc = [...localConfig.colors]; nc[i] = e.target.value
+                                            setLocalConfig({ ...localConfig, colors: nc })
                                         }}
-                                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-200 hover:border-blue-500"
-                                    />
+                                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-200" />
                                     {localConfig.colors.length > 1 && (
-                                        <button
-                                            onClick={() => {
-                                                const newColors = localConfig.colors.filter((_, i) => i !== index)
-                                                setLocalConfig({ ...localConfig, colors: newColors })
-                                            }}
-                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100"
-                                        >
-                                            ×
-                                        </button>
+                                        <button onClick={() => setLocalConfig({ ...localConfig, colors: localConfig.colors.filter((_, idx) => idx !== i) })}
+                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100">×</button>
                                     )}
                                 </div>
                             ))}
-                            <button
-                                onClick={() => {
-                                    setLocalConfig({
-                                        ...localConfig,
-                                        colors: [...localConfig.colors, '#000000']
-                                    })
-                                }}
-                                className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex items-center justify-center text-gray-400"
-                            >
-                                +
-                            </button>
+                            <button onClick={() => setLocalConfig({ ...localConfig, colors: [...localConfig.colors, '#000000'] })}
+                                className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">+</button>
                         </div>
                     </div>
 
                     <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={localConfig.showLegend}
-                                onChange={(e) => setLocalConfig({ ...localConfig, showLegend: e.target.checked })}
-                                className="rounded border-gray-300 text-blue-600"
-                            />
-                            Légende
+                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <input type="checkbox" checked={localConfig.showLegend} onChange={(e) => setLocalConfig({ ...localConfig, showLegend: e.target.checked })} />
+                            {t('dashboard.showLegend')}
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={localConfig.showTooltip}
-                                onChange={(e) => setLocalConfig({ ...localConfig, showTooltip: e.target.checked })}
-                                className="rounded border-gray-300 text-blue-600"
-                            />
-                            Tooltip
+                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <input type="checkbox" checked={localConfig.showTooltip} onChange={(e) => setLocalConfig({ ...localConfig, showTooltip: e.target.checked })} />
+                            {t('dashboard.showTooltip')}
                         </label>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t">
-                        <Button variant="secondary" onClick={onClose}>Annuler</Button>
-                        <Button onClick={() => onSave(localConfig)}>Enregistrer</Button>
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
+                        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+                        <Button onClick={() => onSave(localConfig)}>{t('common.save')}</Button>
                     </div>
                 </div>
             </Modal>
         )
     }
 
-    if (loading) return <div className="flex items-center justify-center h-64">Chargement...</div>
+    if (loading) return <div className="flex items-center justify-center h-64">{t('common.loading')}</div>
 
     return (
-        <div id="dashboard-container" className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
+        <div id="dashboard-container" className="space-y-4 sm:space-y-6">
+            {/* ═══ HEADER ═══ */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
                 <div className="flex flex-wrap gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={exportDashboardAsWord}
-                        className="flex items-center gap-2"
-                    >
+                    <Button variant="outline" onClick={exportDashboardAsWord} className="flex items-center gap-2 text-xs sm:text-sm">
                         <FileText size={16} />
-                        Exporter Word
+                        <span className="hidden sm:inline">{t('dashboard.exportWord')}</span>
                     </Button>
-
-                    <Button variant="secondary" onClick={restoreDefaults} className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={restoreDefaults} className="flex items-center gap-2 text-xs sm:text-sm">
                         <RotateCcw size={16} />
-                        Restaurer les défauts
+                        <span className="hidden sm:inline">{t('dashboard.restoreDefaults')}</span>
                     </Button>
-                    <Button onClick={() => {
-                        setEditingWidget(null)
-                        setShowAddWidget(true)
-                    }} className='flex justify-center'>
-                        <Plus size={16} className="mr-2" />
-                        Ajouter un graphique
+                    <Button onClick={() => { setEditingWidget(null); setShowAddWidget(true) }} className="flex items-center gap-2 text-xs sm:text-sm">
+                        <Plus size={16} />
+                        <span className="hidden sm:inline">{t('dashboard.addChart')}</span>
                     </Button>
                 </div>
             </div>
 
-            {/* ✅ Barre de sélection de période globale */}
-            <Card className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* ═══ PÉRIODE GLOBALE ═══ */}
+            <Card className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                     <div className="flex items-center gap-3">
-                        <Calendar size={20} className="text-[#003087]" />
-                        <span className="text-sm font-medium text-gray-700">Période d'analyse :</span>
+                        <Calendar size={20} className="text-[#003087] flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">{t('dashboard.globalPeriod')} :</span>
                     </div>
-                    <PeriodSelector
-                        value={globalPeriod}
-                        onChange={setGlobalPeriod}
-                        showCustom={true}
-                    />
+                    <PeriodSelector value={globalPeriod} onChange={setGlobalPeriod} showCustom={true} />
                     {globalPeriod !== 'all' && (
-                        <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                            {filteredConventions.length} convention(s) sur {conventions.length}
+                        <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-center sm:text-left">
+                            {filteredConventions.length} / {conventions.length} {t('conventions.total')}
                         </span>
                     )}
                 </div>
             </Card>
 
-            {/* Cards statistiques */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="p-4 text-center">
-                    <p className="text-sm text-gray-500">Total conventions</p>
-                    <h2 className="text-2xl font-bold text-gray-900">{stats.total}</h2>
+            {/* ═══ STATISTIQUES ═══ */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <Card className="p-3 sm:p-4 text-center">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.totalConventions')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</h2>
                 </Card>
-                <Card className="p-4 text-center border-l-4 border-l-green-500">
-                    <p className="text-sm text-gray-500">En cours</p>
-                    <h2 className="text-2xl font-bold text-green-600">{stats.enCours}</h2>
+                <Card className="p-3 sm:p-4 text-center border-l-4 border-l-green-500">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.inProgress')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-green-600">{stats.enCours}</h2>
                 </Card>
-                <Card className="p-4 text-center border-l-4 border-l-red-500">
-                    <p className="text-sm text-gray-500">Expirées</p>
-                    <h2 className="text-2xl font-bold text-red-600">{stats.expirees}</h2>
+                <Card className="p-3 sm:p-4 text-center border-l-4 border-l-red-500">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.expired')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-red-600">{stats.expirees}</h2>
                 </Card>
-                <Card className="p-4 text-center border-l-4 border-l-yellow-500">
-                    <p className="text-sm text-gray-500">À renouveler</p>
-                    <h2 className="text-2xl font-bold text-yellow-600">{stats.aRenouveler}</h2>
+                <Card className="p-3 sm:p-4 text-center border-l-4 border-l-yellow-500">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.toRenew')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.aRenouveler}</h2>
                 </Card>
             </div>
 
-            {/* Grille de graphiques */}
+            {/* ═══ GRAPHIQUES ═══ */}
             {widgets.length === 0 ? (
-                <Card className="p-12 text-center">
-                    <p className="text-gray-500">Aucun graphique configuré</p>
-                    <Button className="mt-4 flex justify-center mx-auto" onClick={() => setShowAddWidget(true)}>
-                        Ajouter un graphique
-                    </Button>
+                <Card className="p-8 sm:p-12 text-center">
+                    <p className="text-gray-500 text-sm">{t('dashboard.noData')}</p>
+                    <Button className="mt-4 mx-auto" onClick={() => setShowAddWidget(true)}>{t('dashboard.addChart')}</Button>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
                     {widgets.map((widget) => {
-                        // ✅ Si la période globale ≠ 'all', tout le monde suit la globale
-                        // Sinon, chaque widget utilise sa propre période
-                        const effectivePeriod = globalPeriod !== 'all' 
-                            ? globalPeriod 
-                            : (widget.period || 'all')
-                        
-                        const data = getDataForVariable(
-                            widget.xAxis || 'statut',
-                            'count',
-                            effectivePeriod  // ✅ Utiliser la période effective
-                        )
+                        const effectivePeriod = globalPeriod !== 'all' ? globalPeriod : (widget.period || 'all')
+                        const data = getDataForVariable(widget.xAxis || 'statut', 'count', effectivePeriod)
                         const copyStat = copyStatus[widget.id] || 'idle'
                         const downloadStat = downloadStatus[widget.id] || 'idle'
 
                         return (
-                            <Card key={widget.id} className="p-4">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900">{widget.title}</h3>
-                                        
-                                        {/* ✅ Badge de période effective */}
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                            <Card key={widget.id} className="p-3 sm:p-4">
+                                <div className="flex items-start justify-between mb-3 gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 truncate">{getWidgetTitle(widget)}</h3>
+                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block mt-1">
                                             📅 {getPeriodLabel(effectivePeriod)}
-                                            {globalPeriod !== 'all' && (
-                                                <span className="text-blue-600 ml-1">(globale)</span>
-                                            )}
+                                            {globalPeriod !== 'all' && <span className="text-blue-600 ms-1">({t('dashboard.global')})</span>}
                                         </span>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <button
-                                            onClick={() => downloadChartAsPNG(widget.id, widget.title)}
-                                            className={`transition-colors p-1 rounded ${
-                                                downloadStat === 'success' ? 'text-green-500' :
-                                                downloadStat === 'error' ? 'text-red-500' :
-                                                downloadStat === 'loading' ? 'text-yellow-500 animate-pulse' :
-                                                'text-gray-400 hover:text-green-600'
-                                            }`}
-                                            title="Télécharger en PNG"
-                                            disabled={downloadStat === 'loading'}
-                                        >
-                                            {downloadStat === 'success' ? '✅' :
-                                            downloadStat === 'loading' ? '⏳' :
-                                            <Download size={18} />}
+                                    <div className="flex gap-1 flex-shrink-0">
+                                        <button onClick={() => downloadChartAsPNG(widget.id, getWidgetTitle(widget))}
+                                            className={`p-1 rounded ${downloadStat === 'success' ? 'text-green-500' : 'text-gray-400 hover:text-green-600'}`}
+                                            disabled={downloadStat === 'loading'}>
+                                            {downloadStat === 'success' ? '✅' : downloadStat === 'loading' ? '⏳' : <Download size={16} />}
                                         </button>
-
-                                        <button
-                                            onClick={() => copyChartToClipboard(widget.id)}
-                                            className={`transition-colors p-1 rounded ${
-                                                copyStat === 'success' ? 'text-green-500' :
-                                                copyStat === 'error' ? 'text-red-500' :
-                                                copyStat === 'loading' ? 'text-yellow-500 animate-pulse' :
-                                                'text-gray-400 hover:text-blue-600'
-                                            }`}
-                                            title="Copier l'image"
-                                            disabled={copyStat === 'loading'}
-                                        >
-                                            {copyStat === 'success' ? '✅' :
-                                            copyStat === 'loading' ? '⏳' :
-                                            <Copy size={18} />}
+                                        <button onClick={() => copyChartToClipboard(widget.id)}
+                                            className={`p-1 rounded ${copyStat === 'success' ? 'text-green-500' : 'text-gray-400 hover:text-blue-600'}`}
+                                            disabled={copyStat === 'loading'}>
+                                            {copyStat === 'success' ? '✅' : copyStat === 'loading' ? '⏳' : <Copy size={16} />}
                                         </button>
-
-                                        <button
-                                            onClick={() => setConfigModal(widget.id)}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
-                                            title="Configurer"
-                                        >
-                                            <Settings size={18} />
+                                        <button onClick={() => setConfigModal(widget.id)} className="text-gray-400 hover:text-gray-600 p-1">
+                                            <Settings size={16} />
                                         </button>
-
-                                        <button
-                                            onClick={() => removeWidget(widget.id)}
-                                            className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
-                                            title="Supprimer"
-                                        >
-                                            <Trash2 size={18} />
+                                        <button onClick={() => removeWidget(widget.id)} className="text-gray-400 hover:text-red-600 p-1">
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
                                 </div>
                                 <div id={`chart-${widget.id}`}>
-                                    <ResponsiveContainer width="100%" height={280}>
+                                    <ResponsiveContainer width="100%" height={250}>
                                         {renderChart(data, widget)}
                                     </ResponsiveContainer>
                                 </div>
@@ -1060,210 +745,73 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* Alertes */}
+            {/* ═══ ALERTES ═══ */}
             {alertes.length > 0 && (
-                <Card className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Dernières alertes
-                    </h3>
+                <Card className="p-3 sm:p-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">{t('dashboard.lastAlerts')}</h3>
                     <div className="space-y-2">
                         {alertes.slice(0, 4).map((alerte) => (
-                            <div
-                                key={alerte.id}
-                                className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span
-                                        className="w-2 h-2 rounded-full"
-                                        style={{
-                                            backgroundColor: TYPES_ALERTE_COLORS?.[alerte.type_alerte] || '#888'
-                                        }}
-                                    />
-                                    <span className="text-sm text-gray-700">
-                                        {alerte.objet || alerte.type_alerte}
-                                    </span>
+                            <div key={alerte.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-gray-100 last:border-0 gap-1">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: TYPES_ALERTE_COLORS?.[alerte.type_alerte] || '#888' }} />
+                                    <span className="text-xs sm:text-sm text-gray-700 truncate">{alerte.objet || alerte.type_alerte}</span>
                                 </div>
-                                <span className="text-sm text-gray-400">
-                                    {formatDate(alerte.date_declenchement)}
-                                </span>
+                                <span className="text-xs text-gray-400 flex-shrink-0">{formatDate(alerte.date_declenchement)}</span>
                             </div>
                         ))}
                     </div>
                 </Card>
             )}
 
-            {/* Modal configuration widget */}
+            {/* Modales */}
             {configModal && (
-                <ConfigWidget
-                    widget={widgets.find(w => w.id === configModal)}
-                    onClose={() => setConfigModal(null)}
-                    onSave={(newConfig) => saveConfig(configModal, newConfig)}
-                />
+                <ConfigWidget widget={widgets.find(w => w.id === configModal)} onClose={() => setConfigModal(null)}
+                    onSave={(newConfig) => saveConfig(configModal, newConfig)} />
             )}
 
-            {/* Modal ajout widget */}
-            <Modal isOpen={showAddWidget} onClose={() => {
-                setShowAddWidget(false)
-                setEditingWidget(null)
-            }}>
-                <div className="p-6 space-y-4 max-w-md">
-                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Modal isOpen={showAddWidget} onClose={() => { setShowAddWidget(false); setEditingWidget(null) }}>
+                <div className="p-4 sm:p-6 space-y-4 max-w-md w-full">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
                         {editingWidget ? <Edit size={20} /> : <Plus size={20} />}
-                        {editingWidget ? 'Modifier le graphique' : 'Ajouter un graphique'}
+                        {editingWidget ? t('common.edit') : t('dashboard.addChart')}
                     </h3>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Titre
-                        </label>
-                        <input
-                            type="text"
-                            value={newWidgetConfig.title}
-                            onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, title: e.target.value })}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.titleLabel')}</label>
+                        <input type="text" value={newWidgetConfig.title} onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, title: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Type de graphique
-                        </label>
-                        <select
-                            value={newWidgetConfig.type}
-                            onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, type: e.target.value })}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                        >
-                            {CHART_TYPES.map(t => (
-                                <option key={t.value} value={t.value}>{t.label}</option>
-                            ))}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.chartType')}</label>
+                        <select value={newWidgetConfig.type} onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, type: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            {CHART_TYPES.map(ct => <option key={ct.value} value={ct.value}>{t(ct.labelKey)}</option>)}
                         </select>
                     </div>
 
-                    {/* ✅ Période pour le nouveau widget */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Période
-                        </label>
-                        <select
-                            value={newWidgetConfig.period || 'all'}
-                            onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, period: e.target.value })}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                        >
-                            {PERIOD_OPTIONS.map(p => (
-                                <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.period')}</label>
+                        <select value={newWidgetConfig.period || ''} onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, period: e.target.value || null })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <option value="">🎯 {t('dashboard.followGlobal')}</option>
+                            {PERIOD_OPTIONS.map(p => <option key={p.value} value={p.value}>{t(p.labelKey)}</option>)}
                         </select>
-                        {newWidgetConfig.period === 'custom' && (
-                            <div className="flex items-center gap-2 mt-2">
-                                <input
-                                    type="date"
-                                    value={customDateStart}
-                                    onChange={(e) => setCustomDateStart(e.target.value)}
-                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
-                                />
-                                <span className="text-xs text-gray-400">→</span>
-                                <input
-                                    type="date"
-                                    value={customDateEnd}
-                                    onChange={(e) => setCustomDateEnd(e.target.value)}
-                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
-                                />
-                            </div>
-                        )}
                     </div>
 
                     {newWidgetConfig.type !== 'pie' && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Axe X (catégories)
-                            </label>
-                            <select
-                                value={newWidgetConfig.xAxis}
-                                onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, xAxis: e.target.value })}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                            >
-                                {Object.entries(X_AXIS_VARIABLES).map(([key, label]) => (
-                                    <option key={key} value={key}>{label}</option>
-                                ))}
+                            <label className="block text-sm font-medium text-gray-700 mb-1">X-Axis</label>
+                            <select value={newWidgetConfig.xAxis} onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, xAxis: e.target.value })}
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                {Object.entries(X_AXIS_VARIABLES).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                             </select>
                         </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Couleurs
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                            {newWidgetConfig.colors.map((color, index) => (
-                                <div key={index} className="relative group">
-                                    <input
-                                        type="color"
-                                        value={color}
-                                        onChange={(e) => {
-                                            const newColors = [...newWidgetConfig.colors]
-                                            newColors[index] = e.target.value
-                                            setNewWidgetConfig({ ...newWidgetConfig, colors: newColors })
-                                        }}
-                                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-200 hover:border-blue-500"
-                                    />
-                                    {newWidgetConfig.colors.length > 1 && (
-                                        <button
-                                            onClick={() => {
-                                                const newColors = newWidgetConfig.colors.filter((_, i) => i !== index)
-                                                setNewWidgetConfig({ ...newWidgetConfig, colors: newColors })
-                                            }}
-                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100"
-                                        >
-                                            ×
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                            <button
-                                onClick={() => {
-                                    setNewWidgetConfig({
-                                        ...newWidgetConfig,
-                                        colors: [...newWidgetConfig.colors, '#000000']
-                                    })
-                                }}
-                                className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex items-center justify-center text-gray-400"
-                            >
-                                +
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={newWidgetConfig.showLegend}
-                                onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, showLegend: e.target.checked })}
-                                className="rounded border-gray-300 text-blue-600"
-                            />
-                            Légende
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={newWidgetConfig.showTooltip}
-                                onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, showTooltip: e.target.checked })}
-                                className="rounded border-gray-300 text-blue-600"
-                            />
-                            Tooltip
-                        </label>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t">
-                        <Button variant="secondary" onClick={() => {
-                            setShowAddWidget(false)
-                            setEditingWidget(null)
-                        }}>
-                            Annuler
-                        </Button>
-                        <Button onClick={saveCustomWidget}>
-                            {editingWidget ? 'Mettre à jour' : 'Ajouter'}
-                        </Button>
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
+                        <Button variant="secondary" onClick={() => { setShowAddWidget(false); setEditingWidget(null) }}>{t('common.cancel')}</Button>
+                        <Button onClick={saveCustomWidget}>{editingWidget ? t('common.save') : t('common.add')}</Button>
                     </div>
                 </div>
             </Modal>

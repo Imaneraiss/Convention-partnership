@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { getConventions, exportConventions } from '../../services/conventionService';
 import { formatDate } from '../../utils/formatDate';
 import { TYPES_CONVENTION, STATUTS, TYPES_PARTENAIRE, ROLES } from '../../utils/constants';
@@ -10,9 +11,13 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { Printer, CheckSquare, Square, ChevronDown, ChevronRight, FileCheck, FileX, FileSpreadsheet } from 'lucide-react';
 import Modal from '../../components/common/Modal';
+
 export default function ConventionsList() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const { t } = useTranslation();
+
   const [conventions, setConventions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -23,43 +28,40 @@ export default function ConventionsList() {
   const [filtreDateFin, setFiltreDateFin] = useState('');
   const [filtreSigne, setFiltreSigne] = useState('');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  
-  // ✅ Filtres Options (cases à cocher)
   const [filtreBudget, setFiltreBudget] = useState(false);
   const [filtreValidationConseil, setFiltreValidationConseil] = useState(false);
   const [filtreFormationContinue, setFiltreFormationContinue] = useState(false);
-  
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState({});
   const [expandedGroups, setExpandedGroups] = useState({});
-  const { user } = useAuth();  
+
   const isCharge = user?.role === ROLES.CHARGE;
   const isSG = user?.role === ROLES.SG;
 
-
+  // ✅ Colonnes avec clés i18n
   const allColumns = {
-    'Identification': [
-      { id: 'numero_reference', label: 'Numéro de référence' },
-      { id: 'intitule', label: 'Intitulé de la convention' },
-      { id: 'type', label: 'Type de convention' },
-      { id: 'statut', label: 'Statut' },
-      { id: 'signe', label: 'Signé' },
+    [t('conventions.groupIdentification')]: [
+      { id: 'numero_reference', labelKey: 'conventions.reference' },
+      { id: 'intitule', labelKey: 'conventions.intitule' },
+      { id: 'type', labelKey: 'conventions.type' },
+      { id: 'statut', labelKey: 'conventions.status' },
+      { id: 'signe', labelKey: 'conventions.signed' },
     ],
-    'Dates': [
-      { id: 'date_signature', label: 'Date de signature' },
-      { id: 'date_expiration', label: 'Date d\'expiration' },
+    [t('conventions.groupDates')]: [
+      { id: 'date_signature', labelKey: 'conventions.signatureDate' },
+      { id: 'date_expiration', labelKey: 'conventions.expirationDate' },
     ],
-    'Signataires': [
-      { id: 'signataire_um5', label: 'Signataire UM5' },
-      { id: 'signataire_um5_autre', label: 'Autre signataire UM5' },
-      { id: 'signataire_partenaire', label: 'Signataire partenaire' },
+    [t('conventions.groupSignatories')]: [
+      { id: 'signataire_um5', labelKey: 'conventions.signatoryUM5' },
+      { id: 'signataire_um5_autre', labelKey: 'conventions.signatoryUM5Other' },
+      { id: 'signataire_partenaire', labelKey: 'conventions.signatoryPartner' },
     ],
-    'Partenaires': [
-      { id: 'partenaire_nom', label: 'Nom du partenaire' },
-      { id: 'partenaire_type', label: 'Type de partenaire' },
-      { id: 'partenaire_ville', label: 'Ville du partenaire' },
-      { id: 'partenaire_region', label: 'Région du partenaire' },
-      { id: 'partenaire_pays', label: 'Pays du partenaire' },
+    [t('conventions.groupPartners')]: [
+      { id: 'partenaire_nom', labelKey: 'conventions.partnerName' },
+      { id: 'partenaire_type', labelKey: 'conventions.partnerType' },
+      { id: 'partenaire_ville', labelKey: 'conventions.partnerCity' },
+      { id: 'partenaire_region', labelKey: 'conventions.partnerRegion' },
+      { id: 'partenaire_pays', labelKey: 'conventions.partnerCountry' },
     ],
   };
 
@@ -89,7 +91,6 @@ export default function ConventionsList() {
   };
 
   const conventionsFiltrees = conventions.filter(c => {
-    // ✅ Filtre SG : seulement les conventions avec budget
     if (isSG && !c.avec_budget) return false;
 
     if (search) {
@@ -108,32 +109,24 @@ export default function ConventionsList() {
     if (filtreDateFin && c.date_expiration > filtreDateFin) return false;
     if (filtreSigne === 'signe' && !c.signe) return false;
     if (filtreSigne === 'non_signe' && c.signe) return false;
-    
-    // ✅ Filtres Options (cases à cocher)
     if (filtreBudget && !c.avec_budget) return false;
     if (filtreValidationConseil && !c.validation_conseil) return false;
     if (filtreFormationContinue && !c.formation_continue) return false;
-    
-      return true;
-    });
+
+    return true;
+  });
 
   const handleExportExcel = async () => {
     try {
       setIsPrintModalOpen(false);
-      
-      const columns = Object.values(allColumns)
-        .flat()
-        .filter(col => selectedColumns[col.id]);
-      
+      const columns = Object.values(allColumns).flat().filter(col => selectedColumns[col.id]);
       const data = conventionsFiltrees.map(c => {
         const row = {};
         columns.forEach(col => {
-          row[col.label] = getValue(c, col.id);
+          row[t(col.labelKey)] = getValue(c, col.id);
         });
         return row;
       });
-      
-      // ✅ Appel avec données
       const response = await exportConventions('excel', data);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -144,15 +137,13 @@ export default function ConventionsList() {
       link.remove();
     } catch (err) {
       console.error(err);
-      alert('Erreur lors de l\'export Excel');
+      alert(t('common.error'));
     }
-  };  
+  };
 
   const toggleTypePartenaire = (type) => {
-    setFiltreTypesPartenaire(prev => 
-      prev.includes(type) 
-        ? prev.filter(t => t !== type)
-        : [...prev, type]
+    setFiltreTypesPartenaire(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     );
   };
 
@@ -164,27 +155,25 @@ export default function ConventionsList() {
     setFiltreDateDebut('');
     setFiltreDateFin('');
     setFiltreSigne('');
-    // ✅ Réinitialiser les cases à cocher
     setFiltreBudget(false);
     setFiltreValidationConseil(false);
     setFiltreFormationContinue(false);
   };
 
-  // ✅ Statuts corrigés (3 statuts seulement)
   const getStatutColor = (statut) => {
     const colors = {
-      'EN_COURS': '#0F6E56',      // 🟢 Vert
-      'A_RENOUVELER': '#BA7517',  // 🟡 Jaune
-      'EXPIREE': '#993C1D'        // 🔴 Rouge
+      'EN_COURS': '#0F6E56',
+      'A_RENOUVELER': '#BA7517',
+      'EXPIREE': '#993C1D'
     };
     return colors[statut] || '#888';
   };
 
   const getStatutLabel = (statut) => {
     const labels = {
-      'EN_COURS': 'En cours',
-      'A_RENOUVELER': 'À renouveler',
-      'EXPIREE': 'Expirée'
+      'EN_COURS': t('status.EN_COURS'),
+      'A_RENOUVELER': t('status.A_RENOUVELER'),
+      'EXPIREE': t('status.EXPIREE')
     };
     return labels[statut] || statut;
   };
@@ -195,31 +184,21 @@ export default function ConventionsList() {
   };
 
   const toggleColumn = (columnId) => {
-    setSelectedColumns(prev => ({
-      ...prev,
-      [columnId]: !prev[columnId]
-    }));
+    setSelectedColumns(prev => ({ ...prev, [columnId]: !prev[columnId] }));
   };
 
   const toggleGroup = (groupName) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupName]: !prev[groupName]
-    }));
+    setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
   };
 
   const toggleAllColumns = (groupName, columns) => {
     const allSelected = columns.every(col => selectedColumns[col.id]);
     const newState = { ...selectedColumns };
-    columns.forEach(col => {
-      newState[col.id] = !allSelected;
-    });
+    columns.forEach(col => { newState[col.id] = !allSelected; });
     setSelectedColumns(newState);
   };
 
-  const getSelectedCount = () => {
-    return Object.values(selectedColumns).filter(v => v).length;
-  };
+  const getSelectedCount = () => Object.values(selectedColumns).filter(v => v).length;
 
   const getValue = (convention, field) => {
     switch(field) {
@@ -227,7 +206,7 @@ export default function ConventionsList() {
       case 'intitule': return convention.intitule || '';
       case 'type': return convention.type || '';
       case 'statut': return getStatutLabel(convention.statut) || '';
-      case 'signe': return convention.signe ? '✅ Signé' : '❌ Non signé';
+      case 'signe': return convention.signe ? `✅ ${t('conventions.signed')}` : `❌ ${t('conventions.notSigned')}`;
       case 'date_signature': return formatDate(convention.date_signature);
       case 'date_expiration': return formatDate(convention.date_expiration) || '—';
       case 'signataire_um5': return convention.signataire_um5 || '';
@@ -242,13 +221,10 @@ export default function ConventionsList() {
     }
   };
 
-  const selectedColumnsList = Object.values(allColumns)
-    .flat()
-    .filter(col => selectedColumns[col.id]);
+  const selectedColumnsList = Object.values(allColumns).flat().filter(col => selectedColumns[col.id]);
 
   const handlePrint = () => {
     setIsPrintModalOpen(false);
-    
     const columns = selectedColumnsList;
     const data = conventionsFiltrees;
 
@@ -257,339 +233,213 @@ export default function ConventionsList() {
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Liste des conventions</title>
+        <title>${t('conventions.title')}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: Arial, sans-serif; 
-            padding: 20px;
-            background: white;
-          }
-          .print-header {
-            text-align: center;
-            margin-bottom: 15px;
-          }
-          .print-header h1 {
-            font-size: 14px;
-            font-weight: bold;
-            color: #1a1a1a;
-          }
-          .print-header p {
-            font-size: 9px;
-            color: #666;
-            margin-top: 4px;
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            font-size: 7px;
-          }
-          th { 
-            background-color: #f3f4f6; 
-            font-weight: 600; 
-            padding: 3px 4px; 
-            border: 1px solid #d1d5db; 
-            text-align: left;
-          }
-          td { 
-            padding: 2px 4px; 
-            border: 1px solid #d1d5db; 
-            text-align: left;
-          }
-          .empty-row td {
-            text-align: center;
-            color: #999;
-            padding: 20px;
-          }
-          .signe-oui { color: #16a34a; font-weight: 600; }
-          .signe-non { color: #dc2626; font-weight: 600; }
-          @page {
-            margin: 8mm;
-            size: A4 landscape;
-          }
-          @media print {
-            body { padding: 0; }
-          }
+          body { font-family: Arial, sans-serif; padding: 20px; background: white; }
+          .print-header { text-align: center; margin-bottom: 15px; }
+          .print-header h1 { font-size: 14px; font-weight: bold; }
+          .print-header p { font-size: 9px; color: #666; margin-top: 4px; }
+          table { width: 100%; border-collapse: collapse; font-size: 7px; }
+          th { background-color: #f3f4f6; font-weight: 600; padding: 3px 4px; border: 1px solid #d1d5db; text-align: left; }
+          td { padding: 2px 4px; border: 1px solid #d1d5db; text-align: left; }
+          @page { margin: 8mm; size: A4 landscape; }
         </style>
       </head>
       <body>
         <div class="print-header">
-          <h1>Liste des conventions de partenariat</h1>
-          <p>${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')} - ${data.length} convention(s)</p>
+          <h1>${t('conventions.title')}</h1>
+          <p>${new Date().toLocaleDateString()} - ${data.length} ${t('conventions.total')}</p>
         </div>
-        <table>
-          <thead>
-            <tr>
+        <table><thead><tr>
     `;
 
-    columns.forEach(col => {
-      html += `<th>${col.label}</th>`;
-    });
-
-    html += `
-            </tr>
-          </thead>
-          <tbody>
-    `;
+    columns.forEach(col => { html += `<th>${t(col.labelKey)}</th>`; });
+    html += `</tr></thead><tbody>`;
 
     if (data.length === 0) {
-      html += `
-        <tr class="empty-row">
-          <td colspan="${columns.length}">Aucune convention trouvée</td>
-        </tr>
-      `;
+      html += `<tr><td colspan="${columns.length}" style="text-align:center; padding:20px; color:#999;">${t('conventions.noConventions')}</td></tr>`;
     } else {
       data.forEach(c => {
         html += `<tr>`;
-        columns.forEach(col => {
-          const value = getValue(c, col.id);
-          html += `<td>${value}</td>`;
-        });
+        columns.forEach(col => { html += `<td>${getValue(c, col.id)}</td>`; });
         html += `</tr>`;
       });
     }
 
-    html += `
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+    html += `</tbody></table></body></html>`;
 
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (printWindow) {
       printWindow.document.write(html);
       printWindow.document.close();
       printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 500);
+      setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
     } else {
-      alert('Veuillez autoriser les popups pour imprimer');
+      alert(t('common.error'));
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Chargement...</div>
+        <div className="text-gray-500">{t('common.loading')}</div>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="space-y-4 sm:space-y-6">
+        {/* ═══ HEADER ═══ */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Suivi et gestion des conventions de partenariat
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              {t('conventions.title')}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {conventions.length} convention{conventions.length > 1 ? 's' : ''} au total
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              {conventions.length} {t('conventions.total')}
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsPrintModalOpen(true)}  // Ouvre la même pop-up
-              className="flex items-center gap-2"
-            >
+            <Button variant="outline" onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-2 text-xs sm:text-sm">
               <FileSpreadsheet size={16} />
-              Exporter & Imprimer
+              <span className="hidden sm:inline">{t('conventions.exportPrint')}</span>
             </Button>
-            
-            {isCharge && (<Button onClick={() => navigate('/conventions/new')}>
-              Nouvelle convention
-            </Button>)}
+            {isCharge && (
+              <Button onClick={() => navigate('/conventions/new')} className="text-xs sm:text-sm">
+                {t('conventions.new')}
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Filtres */}
-        <Card className="p-6">
+        {/* ═══ FILTRES ═══ */}
+        <Card className="p-4 sm:p-6">
           <div className="space-y-4">
             <Input
-              placeholder="Rechercher par intitulé ou partenaire..."
+              placeholder={t('conventions.search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="mb-4"
+              className="mb-4 text-sm"
             />
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex-1 min-w-[150px]">
-                <Select
-                  value={filtreType}
-                  onChange={(e) => setFiltreType(e.target.value)}
-                  options={[
-                    ...TYPES_CONVENTION.map(t => ({ value: t, label: t }))
-                  ]}
-                  placeholder="Tous les types"
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+              <Select
+                value={filtreType}
+                onChange={(e) => setFiltreType(e.target.value)}
+                options={TYPES_CONVENTION.map(tc => ({ value: tc, label: tc }))}
+                placeholder={t('conventions.allTypes')}
+              />
+              <Select
+                value={filtreStatut}
+                onChange={(e) => setFiltreStatut(e.target.value)}
+                options={[
+                  { value: 'EN_COURS', label: t('status.EN_COURS') },
+                  { value: 'A_RENOUVELER', label: t('status.A_RENOUVELER') },
+                  { value: 'EXPIREE', label: t('status.EXPIREE') }
+                ]}
+                placeholder={t('conventions.allStatuses')}
+              />
+              <Select
+                value={filtreSigne}
+                onChange={(e) => setFiltreSigne(e.target.value)}
+                options={[
+                  { value: 'signe', label: `✅ ${t('conventions.signed')}` },
+                  { value: 'non_signe', label: `❌ ${t('conventions.notSigned')}` }
+                ]}
+                placeholder={t('conventions.signature')}
+              />
+              <Input type="date" value={filtreDateDebut} onChange={(e) => setFiltreDateDebut(e.target.value)} placeholder={t('conventions.startDate')} />
+              <Input type="date" value={filtreDateFin} onChange={(e) => setFiltreDateFin(e.target.value)} placeholder={t('conventions.endDate')} />
+            </div>
 
-              <div className="flex-1 min-w-[150px]">
-                <Select
-                  value={filtreStatut}
-                  onChange={(e) => setFiltreStatut(e.target.value)}
-                  options={[
-                    { value: 'EN_COURS', label: 'En cours' },
-                    { value: 'A_RENOUVELER', label: 'À renouveler' },
-                    { value: 'EXPIREE', label: 'Expirée' }
-                  ]}
-                  placeholder="Tous les statuts"
-                />
-              </div>
-
-              <div className="flex-1 min-w-[150px]">
-                <Select
-                  value={filtreSigne}
-                  onChange={(e) => setFiltreSigne(e.target.value)}
-                  options={[
-                    { value: 'signe', label: ' Signé' },
-                    { value: 'non_signe', label: ' Non signé' }
-                  ]}
-                  placeholder="Signature"
-                />
-              </div>
-
-              <div className="flex-1 min-w-[150px]">
-                <Input
-                  type="date"
-                  value={filtreDateDebut}
-                  onChange={(e) => setFiltreDateDebut(e.target.value)}
-                  placeholder="Date début"
-                />
-              </div>
-
-              <div className="flex-1 min-w-[150px]">
-                <Input
-                  type="date"
-                  value={filtreDateFin}
-                  onChange={(e) => setFiltreDateFin(e.target.value)}
-                  placeholder="Date fin"
-                />
-              </div>
-
-              <Button variant="secondary" onClick={resetFiltres}>
-                Réinitialiser
+            <div className="flex justify-end">
+              <Button variant="secondary" onClick={resetFiltres} className="text-xs sm:text-sm">
+                {t('common.reset')}
               </Button>
             </div>
 
-            {/* ✅ Type partenaire */}
-            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200">
-              <span className="text-sm text-gray-600 font-medium">Type partenaire :</span>
+            {/* Type partenaire */}
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2 border-t border-gray-200">
+              <span className="text-xs sm:text-sm text-gray-600 font-medium">{t('conventions.partnerType')} :</span>
               {TYPES_PARTENAIRE.map(type => (
-                <label key={type} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={filtreTypesPartenaire.includes(type)}
-                    onChange={() => toggleTypePartenaire(type)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
+                <label key={type} className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer">
+                  <input type="checkbox" checked={filtreTypesPartenaire.includes(type)} onChange={() => toggleTypePartenaire(type)} className="rounded border-gray-300 text-blue-600" />
                   {type}
                 </label>
               ))}
             </div>
 
-            {/* ✅ Filtres Options (cases à cocher) */}
-            <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-gray-200">
-              <span className="text-sm text-gray-600 font-medium">Options :</span>
-              
+            {/* Options */}
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 border-t border-gray-200">
+              <span className="text-xs sm:text-sm text-gray-600 font-medium">{t('conventions.options')} :</span>
               {!isSG && (
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={filtreBudget}
-                    onChange={(e) => setFiltreBudget(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-700"> Avec budget</span>
+                <label className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer">
+                  <input type="checkbox" checked={filtreBudget} onChange={(e) => setFiltreBudget(e.target.checked)} className="rounded border-gray-300 text-blue-600" />
+                  <span className="text-gray-700">{t('conventions.withBudget')}</span>
                 </label>
               )}
-                            
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filtreValidationConseil}
-                  onChange={(e) => setFiltreValidationConseil(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-gray-700">Validation conseil</span>
+              <label className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer">
+                <input type="checkbox" checked={filtreValidationConseil} onChange={(e) => setFiltreValidationConseil(e.target.checked)} className="rounded border-gray-300 text-blue-600" />
+                <span className="text-gray-700">{t('conventions.validationCouncil')}</span>
               </label>
-              
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filtreFormationContinue}
-                  onChange={(e) => setFiltreFormationContinue(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-gray-700">Formation continue</span>
+              <label className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer">
+                <input type="checkbox" checked={filtreFormationContinue} onChange={(e) => setFiltreFormationContinue(e.target.checked)} className="rounded border-gray-300 text-blue-600" />
+                <span className="text-gray-700">{t('conventions.formationContinue')}</span>
               </label>
             </div>
           </div>
         </Card>
 
-        {/* Tableau */}
+        {/* ═══ TABLEAU ═══ */}
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[800px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N°</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Intitulé</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partenaire(s)</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date signature</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date expiration</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Signé</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.number')}</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.intitule')}</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.partners')}</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.type')}</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.signatureDate')}</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.expirationDate')}</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.status')}</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.signed')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {conventionsFiltrees.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                      Aucune convention trouvée
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500 text-sm">
+                      {t('conventions.noConventions')}
                     </td>
                   </tr>
                 ) : (
                   conventionsFiltrees.map(c => (
-                    <tr
-                      key={c.id}
-                      onClick={() => navigate(`/conventions/${c.id}`)}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                      <td className="px-4 py-3 text-sm">{c.numero_reference}</td>
-                      <td className="px-4 py-3 text-sm font-medium">{c.intitule}</td>
-                      <td className="px-4 py-3 text-sm">
-                        {getPartenairesDisplay(c.partenaires)}
-                      </td>
-                      <td className="px-4 py-3 text-sm">{c.type}</td>
-                      <td className="px-4 py-3 text-sm">{formatDate(c.date_signature)}</td>
-                      <td className="px-4 py-3 text-sm">{formatDate(c.date_expiration) || '—'}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="px-2 py-1 rounded-full text-xs font-medium"
-                          style={{
-                            backgroundColor: getStatutColor(c.statut) + '20',
-                            color: getStatutColor(c.statut)
-                          }}
-                        >
+                    <tr key={c.id} onClick={() => navigate(`/conventions/${c.id}`)} className="hover:bg-gray-50 cursor-pointer transition-colors">
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{c.numero_reference}</td>
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium">{c.intitule}</td>
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{getPartenairesDisplay(c.partenaires)}</td>
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{c.type}</td>
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{formatDate(c.date_signature)}</td>
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{formatDate(c.date_expiration) || '—'}</td>
+                      <td className="px-3 sm:px-4 py-3">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap"
+                          style={{ backgroundColor: getStatutColor(c.statut) + '20', color: getStatutColor(c.statut) }}>
                           {getStatutLabel(c.statut)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3">
                         {c.signe ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">
                             <FileCheck size={14} />
-                            Signé
+                            <span className="hidden sm:inline">{t('conventions.signed')}</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 whitespace-nowrap">
                             <FileX size={14} />
-                            Non signé
+                            <span className="hidden sm:inline">{t('conventions.notSigned')}</span>
                           </span>
                         )}
                       </td>
@@ -601,68 +451,47 @@ export default function ConventionsList() {
           </div>
         </Card>
 
-        <p className="text-sm text-gray-500">
-          {conventionsFiltrees.length} convention(s) trouvée(s)
+        <p className="text-xs sm:text-sm text-gray-500">
+          {conventionsFiltrees.length} {t('conventions.found')}
         </p>
       </div>
 
-      {/* Modal de sélection des colonnes */}
+      {/* ═══ MODAL COLONNES ═══ */}
       <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)}>
-        <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-             
-              Sélection des colonnes
-            </h3>
-            <span className="text-sm text-gray-500">
-              {getSelectedCount()} colonne(s) sélectionnée(s)
+        <div className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">{t('conventions.selectColumns')}</h3>
+            <span className="text-xs sm:text-sm text-gray-500">
+              {getSelectedCount()} {t('conventions.columnsSelected')}
             </span>
           </div>
-          
 
           <div className="space-y-3">
             {Object.entries(allColumns).map(([groupName, columns]) => (
               <div key={groupName} className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(groupName)}
-                  className="w-full px-4 py-2 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors"
-                >
-                  <span className="font-medium text-gray-700">{groupName}</span>
-                  <div className="flex items-center gap-3">
+                <button type="button" onClick={() => toggleGroup(groupName)}
+                  className="w-full px-3 sm:px-4 py-2 bg-gray-50 hover:bg-gray-100 flex items-center justify-between gap-2">
+                  <span className="font-medium text-gray-700 text-xs sm:text-sm">{groupName}</span>
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <span className="text-xs text-gray-400">
                       {columns.filter(col => selectedColumns[col.id]).length}/{columns.length}
                     </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleAllColumns(groupName, columns);
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                    >
-                      {columns.every(col => selectedColumns[col.id]) ? 'Tout désélectionner' : 'Tout sélectionner'}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleAllColumns(groupName, columns); }}
+                      className="text-xs text-blue-600 hover:text-blue-700 hidden sm:inline">
+                      {columns.every(col => selectedColumns[col.id]) ? t('conventions.deselectAll') : t('conventions.selectAll')}
                     </button>
                     {expandedGroups[groupName] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </div>
                 </button>
-                
+
                 {expandedGroups[groupName] && (
                   <div className="p-3 space-y-1">
                     {columns.map(col => (
                       <label key={col.id} className="flex items-center gap-3 p-1.5 hover:bg-gray-50 rounded cursor-pointer">
-                        <button
-                          type="button"
-                          onClick={() => toggleColumn(col.id)}
-                          className="text-blue-600"
-                        >
-                          {selectedColumns[col.id] ? (
-                            <CheckSquare size={18} />
-                          ) : (
-                            <Square size={18} />
-                          )}
+                        <button type="button" onClick={() => toggleColumn(col.id)} className="text-blue-600">
+                          {selectedColumns[col.id] ? <CheckSquare size={18} /> : <Square size={18} />}
                         </button>
-                        <span className="text-sm text-gray-700">{col.label}</span>
+                        <span className="text-xs sm:text-sm text-gray-700">{t(col.labelKey)}</span>
                       </label>
                     ))}
                   </div>
@@ -671,17 +500,13 @@ export default function ConventionsList() {
             ))}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="secondary" onClick={() => setIsPrintModalOpen(false)}>
-              Annuler
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
+            <Button variant="secondary" onClick={() => setIsPrintModalOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={handlePrint} className="flex items-center justify-center gap-2">
+              <Printer size={16} /> {t('common.print')}
             </Button>
-            <Button onClick={handlePrint} className="flex items-center gap-2">
-              <Printer size={16} />
-              Imprimer
-            </Button>
-            <Button onClick={handleExportExcel} className="flex items-center gap-2" variant="success">
-              <FileSpreadsheet size={16} />
-              Exporter Excel
+            <Button onClick={handleExportExcel} className="flex items-center justify-center gap-2" variant="success">
+              <FileSpreadsheet size={16} /> {t('common.export')} Excel
             </Button>
           </div>
         </div>
