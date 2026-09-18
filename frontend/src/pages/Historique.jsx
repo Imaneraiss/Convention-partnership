@@ -143,14 +143,6 @@ export default function Historique() {
             Suivez toutes les actions effectuées sur les conventions
           </h1>
         </div>
-        <Button 
-          variant="secondary" 
-          onClick={fetchHistorique}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw size={16} />
-          Rafraîchir
-        </Button>
       </div>
 
       {/* Statistiques */}

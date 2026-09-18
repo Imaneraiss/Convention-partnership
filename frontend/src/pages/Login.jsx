@@ -94,7 +94,6 @@ export default function Login() {
                     <br />
                     
                 </form>
-                <div className="text-center">Accès non autorisé ? <a href="#" className="text-blue-800 text-xl underline">Contacter l'administrateur</a></div>
             </section>
         </div>
     )

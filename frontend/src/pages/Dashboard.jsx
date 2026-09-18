@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { getConventions } from '../services/conventionService'
 import { getAlertes } from '../services/alerteService'
 import { formatDate } from '../utils/formatDate'
@@ -10,7 +10,7 @@ import {
 import Button from '../components/common/Button'
 import Modal from '../components/common/Modal'
 import Card from '../components/common/Card'
-import { Settings, Plus, Trash2, Edit, RotateCcw, Copy, Download, FileText } from 'lucide-react'
+import { Settings, Plus, Trash2, Edit, RotateCcw, Copy, Download, FileText, Calendar } from 'lucide-react'
 import html2canvas from 'html2canvas'
 
 // Types de graphiques
@@ -34,6 +34,18 @@ const X_AXIS_VARIABLES = {
     'signataire': 'Signataire UM5'
 }
 
+// ✅ Périodes disponibles
+const PERIOD_OPTIONS = [
+    { value: 'all', label: 'Toutes les périodes' },
+    { value: 'this_month', label: 'Ce mois-ci' },
+    { value: 'this_quarter', label: 'Ce trimestre' },
+    { value: 'this_year', label: 'Cette année' },
+    { value: 'last_year', label: 'Année dernière' },
+    { value: 'last_3_years', label: '3 dernières années' },
+    { value: 'last_5_years', label: '5 dernières années' },
+    { value: 'custom', label: 'Personnalisée...' },
+]
+
 // Configuration par défaut
 const DEFAULT_WIDGETS = {
     statut: {
@@ -45,7 +57,8 @@ const DEFAULT_WIDGETS = {
         showLegend: true,
         showTooltip: true,
         xAxis: 'statut',
-        yAxis: 'count'
+        yAxis: 'count',
+        period: 'all'
     },
     type: {
         id: 'type',
@@ -56,7 +69,8 @@ const DEFAULT_WIDGETS = {
         showLegend: true,
         showTooltip: true,
         xAxis: 'type',
-        yAxis: 'count'
+        yAxis: 'count',
+        period: 'all'
     },
     annee: {
         id: 'annee',
@@ -67,7 +81,8 @@ const DEFAULT_WIDGETS = {
         showLegend: false,
         showTooltip: true,
         xAxis: 'annee',
-        yAxis: 'count'
+        yAxis: 'count',
+        period: 'all'
     }
 }
 
@@ -77,13 +92,11 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true)
     const [copyStatus, setCopyStatus] = useState({})
     const [downloadStatus, setDownloadStatus] = useState({})
-    const [stats, setStats] = useState({
-        total: 0,
-        enCours: 0,
-        expirees: 0,
-        aRenouveler: 0,
-        renouvelees: 0
-    })
+
+    // ✅ Période globale du dashboard
+    const [globalPeriod, setGlobalPeriod] = useState('all')
+    const [customDateStart, setCustomDateStart] = useState('')
+    const [customDateEnd, setCustomDateEnd] = useState('')
 
     const [widgets, setWidgets] = useState(() => {
         const saved = localStorage.getItem('dashboardWidgets')
@@ -93,12 +106,12 @@ export default function Dashboard() {
                 const defaultKeys = Object.keys(DEFAULT_WIDGETS)
                 const existingKeys = parsed.map(w => w.id)
                 const missingKeys = defaultKeys.filter(k => !existingKeys.includes(k))
-                
+
                 const restoredWidgets = missingKeys.map(k => ({
                     ...DEFAULT_WIDGETS[k],
                     isDefault: true
                 }))
-                
+
                 return [...parsed, ...restoredWidgets]
             } catch {
                 return Object.values(DEFAULT_WIDGETS)
@@ -117,7 +130,8 @@ export default function Dashboard() {
         xAxis: 'statut',
         yAxis: 'count',
         showLegend: true,
-        showTooltip: true
+        showTooltip: true,
+        period: 'all'
     })
 
     useEffect(() => {
@@ -138,19 +152,6 @@ export default function Dashboard() {
             const convs = convData.data || []
             setConventions(convs)
             setAlertes(alertData.data || [])
-
-            const enCours = convs.filter(c => c.statut === STATUTS.EN_COURS).length
-            const expirees = convs.filter(c => c.statut === STATUTS.EXPIREE).length
-            const aRenouveler = convs.filter(c => c.statut === STATUTS.A_RENOUVELER).length
-            const renouvelees = convs.filter(c => c.statut === STATUTS.RENOUVELEE).length
-
-            setStats({
-                total: convs.length,
-                enCours,
-                expirees,
-                aRenouveler,
-                renouvelees
-            })
         } catch (err) {
             console.error(err)
         } finally {
@@ -158,23 +159,108 @@ export default function Dashboard() {
         }
     }
 
-    // Générer les données selon la variable
-    const getDataForVariable = (xAxis, yAxis = 'count') => {
+    // ✅ Calculer les dates de début et fin selon la période
+    const getPeriodDates = (period, customStart = '', customEnd = '') => {
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = now.getMonth()
+
+        let startDate = null
+        let endDate = null
+
+        switch (period) {
+            case 'this_month':
+                startDate = new Date(year, month, 1)
+                endDate = new Date(year, month + 1, 0)
+                break
+            case 'this_quarter':
+                const quarterStartMonth = Math.floor(month / 3) * 3
+                startDate = new Date(year, quarterStartMonth, 1)
+                endDate = new Date(year, quarterStartMonth + 3, 0)
+                break
+            case 'this_year':
+                startDate = new Date(year, 0, 1)
+                endDate = new Date(year, 11, 31)
+                break
+            case 'last_year':
+                startDate = new Date(year - 1, 0, 1)
+                endDate = new Date(year - 1, 11, 31)
+                break
+            case 'last_3_years':
+                startDate = new Date(year - 3, 0, 1)
+                endDate = new Date(year, 11, 31)
+                break
+            case 'last_5_years':
+                startDate = new Date(year - 5, 0, 1)
+                endDate = new Date(year, 11, 31)
+                break
+            case 'custom':
+                startDate = customStart ? new Date(customStart) : null
+                endDate = customEnd ? new Date(customEnd) : null
+                break
+            case 'all':
+            default:
+                return { startDate: null, endDate: null }
+        }
+
+        return { startDate, endDate }
+    }
+
+    // ✅ Filtrer les conventions selon la période
+    const getFilteredConventions = (period, customStart = '', customEnd = '') => {
+        const { startDate, endDate } = getPeriodDates(period, customStart, customEnd)
+
+        if (!startDate && !endDate) {
+            return conventions
+        }
+
+        return conventions.filter(c => {
+            if (!c.date_signature) return false
+            const convDate = new Date(c.date_signature)
+
+            if (startDate && convDate < startDate) return false
+            if (endDate && convDate > endDate) return false
+            return true
+        })
+    }
+
+    // ✅ Conventions filtrées par la période globale (pour les stats)
+    const filteredConventions = useMemo(() => {
+        return getFilteredConventions(globalPeriod, customDateStart, customDateEnd)
+    }, [conventions, globalPeriod, customDateStart, customDateEnd])
+
+    // ✅ Statistiques basées sur les conventions filtrées
+    const stats = useMemo(() => {
+        const convs = filteredConventions
+        return {
+            total: convs.length,
+            enCours: convs.filter(c => c.statut === STATUTS.EN_COURS).length,
+            expirees: convs.filter(c => c.statut === STATUTS.EXPIREE).length,
+            aRenouveler: convs.filter(c => c.statut === STATUTS.A_RENOUVELER).length,
+            renouvelees: convs.filter(c => c.statut === STATUTS.RENOUVELEES).length
+        }
+    }, [filteredConventions])
+
+    // ✅ Générer les données selon la variable et la période
+    const getDataForVariable = (xAxis, yAxis = 'count', period = 'all') => {
+        // Filtrer les conventions selon la période du widget
+        const convs = getFilteredConventions(period, customDateStart, customDateEnd)
+
         let data = []
-        
+
         switch (xAxis) {
             case 'statut':
                 data = [
-                    { name: 'En cours', value: stats.enCours },
-                    { name: 'Expirées', value: stats.expirees },
-                    { name: 'À renouveler', value: stats.aRenouveler },
-                    { name: 'Renouvelées', value: stats.renouvelees }
+                    { name: 'En cours', value: convs.filter(c => c.statut === STATUTS.EN_COURS).length },
+                    { name: 'Expirées', value: convs.filter(c => c.statut === STATUTS.EXPIREE).length },
+                    { name: 'À renouveler', value: convs.filter(c => c.statut === STATUTS.A_RENOUVELER).length },
+                    { name: 'Renouvelées', value: convs.filter(c => c.statut === STATUTS.RENOUVELEES).length }
                 ].filter(d => d.value > 0)
                 break
 
             case 'type':
                 data = Object.entries(
-                    conventions.reduce((acc, c) => {
+                    convs.reduce((acc, c) => {
                         acc[c.type] = (acc[c.type] || 0) + 1
                         return acc
                     }, {})
@@ -183,7 +269,8 @@ export default function Dashboard() {
 
             case 'annee':
                 data = Object.entries(
-                    conventions.reduce((acc, c) => {
+                    convs.reduce((acc, c) => {
+                        if (!c.date_signature) return acc
                         const year = new Date(c.date_signature).getFullYear()
                         acc[year] = (acc[year] || 0) + 1
                         return acc
@@ -193,7 +280,7 @@ export default function Dashboard() {
 
             case 'partenaire':
                 const partenaireCount = {}
-                conventions.forEach(c => {
+                convs.forEach(c => {
                     if (c.partenaires) {
                         c.partenaires.forEach(p => {
                             partenaireCount[p.nom] = (partenaireCount[p.nom] || 0) + 1
@@ -207,8 +294,8 @@ export default function Dashboard() {
                 break
 
             case 'budget':
-                const avecBudget = conventions.filter(c => c.avec_budget).length
-                const sansBudget = conventions.length - avecBudget
+                const avecBudget = convs.filter(c => c.avec_budget).length
+                const sansBudget = convs.length - avecBudget
                 data = [
                     { name: 'Avec budget', value: avecBudget },
                     { name: 'Sans budget', value: sansBudget }
@@ -216,8 +303,8 @@ export default function Dashboard() {
                 break
 
             case 'validation':
-                const valide = conventions.filter(c => c.validation_conseil).length
-                const nonValide = conventions.length - valide
+                const valide = convs.filter(c => c.validation_conseil).length
+                const nonValide = convs.length - valide
                 data = [
                     { name: 'Validé', value: valide },
                     { name: 'Non validé', value: nonValide }
@@ -225,8 +312,8 @@ export default function Dashboard() {
                 break
 
             case 'formation':
-                const avecFormation = conventions.filter(c => c.formation_continue).length
-                const sansFormation = conventions.length - avecFormation
+                const avecFormation = convs.filter(c => c.formation_continue).length
+                const sansFormation = convs.length - avecFormation
                 data = [
                     { name: 'Avec formation', value: avecFormation },
                     { name: 'Sans formation', value: sansFormation }
@@ -235,7 +322,7 @@ export default function Dashboard() {
 
             case 'mois':
                 const moisCount = {}
-                conventions.forEach(c => {
+                convs.forEach(c => {
                     if (c.date_signature) {
                         const mois = new Date(c.date_signature).toLocaleString('fr-FR', { month: 'long' })
                         moisCount[mois] = (moisCount[mois] || 0) + 1
@@ -246,7 +333,7 @@ export default function Dashboard() {
 
             case 'etablissement':
                 const etabCount = {}
-                conventions.forEach(c => {
+                convs.forEach(c => {
                     if (c.signataire_um5) {
                         etabCount[c.signataire_um5] = (etabCount[c.signataire_um5] || 0) + 1
                     }
@@ -259,7 +346,7 @@ export default function Dashboard() {
 
             case 'signataire':
                 const signataireCount = {}
-                conventions.forEach(c => {
+                convs.forEach(c => {
                     if (c.signataire_um5) {
                         signataireCount[c.signataire_um5] = (signataireCount[c.signataire_um5] || 0) + 1
                     }
@@ -277,12 +364,20 @@ export default function Dashboard() {
         return data
     }
 
+    // ✅ Label de la période
+    const getPeriodLabel = (period) => {
+        const option = PERIOD_OPTIONS.find(p => p.value === period)
+        return option ? option.label : period
+    }
+
     // Rendu du graphique
     const renderChart = (data, config) => {
         if (!data || data.length === 0) {
             return (
-                <div className="flex items-center justify-center h-64 text-gray-400">
-                    Aucune donnée disponible
+                <div className="w-full h-[280px] flex flex-col items-center justify-center text-gray-400">
+                    <div className="text-4xl mb-2 opacity-60">📊</div>
+                    <p className="text-sm font-medium">Aucune donnée disponible</p>
+                    <p className="text-xs text-gray-400 mt-1">pour cette période</p>
                 </div>
             )
         }
@@ -359,13 +454,10 @@ export default function Dashboard() {
         }
     }
 
-    // Copier le graphique dans le presse-papiers
+    // Copier le graphique
     const copyChartToClipboard = async (widgetId) => {
         const element = document.getElementById(`chart-${widgetId}`)
-        if (!element) {
-            alert('Graphique non trouvé')
-            return
-        }
+        if (!element) return
 
         setCopyStatus(prev => ({ ...prev, [widgetId]: 'loading' }))
 
@@ -381,24 +473,18 @@ export default function Dashboard() {
             canvas.toBlob(async (blob) => {
                 try {
                     await navigator.clipboard.write([
-                        new ClipboardItem({
-                            [blob.type]: blob
-                        })
+                        new ClipboardItem({ [blob.type]: blob })
                     ])
                     setCopyStatus(prev => ({ ...prev, [widgetId]: 'success' }))
-                    setTimeout(() => {
-                        setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
-                    }, 2000)
                 } catch (err) {
-                    console.error('Erreur copie:', err)
                     setCopyStatus(prev => ({ ...prev, [widgetId]: 'error' }))
+                } finally {
                     setTimeout(() => {
                         setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
                     }, 2000)
                 }
             }, 'image/png')
         } catch (error) {
-            console.error('Erreur:', error)
             setCopyStatus(prev => ({ ...prev, [widgetId]: 'error' }))
             setTimeout(() => {
                 setCopyStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
@@ -406,13 +492,10 @@ export default function Dashboard() {
         }
     }
 
-    // Télécharger le graphique en PNG
+    // Télécharger le graphique
     const downloadChartAsPNG = async (widgetId, title) => {
         const element = document.getElementById(`chart-${widgetId}`)
-        if (!element) {
-            alert('Graphique non trouvé')
-            return
-        }
+        if (!element) return
 
         setDownloadStatus(prev => ({ ...prev, [widgetId]: 'loading' }))
 
@@ -435,7 +518,6 @@ export default function Dashboard() {
                 setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
             }, 2000)
         } catch (error) {
-            console.error('Erreur:', error)
             setDownloadStatus(prev => ({ ...prev, [widgetId]: 'error' }))
             setTimeout(() => {
                 setDownloadStatus(prev => ({ ...prev, [widgetId]: 'idle' }))
@@ -443,41 +525,27 @@ export default function Dashboard() {
         }
     }
 
-    // ✅ Exporter le dashboard en Word (.doc)
-    // ✅ Exporter en Word avec les graphiques réels (capture des widgets)
+    // Exporter en Word
     const exportDashboardAsWord = async () => {
         try {
-            // 1. Capturer chaque graphique individuellement
             const chartImages = []
             const chartTitles = []
 
             for (const widget of widgets) {
                 const element = document.getElementById(`chart-${widget.id}`)
                 if (element) {
-                    // Capturer le graphique avec html2canvas
                     const canvas = await html2canvas(element, {
                         backgroundColor: '#ffffff',
                         scale: 1.5,
                         useCORS: true,
                         logging: false,
                         allowTaint: true,
-                        onclone: (doc) => {
-                            // Remplacer les couleurs oklch
-                            doc.querySelectorAll('*').forEach(el => {
-                                const computed = window.getComputedStyle(el)
-                                const bg = computed.backgroundColor
-                                if (bg && bg.includes('oklch')) {
-                                    el.style.backgroundColor = '#ffffff'
-                                }
-                            })
-                        }
                     })
                     chartImages.push(canvas.toDataURL('image/png'))
-                    chartTitles.push(widget.title)
+                    chartTitles.push(`${widget.title} (${getPeriodLabel(widget.period || 'all')})`)
                 }
             }
 
-            // 2. Construire le document Word avec les images des graphiques
             let chartsHtml = ''
             chartImages.forEach((img, index) => {
                 chartsHtml += `
@@ -488,7 +556,6 @@ export default function Dashboard() {
                 `
             })
 
-            // 3. Construire le HTML complet
             const html = `
                 <!DOCTYPE html>
                 <html xmlns:o='urn:schemas-microsoft-com:office:office' 
@@ -497,94 +564,30 @@ export default function Dashboard() {
                 <head>
                     <meta charset="UTF-8">
                     <title>Rapport Dashboard</title>
-                    <!--[if gte mso 9]>
-                    <xml>
-                        <w:WordDocument>
-                            <w:View>Print</w:View>
-                            <w:Zoom>100</w:Zoom>
-                        </w:WordDocument>
-                    </xml>
-                    <![endif]-->
                     <style>
-                        body { 
-                            font-family: Arial, sans-serif; 
-                            padding: 40px; 
-                            margin: 40px;
-                            background: white;
-                        }
-                        .header {
-                            text-align: center;
-                            border-bottom: 3px solid #1a56db;
-                            padding-bottom: 20px;
-                            margin-bottom: 30px;
-                        }
-                        .header h1 {
-                            font-size: 26px;
-                            color: #1a56db;
-                            margin: 0;
-                        }
-                        .header p {
-                            color: #666;
-                            font-size: 14px;
-                            margin: 5px 0 0;
-                        }
-                        .header .stats {
-                            margin-top: 10px;
-                            display: flex;
-                            justify-content: center;
-                            gap: 30px;
-                        }
-                        .header .stats span {
-                            font-weight: bold;
-                        }
-                        .stat-item {
-                            display: inline-block;
-                            padding: 5px 15px;
-                            border-radius: 4px;
-                        }
-                        .stat-total { background: #e5e7eb; }
-                        .stat-cours { background: #d1fae5; color: #0F6E56; }
-                        .stat-expire { background: #fecaca; color: #993C1D; }
-                        .stat-renouveler { background: #fef3c7; color: #BA7517; }
-                        h2 {
-                            font-size: 20px;
-                            color: #1a56db;
-                            margin-top: 30px;
-                            margin-bottom: 20px;
-                            border-bottom: 2px solid #e5e7eb;
-                            padding-bottom: 10px;
-                        }
-                        .footer {
-                            text-align: center;
-                            margin-top: 40px;
-                            padding-top: 20px;
-                            border-top: 1px solid #ddd;
-                            font-size: 11px;
-                            color: #999;
-                        }
-                        .page-break {
-                            page-break-before: always;
-                        }
+                        body { font-family: Arial, sans-serif; padding: 40px; margin: 40px; background: white; }
+                        .header { text-align: center; border-bottom: 3px solid #1a56db; padding-bottom: 20px; margin-bottom: 30px; }
+                        .header h1 { font-size: 26px; color: #1a56db; margin: 0; }
+                        .header p { color: #666; font-size: 14px; margin: 5px 0 0; }
+                        .period-badge { display: inline-block; background: #e5e7eb; padding: 5px 15px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
+                        h2 { font-size: 20px; color: #1a56db; margin-top: 30px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+                        .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 11px; color: #999; }
                     </style>
                 </head>
                 <body>
-                    <!-- HEADER -->
                     <div class="header">
-                        <h1> Rapport du Dashboard</h1>
+                        <h1>📊 Rapport du Dashboard</h1>
                         <p>Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
-                       
+                        <div class="period-badge">Période : ${getPeriodLabel(globalPeriod)}</div>
                     </div>
 
-                    <!-- GRAPHIQUES -->
                     ${chartsHtml}
 
-                    <!-- ALERTES -->
                     ${alertes.length > 0 ? `
                     <h2>🔔 Dernières alertes</h2>
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: #1a56db; color: white;">
-                                <th style="padding: 8px 12px; text-align: left;">Niveau</th>
                                 <th style="padding: 8px 12px; text-align: left;">Message</th>
                                 <th style="padding: 8px 12px; text-align: center;">Date</th>
                             </tr>
@@ -592,7 +595,6 @@ export default function Dashboard() {
                         <tbody>
                             ${alertes.slice(0, 5).map(alerte => `
                             <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 6px 12px;">●</td>
                                 <td style="padding: 6px 12px;">${alerte.objet || alerte.type_alerte}</td>
                                 <td style="padding: 6px 12px; text-align: center;">${formatDate(alerte.date_declenchement)}</td>
                             </tr>
@@ -601,24 +603,22 @@ export default function Dashboard() {
                     </table>
                     ` : ''}
 
-                    
+                    <div class="footer">
+                        Université Mohammed V de Rabat - Direction des Partenariats
+                    </div>
                 </body>
                 </html>
             `
 
-            // Télécharger en Word (.doc)
-            const blob = new Blob([html], { 
-                type: 'application/msword;charset=utf-8' 
-            })
+            const blob = new Blob([html], { type: 'application/msword;charset=utf-8' })
             const link = document.createElement('a')
             link.download = `dashboard_${new Date().toISOString().split('T')[0]}.doc`
             link.href = URL.createObjectURL(blob)
             link.click()
             URL.revokeObjectURL(link.href)
-
         } catch (error) {
             console.error('Erreur export Word:', error)
-            alert('Erreur lors de l\'export. Les graphiques sont trop complexes à capturer.')
+            alert('Erreur lors de l\'export.')
         }
     }
 
@@ -627,24 +627,24 @@ export default function Dashboard() {
         setWidgets(widgets.filter(w => w.id !== id))
     }
 
-    // Restaurer les widgets par défaut
+    // Restaurer les défauts
     const restoreDefaults = () => {
         setWidgets(Object.values(DEFAULT_WIDGETS))
     }
 
-    // Sauvegarder la configuration d'un widget
+    // Sauvegarder config
     const saveConfig = (widgetId, newConfig) => {
-        setWidgets(widgets.map(w => 
+        setWidgets(widgets.map(w =>
             w.id === widgetId ? { ...w, ...newConfig } : w
         ))
         setConfigModal(null)
     }
 
-    // Ajouter ou modifier un widget personnalisé
+    // Ajouter/modifier widget
     const saveCustomWidget = () => {
-        const data = getDataForVariable(newWidgetConfig.xAxis)
+        const data = getDataForVariable(newWidgetConfig.xAxis, 'count', newWidgetConfig.period || 'all')
         if (data.length === 0) {
-            alert('Aucune donnée disponible pour cette variable')
+            alert('Aucune donnée disponible pour cette variable et cette période')
             return
         }
 
@@ -656,11 +656,12 @@ export default function Dashboard() {
             yAxis: newWidgetConfig.yAxis,
             showLegend: newWidgetConfig.showLegend,
             showTooltip: newWidgetConfig.showTooltip,
+            period: newWidgetConfig.period || 'all',
             isDefault: false
         }
 
         if (editingWidget) {
-            setWidgets(widgets.map(w => 
+            setWidgets(widgets.map(w =>
                 w.id === editingWidget ? { ...w, ...widgetData } : w
             ))
             setEditingWidget(null)
@@ -680,8 +681,49 @@ export default function Dashboard() {
             xAxis: 'statut',
             yAxis: 'count',
             showLegend: true,
-            showTooltip: true
+            showTooltip: true,
+            period: 'all'
         })
+    }
+
+    // ✅ Composant Période Selector
+    const PeriodSelector = ({ value, onChange, showCustom = false }) => {
+        return (
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-gray-500" />
+                    <select
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        {PERIOD_OPTIONS.map(p => (
+                            <option key={p.value} value={p.value}>{p.label}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {value === 'custom' && showCustom && (
+                    <div className="flex items-center gap-2 mt-1">
+                        <input
+                            type="date"
+                            value={customDateStart}
+                            onChange={(e) => setCustomDateStart(e.target.value)}
+                            className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                            placeholder="Début"
+                        />
+                        <span className="text-xs text-gray-400">→</span>
+                        <input
+                            type="date"
+                            value={customDateEnd}
+                            onChange={(e) => setCustomDateEnd(e.target.value)}
+                            className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                            placeholder="Fin"
+                        />
+                    </div>
+                )}
+            </div>
+        )
     }
 
     // Widget de configuration
@@ -720,41 +762,57 @@ export default function Dashboard() {
                             value={localConfig.title}
                             onChange={(e) => setLocalConfig({ ...localConfig, title: e.target.value })}
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                            placeholder="Titre du graphique"
                         />
                     </div>
 
-                    {localConfig.type !== 'pie' && (
-                        <>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Axe X (catégories)
-                                </label>
-                                <select
-                                    value={localConfig.xAxis}
-                                    onChange={(e) => setLocalConfig({ ...localConfig, xAxis: e.target.value })}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                                >
-                                    {Object.entries(X_AXIS_VARIABLES).map(([key, label]) => (
-                                        <option key={key} value={key}>{label}</option>
-                                    ))}
-                                </select>
+                    {/* ✅ Sélection de période pour ce widget */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Période
+                        </label>
+                        <select
+                            value={localConfig.period || 'all'}
+                            onChange={(e) => setLocalConfig({ ...localConfig, period: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
+                        >
+                            {PERIOD_OPTIONS.map(p => (
+                                <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                        </select>
+                        {localConfig.period === 'custom' && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <input
+                                    type="date"
+                                    value={customDateStart}
+                                    onChange={(e) => setCustomDateStart(e.target.value)}
+                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
+                                />
+                                <span className="text-xs text-gray-400">→</span>
+                                <input
+                                    type="date"
+                                    value={customDateEnd}
+                                    onChange={(e) => setCustomDateEnd(e.target.value)}
+                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
+                                />
                             </div>
+                        )}
+                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Axe Y (valeurs)
-                                </label>
-                                <select
-                                    value={localConfig.yAxis}
-                                    onChange={(e) => setLocalConfig({ ...localConfig, yAxis: e.target.value })}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                                >
-                                    <option value="count">Nombre de conventions</option>
-                                    <option value="pourcentage">Pourcentage</option>
-                                </select>
-                            </div>
-                        </>
+                    {localConfig.type !== 'pie' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Axe X (catégories)
+                            </label>
+                            <select
+                                value={localConfig.xAxis}
+                                onChange={(e) => setLocalConfig({ ...localConfig, xAxis: e.target.value })}
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
+                            >
+                                {Object.entries(X_AXIS_VARIABLES).map(([key, label]) => (
+                                    <option key={key} value={key}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
                     )}
 
                     <div>
@@ -772,7 +830,7 @@ export default function Dashboard() {
                                             newColors[index] = e.target.value
                                             setLocalConfig({ ...localConfig, colors: newColors })
                                         }}
-                                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-200 hover:border-blue-500 transition-colors"
+                                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-200 hover:border-blue-500"
                                     />
                                     {localConfig.colors.length > 1 && (
                                         <button
@@ -780,8 +838,7 @@ export default function Dashboard() {
                                                 const newColors = localConfig.colors.filter((_, i) => i !== index)
                                                 setLocalConfig({ ...localConfig, colors: newColors })
                                             }}
-                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                                            title="Supprimer cette couleur"
+                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100"
                                         >
                                             ×
                                         </button>
@@ -795,12 +852,11 @@ export default function Dashboard() {
                                         colors: [...localConfig.colors, '#000000']
                                     })
                                 }}
-                                className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors"
+                                className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex items-center justify-center text-gray-400"
                             >
                                 +
                             </button>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">Cliquez sur une couleur pour la modifier, sur × pour la supprimer</p>
                     </div>
 
                     <div className="flex gap-4">
@@ -837,19 +893,19 @@ export default function Dashboard() {
 
     return (
         <div id="dashboard-container" className="space-y-6">
-            {/* Header avec bouton Exporter Word */}
+            {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
                 <div className="flex flex-wrap gap-2">
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         onClick={exportDashboardAsWord}
                         className="flex items-center gap-2"
                     >
                         <FileText size={16} />
                         Exporter Word
                     </Button>
-                    
+
                     <Button variant="secondary" onClick={restoreDefaults} className="flex items-center gap-2">
                         <RotateCcw size={16} />
                         Restaurer les défauts
@@ -863,6 +919,26 @@ export default function Dashboard() {
                     </Button>
                 </div>
             </div>
+
+            {/* ✅ Barre de sélection de période globale */}
+            <Card className="p-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <Calendar size={20} className="text-[#003087]" />
+                        <span className="text-sm font-medium text-gray-700">Période d'analyse :</span>
+                    </div>
+                    <PeriodSelector
+                        value={globalPeriod}
+                        onChange={setGlobalPeriod}
+                        showCustom={true}
+                    />
+                    {globalPeriod !== 'all' && (
+                        <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                            {filteredConventions.length} convention(s) sur {conventions.length}
+                        </span>
+                    )}
+                </div>
+            </Card>
 
             {/* Cards statistiques */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -888,23 +964,42 @@ export default function Dashboard() {
             {widgets.length === 0 ? (
                 <Card className="p-12 text-center">
                     <p className="text-gray-500">Aucun graphique configuré</p>
-                    <Button className="mt-4 flex justify-center " onClick={() => setShowAddWidget(true)}>
+                    <Button className="mt-4 flex justify-center mx-auto" onClick={() => setShowAddWidget(true)}>
                         Ajouter un graphique
                     </Button>
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     {widgets.map((widget) => {
-                        const data = getDataForVariable(widget.xAxis || 'statut')
+                        // ✅ Si la période globale ≠ 'all', tout le monde suit la globale
+                        // Sinon, chaque widget utilise sa propre période
+                        const effectivePeriod = globalPeriod !== 'all' 
+                            ? globalPeriod 
+                            : (widget.period || 'all')
+                        
+                        const data = getDataForVariable(
+                            widget.xAxis || 'statut',
+                            'count',
+                            effectivePeriod  // ✅ Utiliser la période effective
+                        )
                         const copyStat = copyStatus[widget.id] || 'idle'
                         const downloadStat = downloadStatus[widget.id] || 'idle'
-                        
+
                         return (
                             <Card key={widget.id} className="p-4">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">{widget.title}</h3>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900">{widget.title}</h3>
+                                        
+                                        {/* ✅ Badge de période effective */}
+                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                            📅 {getPeriodLabel(effectivePeriod)}
+                                            {globalPeriod !== 'all' && (
+                                                <span className="text-blue-600 ml-1">(globale)</span>
+                                            )}
+                                        </span>
+                                    </div>
                                     <div className="flex gap-1">
-                                        {/* Bouton Télécharger */}
                                         <button
                                             onClick={() => downloadChartAsPNG(widget.id, widget.title)}
                                             className={`transition-colors p-1 rounded ${
@@ -917,11 +1012,10 @@ export default function Dashboard() {
                                             disabled={downloadStat === 'loading'}
                                         >
                                             {downloadStat === 'success' ? '✅' :
-                                             downloadStat === 'loading' ? '⏳' :
-                                             <Download size={18} />}
+                                            downloadStat === 'loading' ? '⏳' :
+                                            <Download size={18} />}
                                         </button>
-                                        
-                                        {/* Bouton Copier */}
+
                                         <button
                                             onClick={() => copyChartToClipboard(widget.id)}
                                             className={`transition-colors p-1 rounded ${
@@ -934,11 +1028,10 @@ export default function Dashboard() {
                                             disabled={copyStat === 'loading'}
                                         >
                                             {copyStat === 'success' ? '✅' :
-                                             copyStat === 'loading' ? '⏳' :
-                                             <Copy size={18} />}
+                                            copyStat === 'loading' ? '⏳' :
+                                            <Copy size={18} />}
                                         </button>
-                                        
-                                        {/* Bouton Configurer */}
+
                                         <button
                                             onClick={() => setConfigModal(widget.id)}
                                             className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
@@ -946,8 +1039,7 @@ export default function Dashboard() {
                                         >
                                             <Settings size={18} />
                                         </button>
-                                        
-                                        {/* Bouton Supprimer */}
+
                                         <button
                                             onClick={() => removeWidget(widget.id)}
                                             className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
@@ -1000,7 +1092,7 @@ export default function Dashboard() {
                 </Card>
             )}
 
-            {/* Modal de configuration */}
+            {/* Modal configuration widget */}
             {configModal && (
                 <ConfigWidget
                     widget={widgets.find(w => w.id === configModal)}
@@ -1009,7 +1101,7 @@ export default function Dashboard() {
                 />
             )}
 
-            {/* Modal d'ajout/modification de widget */}
+            {/* Modal ajout widget */}
             <Modal isOpen={showAddWidget} onClose={() => {
                 setShowAddWidget(false)
                 setEditingWidget(null)
@@ -1029,7 +1121,6 @@ export default function Dashboard() {
                             value={newWidgetConfig.title}
                             onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, title: e.target.value })}
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                            placeholder="Titre du graphique"
                         />
                     </div>
 
@@ -1048,37 +1139,54 @@ export default function Dashboard() {
                         </select>
                     </div>
 
-                    {newWidgetConfig.type !== 'pie' && (
-                        <>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Axe X (catégories)
-                                </label>
-                                <select
-                                    value={newWidgetConfig.xAxis}
-                                    onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, xAxis: e.target.value })}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                                >
-                                    {Object.entries(X_AXIS_VARIABLES).map(([key, label]) => (
-                                        <option key={key} value={key}>{label}</option>
-                                    ))}
-                                </select>
+                    {/* ✅ Période pour le nouveau widget */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Période
+                        </label>
+                        <select
+                            value={newWidgetConfig.period || 'all'}
+                            onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, period: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
+                        >
+                            {PERIOD_OPTIONS.map(p => (
+                                <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                        </select>
+                        {newWidgetConfig.period === 'custom' && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <input
+                                    type="date"
+                                    value={customDateStart}
+                                    onChange={(e) => setCustomDateStart(e.target.value)}
+                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
+                                />
+                                <span className="text-xs text-gray-400">→</span>
+                                <input
+                                    type="date"
+                                    value={customDateEnd}
+                                    onChange={(e) => setCustomDateEnd(e.target.value)}
+                                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs flex-1"
+                                />
                             </div>
+                        )}
+                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Axe Y (valeurs)
-                                </label>
-                                <select
-                                    value={newWidgetConfig.yAxis}
-                                    onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, yAxis: e.target.value })}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
-                                >
-                                    <option value="count">Nombre de conventions</option>
-                                    <option value="pourcentage">Pourcentage</option>
-                                </select>
-                            </div>
-                        </>
+                    {newWidgetConfig.type !== 'pie' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Axe X (catégories)
+                            </label>
+                            <select
+                                value={newWidgetConfig.xAxis}
+                                onChange={(e) => setNewWidgetConfig({ ...newWidgetConfig, xAxis: e.target.value })}
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-700"
+                            >
+                                {Object.entries(X_AXIS_VARIABLES).map(([key, label]) => (
+                                    <option key={key} value={key}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
                     )}
 
                     <div>
@@ -1096,7 +1204,7 @@ export default function Dashboard() {
                                             newColors[index] = e.target.value
                                             setNewWidgetConfig({ ...newWidgetConfig, colors: newColors })
                                         }}
-                                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-200 hover:border-blue-500 transition-colors"
+                                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-200 hover:border-blue-500"
                                     />
                                     {newWidgetConfig.colors.length > 1 && (
                                         <button
@@ -1104,8 +1212,7 @@ export default function Dashboard() {
                                                 const newColors = newWidgetConfig.colors.filter((_, i) => i !== index)
                                                 setNewWidgetConfig({ ...newWidgetConfig, colors: newColors })
                                             }}
-                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                                            title="Supprimer cette couleur"
+                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100"
                                         >
                                             ×
                                         </button>
@@ -1119,12 +1226,11 @@ export default function Dashboard() {
                                         colors: [...newWidgetConfig.colors, '#000000']
                                     })
                                 }}
-                                className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors"
+                                className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex items-center justify-center text-gray-400"
                             >
                                 +
                             </button>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">Cliquez sur une couleur pour la modifier, sur × pour la supprimer</p>
                     </div>
 
                     <div className="flex gap-4">
