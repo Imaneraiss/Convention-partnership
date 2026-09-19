@@ -94,7 +94,6 @@ class EmailService:
             <p>La convention <strong>{convention.intitule}</strong> arrivera à expiration dans <strong>3 mois</strong>.</p>
             <p><strong>Détails :</strong></p>
             <ul>
-                <li>Référence : {convention.numero_reference or 'Non renseignée'}</li>
                 <li>Date d'expiration : {date_expiration}</li>
                 <li>Signataire UM5 : {convention.signataire_um5 or 'Non renseigné'}</li>
             </ul>

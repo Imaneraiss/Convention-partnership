@@ -257,7 +257,6 @@ export default function Alertes() {
                     <p className="text-xs sm:text-sm text-gray-600 mt-1">{alert.description}</p>
                   )}
                   <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                    <Calendar size={12} />
                     {alert.date_declenchement ? new Date(alert.date_declenchement).toLocaleDateString() : t('alerts.notDefined')}
                   </p>
                 </div>
@@ -266,7 +265,7 @@ export default function Alertes() {
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Button size="sm" variant={alert.traitee ? "secondary" : "success"}
                     onClick={() => handleToggleAlerte(alert.id)} className="text-xs whitespace-nowrap">
-                    {alert.traitee ? `🔄 ${t('alerts.restart')}` : `✅ ${t('alerts.markTreated')}`}
+                    {alert.traitee ? ` ${t('alerts.restart')}` : ` ${t('alerts.markTreated')}`}
                   </Button>
                   {alert.type_alerte === 'MANUELLE' && (
                     <Button size="sm" variant="secondary" onClick={() => openEditModal(alert)} className="text-xs">
