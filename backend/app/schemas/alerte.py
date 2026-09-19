@@ -30,5 +30,6 @@ class AlerteResponse(BaseModel):
     traitee: bool
     convention_id: Optional[UUID] = None
     comite_id: Optional[UUID] = None  
+    created_by: Optional[UUID] = None 
     class Config:
         from_attributes = True

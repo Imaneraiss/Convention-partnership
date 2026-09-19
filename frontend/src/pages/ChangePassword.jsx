@@ -28,31 +28,43 @@ export default function ChangePassword() {
     nouveauMotDePasse.trim() !== '' &&
     confirmMotDePasse.trim() !== '';
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError(null);
 
-    if (nouveauMotDePasse !== confirmMotDePasse) {
-      setError(t('auth.passwordMismatch'));
-      return;
-    }
+  if (nouveauMotDePasse !== confirmMotDePasse) {
+    setError(t('auth.passwordMismatch'));
+    return;
+  }
 
-    if (nouveauMotDePasse.length < 6) {
-      setError(t('auth.passwordTooShort'));
-      return;
-    }
+  if (nouveauMotDePasse.length < 6) {
+    setError(t('auth.passwordTooShort'));
+    return;
+  }
 
-    setLoading(true);
-    try {
-      await authService.changePassword(ancienMotDePasse, nouveauMotDePasse);
-      setSuccess(true);
-      setTimeout(() => navigate('/dashboard'), 1500);
-    } catch (err) {
-      setError(t('auth.wrongOldPassword'));
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    await authService.changePassword(ancienMotDePasse, nouveauMotDePasse);
+    
+    // ✅ METTRE À JOUR le user en local
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    storedUser.premiere_connexion = false;
+    localStorage.setItem('user', JSON.stringify(storedUser));
+    
+    setSuccess(true);
+    
+    // ✅ FORCER la navigation (rechargement complet)
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 1500);
+    
+  } catch (err) {
+    console.error('Erreur:', err);
+    setError(t('auth.wrongOldPassword'));
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="flex flex-col lg:flex-row bg-[#f5f3ef] min-h-screen">

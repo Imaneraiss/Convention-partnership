@@ -55,19 +55,22 @@ def create_user(
     if existing:
         raise HTTPException(status_code=400, detail="Email déjà utilisé")
 
+    # ✅ Créer l'utilisateur avec TOUS les champs
     user = User(
         nom=data.nom,
+        prenom=data.prenom,                        # ⬅️ AJOUTÉ
         email=data.email,
         mot_de_passe=hash_password(data.mot_de_passe),
         role=data.role,
         is_admin=data.is_admin,
+        telephone=data.telephone,                  # ⬅️ AJOUTÉ
+        actif=data.actif,                          # ⬅️ AJOUTÉ
         premiere_connexion=True
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
-
 
 # ═══════════════════════════════════════════════════════════
 # PUT — Modifier un utilisateur
@@ -82,14 +85,15 @@ def update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-
-    for key, value in data.model_dump(exclude_unset=True).items():
+    
+    # ✅ Mettre à jour UNIQUEMENT les champs fournis
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
         setattr(user, key, value)
-
+    
     db.commit()
     db.refresh(user)
     return user
-
 
 # ═══════════════════════════════════════════════════════════
 # PUT — Changer le mot de passe d'un utilisateur

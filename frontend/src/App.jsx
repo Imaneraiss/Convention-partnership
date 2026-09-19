@@ -24,10 +24,18 @@ function PrivateRoute({ children, allowedRoles, adminOnly }) {
     if (loading) return <div>Chargement...</div>
 
     if (!isAuthenticated) return <Navigate to="/login" />
-    
+
+    // ⚠️ Si premiere_connexion ET PAS déjà sur /change-password → rediriger
     if (user?.premiere_connexion && location.pathname !== "/change-password") {
-        return <Navigate to="/change-password" replace />;
+        console.log('🔒 Redirection forcée vers /change-password')
+        return <Navigate to="/change-password" replace />
     }
+
+    // Si on est sur /change-password et premiere_connexion est false → rediriger vers dashboard
+    if (!user?.premiere_connexion && location.pathname === "/change-password") {
+        return <Navigate to="/dashboard" replace />
+    }
+
     // Vérifie le rôle
     if (allowedRoles && !allowedRoles.includes(user?.role)) {
         return <Navigate to="/dashboard" />
@@ -50,8 +58,11 @@ function AppRoutes() {
             {/* Route publique */}
             <Route path="/login" element={<Login />} />
             
-            <Route path="change-password" element={<ChangePassword />} />
-
+            <Route path="/change-password" element={
+                <PrivateRoute>
+                    <ChangePassword />
+                </PrivateRoute>
+            } />
             {/* Routes privées — avec Layout */}
             <Route path="/" element={
                 <PrivateRoute>

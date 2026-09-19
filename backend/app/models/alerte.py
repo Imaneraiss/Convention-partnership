@@ -17,17 +17,19 @@ class Alerte(Base):
     __tablename__ = "alertes"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    type_alerte = Column(String, nullable=False)  # Utilise TypeAlerte
+    type_alerte = Column(String, nullable=False)
     date_declenchement = Column(Date, nullable=False)
     objet = Column(String, nullable=True)
     envoyee = Column(Boolean, default=False)
     traitee = Column(Boolean, default=False)
-    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=True)    
-    
-    # Champs optionnels pour les alertes de réunion
+    convention_id = Column(UUID(as_uuid=True), ForeignKey("conventions.id", ondelete="CASCADE"), nullable=True)
     comite_id = Column(UUID(as_uuid=True), ForeignKey("comites.id"), nullable=True)
+    
+    # ✅ NOUVEAU
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     # Relations
     convention = relationship("Convention", back_populates="alertes")
     comite = relationship("Comite", back_populates="alertes")
     destinataires = relationship("User", secondary=alerte_destinataires)
+    createur = relationship("User", foreign_keys=[created_by])   # ⬅️ NOUVEAU

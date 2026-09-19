@@ -43,13 +43,7 @@ export default function Sidebar({ isOpen = true, onClose }) {
             roles: [ROLES.CHARGE],
             adminOnly: false,
         },
-        {
-            labelKey: "sidebar.statistics",
-            path: "/statistiques",
-            icon: ChartColumn,
-            roles: [ROLES.CHARGE, ROLES.PRESIDENT],
-            adminOnly: false,
-        },
+       
         {
             labelKey: "sidebar.history",
             path: "/historique",
