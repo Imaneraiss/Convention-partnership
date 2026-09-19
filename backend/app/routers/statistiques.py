@@ -14,9 +14,15 @@ from app.database import get_db
 from app.models import Convention, Partenaire, Budget
 from app.services.statistiques_service import StatistiquesService
 
-router = APIRouter(prefix="/statistiques", tags=["statistiques"])
+router = APIRouter(prefix="/api/statistiques", tags=["Statistiques"])
+#                       ⬅️ AJOUTÉ "/api" pour cohérence avec les autres routers
 
-@router.get("/")
+
+# ═══════════════════════════════════════════════════════════
+# GET — Toutes les statistiques (✅ CORRIGÉ 307)
+# ═══════════════════════════════════════════════════════════
+@router.get("")
+@router.get("/", include_in_schema=False)
 def get_statistiques(
     periode: Optional[str] = Query("all", description="Période: all, 2026, 2025, 2024, personnalise"),
     date_debut: Optional[str] = Query(None),
@@ -27,6 +33,10 @@ def get_statistiques(
     service = StatistiquesService(db)
     return service.get_stats(periode, date_debut, date_fin)
 
+
+# ═══════════════════════════════════════════════════════════
+# GET — Export des statistiques
+# ═══════════════════════════════════════════════════════════
 @router.get("/export")
 def export_statistiques(
     format: str = Query("excel", description="Format: excel, pdf, word"),
@@ -41,14 +51,20 @@ def export_statistiques(
     """Exporter les statistiques"""
     service = StatistiquesService(db)
     data = service.get_stats(periode, date_debut, date_fin)
-    
+
     if format == "excel":
         return export_excel(data, type, correlation1, correlation2)
     elif format == "pdf":
         return export_pdf(data, type, correlation1, correlation2)
     elif format == "word":
         return export_word(data, type, correlation1, correlation2)
+    else:
+        return {"error": "Format non supporté"}
 
+
+# ═══════════════════════════════════════════════════════════
+# EXPORT EXCEL
+# ═══════════════════════════════════════════════════════════
 def export_excel(data, type_analyse, correlation1, correlation2):
     """Export en Excel"""
     output = BytesIO()
@@ -65,27 +81,27 @@ def export_excel(data, type_analyse, correlation1, correlation2):
             ]
         })
         resume.to_excel(writer, sheet_name='Résumé', index=False)
-        
+
         # Feuille 2: Type de convention
         if data.get('par_type'):
             df = pd.DataFrame(data['par_type'])
             df.to_excel(writer, sheet_name='Type convention', index=False)
-        
+
         # Feuille 3: Statut
         if data.get('par_statut'):
             df = pd.DataFrame(data['par_statut'])
             df.to_excel(writer, sheet_name='Statut', index=False)
-        
+
         # Feuille 4: Type partenaire
         if data.get('par_type_partenaire'):
             df = pd.DataFrame(data['par_type_partenaire'])
             df.to_excel(writer, sheet_name='Type partenaire', index=False)
-        
+
         # Feuille 5: Corrélations (si demandé)
         if type_analyse == 'croise' and data.get('correlations'):
             df = pd.DataFrame(data['correlations']['donnees'])
             df.to_excel(writer, sheet_name='Corrélations', index=False)
-    
+
     output.seek(0)
     return Response(
         content=output.getvalue(),
@@ -93,17 +109,21 @@ def export_excel(data, type_analyse, correlation1, correlation2):
         headers={"Content-Disposition": "attachment; filename=statistiques.xlsx"}
     )
 
+
+# ═══════════════════════════════════════════════════════════
+# EXPORT PDF
+# ═══════════════════════════════════════════════════════════
 def export_pdf(data, type_analyse, correlation1, correlation2):
     """Export en PDF"""
     output = BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4)
     styles = getSampleStyleSheet()
     elements = []
-    
+
     # Titre
     elements.append(Paragraph("Statistiques des Conventions", styles['Title']))
     elements.append(Spacer(1, 12))
-    
+
     # Résumé
     elements.append(Paragraph("Résumé", styles['Heading2']))
     data_resume = [
@@ -127,7 +147,7 @@ def export_pdf(data, type_analyse, correlation1, correlation2):
     ]))
     elements.append(table)
     elements.append(Spacer(1, 20))
-    
+
     # Type de convention
     if data.get('par_type'):
         elements.append(Paragraph("Type de convention", styles['Heading2']))
@@ -143,7 +163,7 @@ def export_pdf(data, type_analyse, correlation1, correlation2):
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
         ]))
         elements.append(table)
-    
+
     doc.build(elements)
     output.seek(0)
     return Response(
@@ -152,6 +172,10 @@ def export_pdf(data, type_analyse, correlation1, correlation2):
         headers={"Content-Disposition": "attachment; filename=statistiques.pdf"}
     )
 
+
+# ═══════════════════════════════════════════════════════════
+# EXPORT WORD
+# ═══════════════════════════════════════════════════════════
 def export_word(data, type_analyse, correlation1, correlation2):
     """Export en Word (HTML simplifié)"""
     html = f"""
@@ -173,7 +197,7 @@ def export_word(data, type_analyse, correlation1, correlation2):
     <body>
         <h1>Statistiques des Conventions</h1>
         <p>Généré le {pd.Timestamp.now().strftime('%d/%m/%Y %H:%M')}</p>
-        
+
         <h2>Résumé</h2>
         <div class="summary">
             <div class="card"><h3>Total</h3><p>{data['total_conventions']}</p></div>
@@ -182,7 +206,7 @@ def export_word(data, type_analyse, correlation1, correlation2):
             <div class="card"><h3>À renouveler</h3><p>{data['a_renouveler']}</p></div>
         </div>
     """
-    
+
     if data.get('par_type'):
         html += f"""
         <h2>Type de convention</h2>
@@ -192,7 +216,7 @@ def export_word(data, type_analyse, correlation1, correlation2):
         for item in data['par_type']:
             html += f"<tr><td>{item['type']}</td><td>{item['count']}</td><td>{item['pourcentage']}%</td></tr>"
         html += "</table>"
-    
+
     if data.get('par_statut'):
         html += f"""
         <h2>Statut</h2>
@@ -202,12 +226,12 @@ def export_word(data, type_analyse, correlation1, correlation2):
         for item in data['par_statut']:
             html += f"<tr><td>{item['statut']}</td><td>{item['count']}</td><td>{item['pourcentage']}%</td></tr>"
         html += "</table>"
-    
+
     html += """
     </body>
     </html>
     """
-    
+
     return Response(
         content=html.encode('utf-8'),
         media_type="application/msword",

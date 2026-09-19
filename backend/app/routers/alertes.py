@@ -20,7 +20,8 @@ router = APIRouter(prefix="/api/alertes", tags=["Alertes"])
 # ROUTES EXISTANTES (CRUD)
 # ============================================
 
-@router.get("/", response_model=List[AlerteResponse])
+@router.get("", response_model=List[AlerteResponse])
+@router.get("/", response_model=List[AlerteResponse], include_in_schema=False)
 def get_alertes(
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_user)
@@ -28,7 +29,8 @@ def get_alertes(
     return db.query(Alerte).all()
 
 # ✅ POST - Créer une alerte manuelle
-@router.post("/", response_model=AlerteResponse)
+@router.post("", response_model=AlerteResponse)
+@router.post("/", response_model=AlerteResponse, include_in_schema=False)
 def create_alerte(
     data: AlerteCreate,
     request: Request,  # ✅ Ajouté pour l'historique

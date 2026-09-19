@@ -28,7 +28,7 @@ class AlerteResponse(BaseModel):
     objet: Optional[str] = None
     envoyee: bool
     traitee: bool
-    convention_id: UUID
-
+    convention_id: Optional[UUID] = None
+    comite_id: Optional[UUID] = None  
     class Config:
         from_attributes = True

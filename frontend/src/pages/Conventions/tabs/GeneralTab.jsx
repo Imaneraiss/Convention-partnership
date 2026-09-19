@@ -316,13 +316,7 @@ export default function GeneralTab({
             </p>
           </div>
         )}
-        {formData.duree_annees && formData.date_signature && formData.date_expiration && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-xs sm:text-sm text-green-700 flex items-center gap-2">
-              ✅ {t('general.calculatedExpiration')}: <strong>{new Date(formData.date_expiration).toLocaleDateString()}</strong>
-            </p>
-          </div>
-        )}
+       
       </section>
 
       {/* ═══ SIGNATAIRE UM5 ═══ */}
@@ -398,18 +392,11 @@ export default function GeneralTab({
             <input type="checkbox" checked={!!uploadedFile || !!uploadedFileInfo || formData.signe || false}
               disabled={true} className="rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-not-allowed opacity-70" />
             <span className="text-xs sm:text-sm text-gray-700 flex items-center gap-1">
-              <FileText size={14} className={uploadedFile || uploadedFileInfo ? 'text-green-600' : 'text-gray-400'} />
               {t('conventions.signed')}
             </span>
           </div>
         </div>
-        {(uploadedFile || uploadedFileInfo) && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-xs sm:text-sm text-green-700 flex items-center gap-2">
-              <FileText size={16} /> ✅ {t('general.documentUploaded')}: <strong className="truncate">{uploadedFile?.name || uploadedFileInfo?.name}</strong>
-            </p>
-          </div>
-        )}
+        
       </section>
       
       {/* ═══ MOTS-CLÉS ═══ */}

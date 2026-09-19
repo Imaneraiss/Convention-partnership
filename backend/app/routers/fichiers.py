@@ -26,7 +26,10 @@ ALLOWED_TYPES = [
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 ]
 
-# ─── UPLOAD ───
+
+# ═══════════════════════════════════════════════════════════
+# UPLOAD
+# ═══════════════════════════════════════════════════════════
 @router.post("/upload", response_model=FichierResponse)
 def upload_fichier(
     request: Request,
@@ -48,11 +51,9 @@ def upload_fichier(
     print(f"🔍 comite_id reçu: {comite_id}")
     print("=" * 50)
 
-    # Validation type de fichier
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="Type de fichier non autorisé")
 
-    # Organisation par dossier
     if comite_id:
         upload_dir = f"/app/uploads/comites/{comite_id}"
     elif budget_id:
@@ -81,7 +82,6 @@ def upload_fichier(
     db.add(fichier)
     db.flush()
 
-    # Si comite_id est fourni, mettre à jour les réunions du comité
     type_fichier = "Convention signée"
     if comite_id:
         comite = db.query(Comite).filter(Comite.id == comite_id).first()
@@ -97,7 +97,6 @@ def upload_fichier(
                     "date": date_str
                 }
             }
-            
             reunions = comite.reunions or []
             reunions.append(new_reunion)
             comite.reunions = reunions
@@ -106,8 +105,7 @@ def upload_fichier(
             print(f"✅ Réunion ajoutée au comité {comite_id}")
     elif budget_id:
         type_fichier = "Justificatif budget"
-    
-    # Mettre à jour le champ signe de la convention
+
     if convention_id:
         convention = db.query(Convention).filter(Convention.id == convention_id).first()
         if convention:
@@ -118,7 +116,6 @@ def upload_fichier(
     db.commit()
     db.refresh(fichier)
 
-    # Enregistrer dans l'historique
     historique_service = HistoriqueService(db)
     historique_service.log_action(
         user_id=current_user.id,
@@ -139,7 +136,9 @@ def upload_fichier(
     return fichier
 
 
-# ─── GET - Fichiers par convention ───
+# ═══════════════════════════════════════════════════════════
+# GET - Fichiers par convention
+# ═══════════════════════════════════════════════════════════
 @router.get("/convention/{convention_id}", response_model=List[FichierResponse])
 def get_fichiers_convention(
     convention_id: UUID,
@@ -149,7 +148,9 @@ def get_fichiers_convention(
     return db.query(Fichier).filter(Fichier.convention_id == convention_id).all()
 
 
-# ─── GET - Fichiers par budget ───
+# ═══════════════════════════════════════════════════════════
+# GET - Fichiers par budget
+# ═══════════════════════════════════════════════════════════
 @router.get("/budget/{budget_id}", response_model=List[FichierResponse])
 def get_fichiers_budget(
     budget_id: UUID,
@@ -159,7 +160,9 @@ def get_fichiers_budget(
     return db.query(Fichier).filter(Fichier.budget_id == budget_id).all()
 
 
-# ─── GET - Fichiers par comité ───
+# ═══════════════════════════════════════════════════════════
+# GET - Fichiers par comité
+# ═══════════════════════════════════════════════════════════
 @router.get("/comite/{comite_id}", response_model=List[FichierResponse])
 def get_fichiers_comite(
     comite_id: UUID,
@@ -170,7 +173,9 @@ def get_fichiers_comite(
     return db.query(Fichier).filter(Fichier.comite_id == comite_id).all()
 
 
-# ─── GET - Télécharger un fichier ───
+# ═══════════════════════════════════════════════════════════
+# GET - Télécharger un fichier
+# ═══════════════════════════════════════════════════════════
 @router.get("/{fichier_id}")
 def download_fichier(
     request: Request,
@@ -178,18 +183,14 @@ def download_fichier(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Télécharger n'importe quel fichier par son ID
-    Utilisé pour : PV, conventions, justificatifs, etc.
-    """
+    """Télécharger n'importe quel fichier par son ID"""
     fichier = db.query(Fichier).filter(Fichier.id == fichier_id).first()
     if not fichier:
         raise HTTPException(status_code=404, detail="Fichier non trouvé")
-    
+
     if not os.path.exists(fichier.chemin):
         raise HTTPException(status_code=404, detail="Fichier physique non trouvé")
 
-    # Enregistrer dans l'historique (téléchargement)
     historique_service = HistoriqueService(db)
     historique_service.log_action(
         user_id=current_user.id,
@@ -204,7 +205,7 @@ def download_fichier(
         convention_id=fichier.convention_id,
         request=request
     )
-    
+
     return FileResponse(
         path=fichier.chemin,
         filename=fichier.nom_fichier,
@@ -212,7 +213,9 @@ def download_fichier(
     )
 
 
-# ─── DELETE - Supprimer un fichier ───
+# ═══════════════════════════════════════════════════════════
+# DELETE - Supprimer un fichier
+# ═══════════════════════════════════════════════════════════
 @router.delete("/{fichier_id}")
 def delete_fichier(
     request: Request,
@@ -223,13 +226,12 @@ def delete_fichier(
     fichier = db.query(Fichier).filter(Fichier.id == fichier_id).first()
     if not fichier:
         raise HTTPException(status_code=404, detail="Fichier non trouvé")
-    
+
     nom_fichier = fichier.nom_fichier
     convention_id = fichier.convention_id
     chemin = fichier.chemin
     type_fichier = fichier.type_fichier
-    
-    # Enregistrer dans l'historique AVANT la suppression
+
     historique_service = HistoriqueService(db)
     historique_service.log_action(
         user_id=current_user.id,
@@ -244,32 +246,45 @@ def delete_fichier(
         convention_id=convention_id,
         request=request
     )
-    
-    # Suppression physique
+
     if os.path.exists(chemin):
         os.remove(chemin)
-    
+
     db.delete(fichier)
     db.commit()
     return {"message": "Fichier supprimé avec succès"}
 
 
-# ─── POST - Extraction OCR ───
+# ═══════════════════════════════════════════════════════════
+# POST - Extraction OCR + IA (✅ CORRIGÉ)
+# ═══════════════════════════════════════════════════════════
 @router.post("/extract")
 async def extract_convention(
     request: Request,
     file: UploadFile = File(...),
+    db: Session = Depends(get_db),                # ✅ Injecter la session
     current_user: User = Depends(get_current_user)
 ):
-    # Lit le fichier
+    """
+    Reçoit un fichier (PDF ou image), extrait le texte via OCR,
+    puis envoie à Groq API pour structurer les champs.
+    """
+    print("\n" + "=" * 60)
+    print("🚀 ROUTE /extract APPELÉE")
+    print(f"📁 Fichier: {file.filename}")
+    print(f"📁 Content-Type: {file.content_type}")
+    print("=" * 60)
+
     file_bytes = await file.read()
-    
-    # Traite le document
+    print(f"📦 Taille lue: {len(file_bytes)} octets")
+    print(f"📦 Magic bytes: {file_bytes[:8].hex()}")
+
     result = process_document(file_bytes, file.content_type)
-    
-    # Enregistrer dans l'historique (extraction)
+
+    print(f"\n🏁 Résultat retourné: {list(result.keys()) if isinstance(result, dict) else 'non-dict'}")
+
+    # ✅ Enregistrer dans l'historique avec la session injectée
     try:
-        db = next(get_db())
         historique_service = HistoriqueService(db)
         historique_service.log_action(
             user_id=current_user.id,
@@ -282,8 +297,10 @@ async def extract_convention(
             },
             request=request
         )
-        db.close()
+        db.commit()
+        print("✅ Log d'extraction enregistré")
     except Exception as e:
         print(f"❌ Erreur log extraction: {e}")
-    
+        db.rollback()
+
     return result
