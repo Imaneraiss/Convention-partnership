@@ -50,13 +50,18 @@ export default function ConventionForm() {
   }, []);
 
   const fileRef = useRef(null);
+  const isAdmin = user?.is_admin === true;
+  const role = user?.role;
+  const canEdit = role === ROLES.CHARGE || isAdmin;
+  const canEditBudget = role === ROLES.SG;
 
-  const canEdit = user?.role === ROLES.CHARGE;
-  const canEditBudget = user?.role === ROLES.CHARGE || user?.role === ROLES.SG;
+
   const isExisting = !!id;
 
   const [isEditing, setIsEditing] = useState(!id);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const budgetEditable = isEditing || isEditingBudget;
+
 
   const [formData, setFormData] = useState({
     intitule: '', type: '', numero_reference: '', date_signature: '', date_expiration: '',
@@ -572,7 +577,7 @@ export default function ConventionForm() {
           <form onSubmit={handleSubmit}>
             {activeTab === 'general' && <GeneralTab formData={formData} partenaires={partenaires} motCle={motCle} setMotCle={setMotCle} onFormChange={handleFormChange} onPartenaireChange={handlePartenaireChange} onAddPartenaire={addPartenaire} onRemovePartenaire={removePartenaire} onAddMotCle={addMotCle} onRemoveMotCle={removeMotCle} readOnly={!isEditing} onExtractDocument={handleExtractDocument} onExtractedData={handleExtractedData} conventionId={id} isFromUpload={isFromUpload} uploadedFile={file} uploadedFileInfo={uploadedFileInfo} onFileChange={(newFile) => setFile(newFile)} />}
             {activeTab === 'committees' && <CommitteesTab readOnly={!isEditing} initialCommittees={committees} onChange={handleCommitteesChange} conventionId={id} dateSignature={formData.date_signature} />}
-            {activeTab === 'budget' && <BudgetTab readOnly={!isEditingBudget} initialBudget={budgetData} onChange={(newBudget) => setBudgetData(newBudget)} conventionId={id} budgetId={budgetData?.id} />}
+            {activeTab === 'budget' && <BudgetTab readOnly={!budgetEditable} initialBudget={budgetData} onChange={(newBudget) => setBudgetData(newBudget)} conventionId={id} budgetId={budgetData?.id} />}
             {activeTab === 'alerts' && <AlertsTab readOnly={!isEditing} conventionData={{ date_expiration: formData.date_expiration, comites: committees, budget: budgetData }} initialManualAlerts={alertsData.manual} onChange={setAlertsData} />}
           </form>
         </div>

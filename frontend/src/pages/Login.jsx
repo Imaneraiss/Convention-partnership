@@ -175,13 +175,7 @@ export default function Login() {
                         </div>
                     </form>
 
-                    {/* Lien vers admin (optionnel) */}
-                    <div className="text-center mt-6 text-xs sm:text-sm text-gray-500">
-                        {t("auth.unauthorized")}{" "}
-                        <a href="#" className="text-[#003087] text-sm sm:text-base underline font-medium">
-                            {t("auth.contactAdmin")}
-                        </a>
-                    </div>
+                    
                 </div>
             </section>
         </div>
