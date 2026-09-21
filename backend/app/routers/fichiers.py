@@ -76,8 +76,9 @@ def upload_fichier(
         type_fichier=file.content_type,
         taille=file.size or 0,
         chemin=file_path,
-        convention_id=convention_id,
-        budget_id=budget_id
+        convention_id=convention_id if not (budget_id or comite_id) else None, 
+        budget_id=budget_id,
+        comite_id=comite_id
     )
     db.add(fichier)
     db.flush()
@@ -106,7 +107,7 @@ def upload_fichier(
     elif budget_id:
         type_fichier = "Justificatif budget"
 
-    if convention_id:
+    if convention_id and not (budget_id or comite_id):
         convention = db.query(Convention).filter(Convention.id == convention_id).first()
         if convention:
             convention.signe = True

@@ -271,7 +271,6 @@ export default function CommitteesTab({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('convention_id', conventionId);
       formData.append('comite_id', committeeId);
       const response = await uploadFichier(formData);
       const committee = committees.find(c => c.id === committeeId);

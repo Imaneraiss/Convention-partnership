@@ -272,6 +272,7 @@
         "notDefined": "Not defined",
         "saveFirst": "Please save the convention first before uploading proofs.",
         "editBudget": "Edit budget",
+        "createBudgetFirst": "Please fill in and save the budget before uploading a proof",
         "statusNotDefined": "Not defined",
         "statusReceived": "✅ Fully received",
         "statusPartial": "🟡 Partially received",

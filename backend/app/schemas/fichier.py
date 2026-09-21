@@ -13,6 +13,7 @@ class FichierResponse(BaseModel):
     uploaded_at: datetime
     convention_id: Optional[UUID] = None
     budget_id: Optional[UUID] = None
+    comite_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True

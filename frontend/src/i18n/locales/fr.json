@@ -276,7 +276,8 @@
         "statusReceived": "✅ Reçu intégralement",
         "statusPartial": "🟡 Partiellement reçu",
         "statusReceiving": "🟠 En cours de réception",
-        "statusNotReceived": "🔴 Non reçu"
+        "statusNotReceived": "🔴 Non reçu",
+        "createBudgetFirst": "Please fill in and save the budget before uploading a proof"
     },
   "committees": {
     "title": "Comités",

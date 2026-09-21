@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../utils/constants';
 import { createConvention, updateConvention, getConvention, deleteConvention } from '../../services/conventionService';
-import { uploadFichier, extractConvention, getFichiersByConvention as getFichiersConvention } from '../../services/fichierService';
+import { uploadFichier, extractConvention, getFichiersByConvention as getFichiersConvention, getFichiersByBudget } from '../../services/fichierService';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import GeneralTab from './tabs/GeneralTab';
@@ -218,16 +218,25 @@ export default function ConventionForm() {
 
       try {
         const fichiersResponse = await getFichiersConvention(id);
-        if (fichiersResponse.data?.length > 0) {
-          hasFile = true;
-          const dernierFichier = fichiersResponse.data[fichiersResponse.data.length - 1];
-          fileInfo = {
-            id: dernierFichier.id, name: dernierFichier.nom_fichier || 'Document',
-            size: dernierFichier.taille || 0, type: dernierFichier.type_fichier || 'application/pdf',
-            uploadDate: dernierFichier.uploaded_at || new Date().toISOString(), chemin: dernierFichier.chemin
-          };
-          setUploadedFileInfo(fileInfo);
-          setIsFromUpload(true);
+        // ✅ FILTRER : prendre UNIQUEMENT les fichiers de la convention
+        // (ceux qui n'ont NI budget_id NI comite_id)
+        const fichiersConvention = (fichiersResponse.data || []).filter(
+            f => !f.budget_id && !f.comite_id
+        );
+
+        if (fichiersConvention.length > 0) {
+            hasFile = true;
+            const dernierFichier = fichiersConvention[fichiersConvention.length - 1];
+            fileInfo = {
+                id: dernierFichier.id,
+                name: dernierFichier.nom_fichier || 'Document',
+                size: dernierFichier.taille || 0,
+                type: dernierFichier.type_fichier || 'application/pdf',
+                uploadDate: dernierFichier.uploaded_at || new Date().toISOString(),
+                chemin: dernierFichier.chemin
+            };
+            setUploadedFileInfo(fileInfo);
+            setIsFromUpload(true);
         }
       } catch (fichiersErr) { console.error('Erreur chargement fichiers:', fichiersErr); }
 
@@ -267,12 +276,19 @@ export default function ConventionForm() {
             montantDepense: budgetData.montant_depense || 0, commentaire: budgetData.commentaire || '', justificatifs: []
           };
           try {
-            const fichiersResponse = await getFichiersConvention(id);
+            const budgetId = budgetData.id;  // ⬅️ L'ID du budget
+            const fichiersResponse = await getFichiersByBudget(budgetId);   // ⬅️ Nouveau
             const justificatifs = (fichiersResponse.data || [])
-              .filter(f => f.type_fichier?.includes('image') || f.nom_fichier?.match(/\.(jpg|jpeg|png|gif|pdf|doc|docx)$/i))
-              .map(f => ({ id: f.id, nom: f.nom_fichier, uploadDate: f.uploaded_at?.split('T')[0] || new Date().toISOString().split('T')[0] }));
+              .map(f => ({
+                id: f.id,
+                nom: f.nom_fichier,
+                uploadDate: f.uploaded_at?.split('T')[0] || new Date().toISOString().split('T')[0]
+              }));
             mappedBudget.justificatifs = justificatifs;
-          } catch (fichiersErr) { console.warn(fichiersErr.message); }
+          } catch (fichiersErr) {
+            console.warn('Pas de justificatifs:', fichiersErr.message);
+            mappedBudget.justificatifs = [];
+          }
           setBudgetData(mappedBudget);
         } else { setBudgetData(null); }
       } catch (err) {

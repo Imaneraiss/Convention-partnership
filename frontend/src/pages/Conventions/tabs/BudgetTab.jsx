@@ -43,13 +43,17 @@ export default function BudgetTab({ readOnly, initialBudget = null, onChange, co
   const handleFileUpload = async (file) => {
     if (!file) return;
     if (!conventionId) { alert(t('budget.saveFirst')); return; }
-
+    if (!budgetId) {
+      alert(t('budget.createBudgetFirst'));
+      return;
+    }
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('convention_id', conventionId);
-      formData.append('budget_id', budgetId);
-      
+      if (budgetId) {
+          formData.append('budget_id', budgetId);    // ⬅️ Ajoute SEULEMENT si défini
+      }
       const response = await uploadFichier(formData);
       
       const newJustificatif = {

@@ -416,8 +416,12 @@ export default function ConventionsList() {
                     </td>
                   </tr>
                 ) : (
-                  conventionsFiltrees.map(c => (
-                    <tr key={c.id} onClick={() => navigate(`/conventions/${c.id}`)} className="hover:bg-gray-50 cursor-pointer transition-colors">
+                  conventionsFiltrees.map((c, index) => (
+                    <tr 
+                      key={c.id} 
+                      onClick={() => navigate(`/conventions/${c.id}`)} 
+                      className={`cursor-pointer transition-colors hover:bg-blue-100/50`}
+                    >
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{c.numero_reference}</td>
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium">{c.intitule}</td>
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{getPartenairesDisplay(c.partenaires)}</td>

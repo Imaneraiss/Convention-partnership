@@ -97,7 +97,7 @@ export default function Sidebar({ isOpen = true, onClose }) {
                     <img
                         src={um5_logo}
                         alt="Logo UM5"
-                        className="bg-white w-24 h-16"
+                        className="bg-white w-50 h-24"
                     />
                     {/* Bouton fermer visible seulement sur mobile */}
                     {onClose && (
