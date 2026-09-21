@@ -102,7 +102,7 @@ const handleSubmit = async (e) => {
         </h2>
 
         <span className="opacity-40 text-xs sm:text-sm">
-          © 2026 Université Mohammed V de Rabat
+          © 2026 Université Mohammed V - Rabat
         </span>
       </section>
 

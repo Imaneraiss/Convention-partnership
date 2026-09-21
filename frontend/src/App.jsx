@@ -13,6 +13,8 @@ import Historique from './pages/Historique'
 import GestionComptes from './pages/GestionComptes'
 import Statistiques from './pages/Statistiques'
 import ChangePassword from './pages/ChangePassword'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 // Layout
 import Layout from './components/layout/Layout'
 import ConventionForm from './pages/Conventions/ConventionForm'
@@ -57,6 +59,9 @@ function AppRoutes() {
         <Routes>
             {/* Route publique */}
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />   {/* ⬅️ DÉCOMMENTER */}
+            <Route path="/reset-password" element={<ResetPassword />} />   {/* ⬅️ DÉCOMMENTER */}
+
             
             <Route path="/change-password" element={
                 <PrivateRoute>

@@ -7,6 +7,7 @@ from app.auth import hash_password, verify_password, create_access_token, get_cu
 from datetime import datetime, timedelta  # ✅ AJOUTER
 import secrets  # ✅ AJOUTER
 from app.services.email_service import EmailService  # ✅ AJOUTER
+from pydantic import BaseModel
 
 
 router = APIRouter(prefix="/api/auth", tags=["Authentification"])
@@ -63,7 +64,7 @@ def forgot_password(email: str, db: Session = Depends(get_db)):
     
     token = secrets.token_urlsafe(32)
     user.reset_token = token
-    user.reset_token_expires = datetime.utcnow() + timedelta(hours=24)
+    user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
     db.commit()
     
     email_service = EmailService()
@@ -84,18 +85,22 @@ def forgot_password(email: str, db: Session = Depends(get_db)):
     
     return {"message": "Un lien de réinitialisation vous a été envoyé"}
 
-# ✅ NOUVEAU - Réinitialiser le mot de passe
+class ResetPasswordSchema(BaseModel):
+    token: str
+    new_password: str
+
 @router.post("/reset-password")
-def reset_password(token: str, new_password: str, db: Session = Depends(get_db)):
+def reset_password(data: ResetPasswordSchema, db: Session = Depends(get_db)):
+    # ✅ Récupérer le token ET le nouveau mot de passe du body JSON
     user = db.query(User).filter(
-        User.reset_token == token,
+        User.reset_token == data.token,
         User.reset_token_expires > datetime.utcnow()
     ).first()
     
     if not user:
         raise HTTPException(400, "Lien invalide ou expiré")
     
-    user.mot_de_passe = hash_password(new_password)
+    user.mot_de_passe = hash_password(data.new_password)
     user.reset_token = None
     user.reset_token_expires = None
     db.commit()

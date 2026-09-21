@@ -28,10 +28,11 @@ const logout = () => {
 }
 
 // services/authService.js
-const forgotPassword = (email) =>
-    api.post('/auth/forgot-password', { email });
-
-const resetPassword = (token, new_password) =>
+export const forgotPassword = (email) =>
+    api.post('/auth/forgot-password', null, {
+        params: { email }                                        // ⬅️ Query param
+    });
+export const resetPassword = (token, new_password) =>
     api.post('/auth/reset-password', { token, new_password });
 
 const authService = { login, changePassword, getMe, logout,forgotPassword, resetPassword }
