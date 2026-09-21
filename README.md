@@ -89,7 +89,7 @@ L'application automatise l'extraction des données des conventions grâce à l'*
 
 ### Services externes
 - **Tesseract OCR** — Extraction de texte
-- **Groq API (LLaMA 3.3)** — Analyse IA
+- **Groq API (openai/gpt-oss-120b)** — Analyse IA
 - **SendGrid** — Envoi d'emails
 
 ### Infrastructure
@@ -190,7 +190,7 @@ Convention-partnership/
 
 #### 1. Cloner le projet
 ```bash
-git clone https://github.com/VOTRE_USER/Convention-partnership.git
+git clone https://github.com/Imaneraiss/Convention-partnership.git
 cd Convention-partnership
 ```
 
