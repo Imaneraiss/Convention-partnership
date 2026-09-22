@@ -15,6 +15,7 @@ import {
   SIGNATAIRES_UM5,
   optionsBilingues
 } from '../../../utils/constants';
+import { bil } from '../../../utils/traductionsBilingues';   // ⬅️ AJOUTÉ
 import { X, Plus, Upload, FileText, AlertCircle, Download, RefreshCw } from 'lucide-react';
 
 // ✅ Modes conditionnels
@@ -23,6 +24,12 @@ const MODES_CONDITIONNELS = [
   "Par avenant",
   "Par décision de l'Assemblée Générale extraordinaire"
 ];
+
+// ✅ Options bilingues pour les signataires UM5
+const SIGNATAIRES_UM5_BILINGUES = SIGNATAIRES_UM5.map(s => ({
+  value: s.value,
+  label: bil(s.label)
+}));
 
 export default function GeneralTab({
   formData,
@@ -268,11 +275,13 @@ export default function GeneralTab({
           </div>
           <Select label={t('conventions.type')} name="type" value={formData.type || ''}
             onChange={(e) => onFormChange('type', e.target.value)}
-            options={TYPES_CONVENTION.map(tc => ({ value: tc, label: tc }))} required readOnly={readOnly} />
+            options={optionsBilingues(TYPES_CONVENTION)}              /* ⬅️ BILINGUE */
+            required readOnly={readOnly} />
           <div className="space-y-2">
             <Select label={t('general.renewalMode')} name="mode_renouvellement" value={formData.mode_renouvellement || ''}
               onChange={(e) => onFormChange('mode_renouvellement', e.target.value)}
-              options={MODES_RENOUVELLEMENT.map(m => ({ value: m, label: m }))} readOnly={readOnly} />
+              options={optionsBilingues(MODES_RENOUVELLEMENT)}        /* ⬅️ BILINGUE */
+              readOnly={readOnly} />
             {isModeConditionnel && (
               <label className="flex items-center gap-2 cursor-pointer pt-1">
                 <input type="checkbox" checked={formData.expiree_manuellement || false}
@@ -326,7 +335,8 @@ export default function GeneralTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <Select label={t('conventions.signatoryUM5')} name="signataire_um5" value={formData.signataire_um5 || ''}
             onChange={(e) => onFormChange('signataire_um5', e.target.value)}
-            options={SIGNATAIRES_UM5} required readOnly={readOnly} placeholder={t('general.selectSignatory')} />
+            options={SIGNATAIRES_UM5_BILINGUES}                        /* ⬅️ BILINGUE */
+            required readOnly={readOnly} placeholder={t('general.selectSignatory')} />
           <Input label={t('general.otherSignatory')} name="signataire_um5_autre" value={formData.signataire_um5_autre || ''}
             onChange={(e) => onFormChange('signataire_um5_autre', e.target.value)}
             readOnly={readOnly} placeholder={t('general.specifySignatory')} />
@@ -358,7 +368,8 @@ export default function GeneralTab({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label={t('conventions.partnerName')} value={p.nom || ''} onChange={(e) => onPartenaireChange(index, 'nom', e.target.value)} required readOnly={readOnly} />
                 <Select label={t('conventions.partnerType')} value={p.type || ''} onChange={(e) => onPartenaireChange(index, 'type', e.target.value)}
-                  options={TYPES_PARTENAIRE.map(tp => ({ value: tp, label: tp }))} required readOnly={readOnly} />
+                  options={optionsBilingues(TYPES_PARTENAIRE)}          /* ⬅️ BILINGUE */
+                  required readOnly={readOnly} />
                 <Input label={t('conventions.partnerCity')} value={p.ville || ''} onChange={(e) => onPartenaireChange(index, 'ville', e.target.value)} readOnly={readOnly} />
                 <Input label={t('conventions.partnerRegion')} value={p.region || ''} onChange={(e) => onPartenaireChange(index, 'region', e.target.value)} readOnly={readOnly} />
                 <Input label={t('conventions.partnerCountry')} value={p.pays || 'Maroc'} onChange={(e) => onPartenaireChange(index, 'pays', e.target.value)} readOnly={readOnly} />

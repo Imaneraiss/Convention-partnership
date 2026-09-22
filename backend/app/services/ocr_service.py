@@ -30,8 +30,14 @@ def extract_text_from_pdf_native(file_bytes: bytes) -> str:
             page_text = page.extract_text() or ""
             print(f"   → Page {i+1} : {len(page_text)} caractères")
             text += page_text
+    
     result = text.strip()
-    print(f"📄 [PDF NATIF] Total extrait : {len(result)} caractères")
+    
+    # ✅ CORRIGER le texte arabe inversé
+    result = corriger_texte_arabe(result)
+    print(f"📄 [PDF NATIF] Total après correction : {len(result)} caractères")
+    print(f"📄 [PDF NATIF] Aperçu corrigé : {result[:100]}...")
+    
     return result
 
 
@@ -116,7 +122,6 @@ def extract_text(file_bytes: bytes, content_type: str = None) -> str:
 # ─────────────────────────────────────────
 # 2. EXTRACTION DES CHAMPS VIA GROQ API
 # ─────────────────────────────────────────
-
 def extract_fields_with_groq(text: str) -> dict:
     """Envoie le texte à Groq API et retourne les champs structurés"""
 
@@ -128,135 +133,147 @@ def extract_fields_with_groq(text: str) -> dict:
         print(f"⚠️ Texte tronqué : {len(text)} → {MAX_CHARS} caractères")
         text = text[:MAX_CHARS]
 
-    prompt = f"""
-Tu es un assistant spécialisé dans l'analyse de conventions de partenariat universitaires.
+    prompt = f"""Analyse ce document de convention universitaire (peut être en arabe ou français).
 
-Voici le texte extrait d'une convention de partenariat :
-
+=== TEXTE ===
 {text}
+=== FIN ===
 
-Extrais et retourne UNIQUEMENT un objet JSON valide avec ces champs :
+Retourne un JSON avec CES CHAMPS OBLIGATOIRES.
+Pour les champs à choix, utilise UNIQUEMENT les valeurs listées.
 
-================================================================
-1. IDENTIFICATION
-================================================================
-- "intitule": "titre complet de la convention"
-- "type": "Convention cadre / Convention spécifique / Mémorandum / Avenant / Contrat / Entente"
-- "mode_renouvellement": "Tacitement / Par avenant / Concertation des parties / Non renouvelable / etc."
-
-================================================================
-2. DATES ET DURÉE
-================================================================
-- "date_signature": "YYYY-MM-DD ou null"
-- "date_expiration": "YYYY-MM-DD ou null" (si explicitement mentionnée)
-- "duree_annees": nombre d'années de la convention (ex: 1, 2, 3, 5)
-
-================================================================
-3. SIGNATAIRE UM5
-================================================================
-- "signataire_um5": "Présidence UM5" ou le nom d'un établissement (FLSH, FMD, ENS, etc.)
-- "signataire_um5_autre": si le signataire n'est pas dans la liste standard, mets son nom ici
-
-================================================================
-4. PARTENAIRES
-================================================================
-- "partenaires": [
+{{
+  "intitule": "Le titre complet (GARDE dans la langue originale)",
+  "type": "Convention cadre OU Convention spécifique OU Convention de partenariat OU Mémorandum OU Avenant OU Contrat OU Entente",
+  "mode_renouvellement": "Tacitement OU Par avenant OU Concertation des parties OU Non renouvelable OU Une fois d'une année",
+  "date_signature": "YYYY-MM-DD",
+  "date_expiration": null,
+  "duree_annees": nombre_entier,
+  "signataire_um5": "Présidence UM5 OU FLSH OU FMD OU ENS OU ENSIAS OU nom de l'établissement",
+  "signataire_um5_autre": null,
+  "partenaires": [
     {{
-        "nom": "nom du partenaire",
-        "type": "PUBLIC / PRIVE / ASSOCIATION / ONG / SEMI_PUBLIC",
-        "ville": "ville du partenaire",
-        "region": "région du partenaire",
-        "pays": "pays du partenaire",
-        "signataire": "nom du signataire pour ce partenaire"
+      "nom": "Nom du partenaire (GARDE en arabe si arabe)",
+      "type": "PUBLIC OU PRIVE OU SEMI_PUBLIC OU ONG OU ASSOCIATION",
+      "ville": "Ville (GARDE en arabe si arabe)",
+      "region": null,
+      "pays": "Maroc",
+      "signataire": "Nom du signataire (GARDE en arabe si arabe)"
     }}
-  ]
+  ],
+  "avec_budget": false,
+  "validation_conseil": false,
+  "formation_continue": false,
+  "mots_cles": ["mot1", "mot2"],
+  "objet": "Contenu article objet (GARDE dans la langue originale)",
+  "objectif": "Contenu article objectif (GARDE dans la langue originale)",
+  "engagement_um5": "Contenu article engagements UM5 (GARDE dans la langue originale)",
+  "engagement_partenaire": "Contenu article engagements partenaire (GARDE dans la langue originale)",
+  "engagement_commun": null,
+  "principaux_domaines": null,
+  "communication": null,
+  "reglement_litiges": "Contenu (GARDE dans la langue originale)",
+  "forces_majeurs": null,
+  "modification_resiliation": "Contenu (GARDE dans la langue originale)",
+  "confidentialite": "Contenu (GARDE dans la langue originale)",
+  "protection_donnees": null,
+  "propriete_intellectuelle": null,
+  "comites": [
+    {{
+      "type": "PILOTAGE OU SUIVI OU TECHNIQUE",
+      "frequence": "Mensuelle OU Trimestrielle OU Semestrielle OU Annuelle",
+      "membres": ["nom1 (GARDE en arabe si arabe)", "nom2"],
+      "taches": []
+    }}
+  ],
+  "statut": "EN_COURS"
+}}
 
-================================================================
-5. OPTIONS (boolean)
-================================================================
-- "avec_budget": true ou false
-- "validation_conseil": true ou false
-- "formation_continue": true ou false
+═══════════════════════════════
+🚨 RÈGLE DE LANGUE (TRÈS IMPORTANTE)
+═══════════════════════════════
 
-================================================================
-6. MOTS-CLÉS
-================================================================
-- "mots_cles": ["mot1", "mot2", "mot3", ...]
+Il faut DISTINGUER 2 catégories de champs :
 
-================================================================
-7. ARTICLES DE LA CONVENTION
-================================================================
-Extrais le contenu de CHACUN des articles suivants s'ils sont présents :
-- "objet": "Objet de la convention"
-- "objectif": "Objectifs visés par la convention"
-- "engagement_um5": "Engagements de l'UM5"
-- "engagement_partenaire": "Engagements du partenaire"
-- "engagement_commun": "Engagements communs"
-- "principaux_domaines": "Principaux domaines de coopération"
-- "communication": "Modalités de communication"
-- "reglement_litiges": "Règlement des litiges"
-- "forces_majeurs": "Cas de force majeure"
-- "modification_resiliation": "Modification et résiliation"
-- "confidentialite": "Clauses de confidentialité"
-- "protection_donnees": "Protection des données personnelles"
-- "propriete_intellectuelle": "Propriété intellectuelle"
+🅰️ CHAMPS À TRADUIRE EN FRANÇAIS (ce sont des "dropdowns")
+   → Ces champs ont des VALEURS FIXES prédéfinies
+   → Liste : type, mode_renouvellement, signataire_um5, partenaires[].type, comites[].type, comites[].frequence
 
-================================================================
-8. ARTICLES PERSONNALISÉS
-================================================================
-Si tu trouves d'autres articles avec des TITRES DIFFÉRENTS dans le document
-(ex: "Dispositions particulières", "Clause sociale", "Durée", "Signature", etc.),
-extrais-les dans un objet "autres_articles" avec leur titre comme clé.
+🅱️ CHAMPS À GARDER DANS LA LANGUE ORIGINALE (ce sont des "textes libres")
+   → Ces champs gardent le texte TEL QUEL
+   → Si le document est en arabe → garder en ARABE
+   → Liste : intitule, objet, objectif, engagement_um5, engagement_partenaire,
+            engagement_commun, principaux_domaines, communication, reglement_litiges,
+            forces_majeurs, modification_resiliation, confidentialite, protection_donnees,
+            propriete_intellectuelle, partenaires[].nom, partenaires[].ville,
+            partenaires[].signataire, comites[].membres
 
-================================================================
-9. COMITÉS (avec leurs tâches)
-================================================================
-Extrais les comités mentionnés dans la convention. Chaque comité doit contenir :
-- "type": "PILOTAGE" / "SUIVI" / "TECHNIQUE" / "SCIENTIFIQUE"
-- "frequence": "Hebdomadaire" / "Mensuelle" / "Bimestrielle" / "Trimestrielle" / "Semestrielle" / "Annuelle"
-- "membres": ["nom1", "nom2", ...]
-- "taches": ["tâche1", "tâche2", ...]
+─────────────────────────────
+📌 TRADUCTIONS POUR LES DROPDOWNS UNIQUEMENT
+─────────────────────────────
 
-Exemple: "comites": [
-  {{
-    "type": "PILOTAGE",
-    "frequence": "Mensuelle",
-    "membres": ["Dr. Ahmed", "Pr. Fatima"],
-    "taches": [
-      "Valider les rapports d'avancement",
-      "Décider des orientations stratégiques"
-    ]
-  }}
-]
+📌 Types de convention :
+  "اتفاقية إطار" → "Convention cadre"
+  "اتفاقية شراكة" → "Convention de partenariat"
+  "اتفاقية محددة" → "Convention spécifique"
+  "مذكرة تفاهم" → "Mémorandum"
+  "ملحق" → "Avenant"
+  "عقد" → "Contrat"
+  "اتفاق" → "Entente"
 
-================================================================
-10. BUDGET
-================================================================
-Extrais les informations budgétaires si présentes :
-- "budget": {{
-    "modalitePaiement": "modalités de paiement (ex: Versement annuel en 2 tranches)",
-    "devise": "MAD / EUR / USD",
-    "montantTotal": nombre (en devise),
-    "montantRecu": nombre (en devise),
-    "montantDepense": nombre (en devise),
-    "commentaire": "commentaire sur le budget"
-  }}
+📌 Modes de renouvellement :
+  "ضمنياً" → "Tacitement"
+  "بموجب ملحق" → "Par avenant"
+  "تشاور الأطراف" → "Concertation des parties"
+  "غير قابل للتجديد" → "Non renouvelable"
 
-================================================================
-11. STATUT
-================================================================
-- "statut": "EN_COURS" par défaut, ou déduit de la date d'expiration
+📌 Établissements UM5 :
+  "جامعة محمد الخامس" → "Présidence UM5"
+  "رئاسة الجامعة" → "Présidence UM5"
+  "كلية العلوم" → "FSR"
+  "كلية الآداب" → "FLSH"
+  "كلية الطب" → "FMPH"
+  "المدرسة الوطنية العليا للمعلوميات" → "ENSIAS"
 
-================================================================
-IMPORTANT:
-- Si un champ n'est pas présent dans le document, mets-le à null ou [] pour les listes
-- Pour "partenaires", extrais tous les partenaires mentionnés
-- Pour "comites", extrais tous les comités mentionnés
-- Le JSON doit être valide et bien formé
+📌 Types de partenaire :
+  "خاص" → "PRIVE"
+  "عام" → "PUBLIC"
+  "شبه عام" → "SEMI_PUBLIC"
+  "جمعية" → "ASSOCIATION"
+  "منظمة غير حكومية" → "ONG"
 
-Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
+📌 Types de comité :
+  "قيادة" → "PILOTAGE"
+  "متابعة" → "SUIVI"
+  "تقني" → "TECHNIQUE"
+  "علمي" → "SCIENTIFIQUE"
+
+📌 Fréquences :
+  "شهري" → "Mensuelle"
+  "كل ثلاثة أشهر" → "Trimestrielle"
+  "نصف سنوي" → "Semestrielle"
+  "سنوي" → "Annuelle"
+
+─────────────────────────────
+📝 EXEMPLES CONCRETS
+─────────────────────────────
+
+Si le document contient : "اتفاقية إطار للشراكة"
+  ✅ type = "Convention cadre"                    (traduit car dropdown)
+  ✅ intitule = "اتفاقية إطار للشراكة"            (GARDÉ en arabe)
+
+Si le document contient : "تهدف هذه الاتفاقية إلى تحديد إطار التعاون..."
+  ✅ objectif = "تهدف هذه الاتفاقية إلى تحديد إطار التعاون..."   (GARDÉ en arabe)
+
+Si le document contient : "تلتزم الجامعة بما يلي: توفير الفضاءات..."
+  ✅ engagement_um5 = "تلتزم الجامعة بما يلي: توفير الفضاءات..."  (GARDÉ en arabe)
+
+Si le document contient : "شركة اتصالات المغرب"
+  ✅ partenaires[0].nom = "شركة اتصالات المغرب"   (GARDÉ en arabe)
+  ✅ partenaires[0].type = "PRIVE"                 (traduit car dropdown)
+
+Réponds UNIQUEMENT avec le JSON valide, sans texte avant ou après.
 """
-
     try:
         print("📡 Envoi requête à Groq...")
         response = client.chat.completions.create(
@@ -285,7 +302,8 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
 
         parsed = json.loads(content)
         print("✅ JSON parsé avec succès")
-         # 🔧 APLATIR
+        
+        # 🔧 APLATIR
         parsed = flatten_groq_response(parsed)
         print(f"🔍 Clés après aplatissement: {list(parsed.keys())}")
 
@@ -305,7 +323,6 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
             "error": str(e),
             "message": "Extraction IA indisponible — veuillez remplir manuellement"
         }
-
 
 # ─────────────────────────────────────────
 # 3. CALCUL DE LA DATE D'EXPIRATION
@@ -464,3 +481,41 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
     print("🏁" * 30 + "\n")
 
     return result
+
+# ─────────────────────────────────────────
+# FONCTION : Corriger le texte arabe inversé
+# ─────────────────────────────────────────
+def corriger_texte_arabe(text: str) -> str:
+    """
+    pdfplumber inverse souvent le texte arabe. Cette fonction le corrige.
+    """
+    if not text:
+        return text
+    
+    # Détecter si le texte contient de l'arabe
+    arabic_pattern = re.compile(r'[\u0600-\u06FF]+')
+    arabic_segments = arabic_pattern.findall(text)
+    
+    if not arabic_segments:
+        return text
+    
+    # Inverser chaque segment arabe trouvé
+    def inverser_segment(match):
+        return match.group(0)[::-1]
+    
+    # Inverser les segments arabes (mais garder le reste du texte tel quel)
+    lines = text.split('\n')
+    corrected_lines = []
+    
+    for line in lines:
+        # Détecter si la ligne est majoritairement arabe
+        arabic_chars = len(re.findall(r'[\u0600-\u06FF]', line))
+        total_chars = len(line.strip())
+        
+        if total_chars > 0 and arabic_chars / total_chars > 0.5:
+            # Inverser la ligne complète pour l'arabe
+            corrected_lines.append(line[::-1])
+        else:
+            corrected_lines.append(line)
+    
+    return '\n'.join(corrected_lines)

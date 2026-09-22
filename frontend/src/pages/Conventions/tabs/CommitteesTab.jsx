@@ -9,7 +9,8 @@ import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import Modal from '../../../components/common/Modal';
-import { TYPES_COMITE, FREQUENCES_REUNION } from '../../../utils/constants';
+// ⬇️ MODIFICATION : Ajout ETABLISSEMENTS_UM5 et optionsBilingues
+import { TYPES_COMITE, FREQUENCES_REUNION, ETABLISSEMENTS_UM5, optionsBilingues } from '../../../utils/constants';
 import { uploadFichier, deleteFichier } from '../../../services/fichierService';
 import { createComite, updateComite, deleteComite, getComitesByConvention } from '../../../services/comiteService';
 import DownloadButton from '../../../components/common/DownloadButton';
@@ -43,7 +44,8 @@ export default function CommitteesTab({
 
   const frequenceOptions = FREQUENCES_REUNION || ['Hebdomadaire', 'Mensuelle', 'Bimestrielle', 'Trimestrielle', 'Semestrielle', 'Annuelle'];
   const typeOptions = TYPES_COMITE || ['PILOTAGE', 'SUIVI', 'TECHNIQUE', 'SCIENTIFIQUE'];
-  const etablissementsOptions = ['UM5R', 'FLSH', 'FMD', 'FMPH', 'ENS', 'ENSAM', 'ENSET', 'EST', 'FSR', 'FSJES AGDAL', 'FSJES SOUISSI', 'FSJES SALE', 'EST SALE', 'EMI', 'ENSIAS', 'IS'];
+  // ⬇️ MODIFICATION : Utiliser ETABLISSEMENTS_UM5 depuis constants
+  const etablissementsOptions = ETABLISSEMENTS_UM5 || ['UM5R', 'FLSH', 'FMD', 'FMPH', 'ENS', 'ENSAM', 'ENSET', 'EST', 'FSR', 'FSJES AGDAL', 'FSJES SOUISSI', 'FSJES SALE', 'EST SALE', 'EMI', 'ENSIAS', 'IS'];
 
   // ✅ Fonction pour télécharger
   const downloadFile = async (fichierId, nomFichier) => {
@@ -400,7 +402,10 @@ export default function CommitteesTab({
                           <select value={newMembreUm5.etablissement} onChange={(e) => setNewMembreUm5({ ...newMembreUm5, etablissement: e.target.value })}
                             className="text-sm border border-gray-300 rounded-lg px-2 py-1 w-28 sm:w-32">
                             <option value="">{t('committees.establishment')}</option>
-                            {etablissementsOptions.map(e => <option key={e} value={e}>{e}</option>)}
+                            {/* ⬇️ DROPDOWN BILINGUE ⬇️ */}
+                            {optionsBilingues(etablissementsOptions).map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
                           </select>
                           <Button size="sm" onClick={() => addMembreUm5(committee.id)} disabled={!newMembreUm5.nom || !newMembreUm5.email} className="text-xs">{t('common.add')}</Button>
                         </div>
@@ -531,7 +536,10 @@ export default function CommitteesTab({
             <select value={newCommittee.type} onChange={(e) => setNewCommittee({ ...newCommittee, type: e.target.value })}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700">
               <option value="">{t('common.select')}</option>
-              {typeOptions.map(type => <option key={type} value={type}>{type}</option>)}
+              {/* ⬇️ DROPDOWN BILINGUE ⬇️ */}
+              {optionsBilingues(typeOptions).map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -539,7 +547,10 @@ export default function CommitteesTab({
             <select value={newCommittee.frequence} onChange={(e) => setNewCommittee({ ...newCommittee, frequence: e.target.value })}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700">
               <option value="">{t('common.select')}</option>
-              {frequenceOptions.map(freq => <option key={freq} value={freq}>{freq}</option>)}
+              {/* ⬇️ DROPDOWN BILINGUE ⬇️ */}
+              {optionsBilingues(frequenceOptions).map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4">

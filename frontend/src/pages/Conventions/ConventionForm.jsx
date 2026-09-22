@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../utils/constants';
+import { traduireArVersFr } from '../../utils/traductionsBilingues';   
 import { createConvention, updateConvention, getConvention, deleteConvention } from '../../services/conventionService';
 import { uploadFichier, extractConvention, getFichiersByConvention as getFichiersConvention, getFichiersByBudget } from '../../services/fichierService';
 import Button from '../../components/common/Button';
@@ -115,12 +116,17 @@ export default function ConventionForm() {
       if (!extracted.error) {
         setFormData(prev => ({
           ...prev,
-          intitule: extracted.intitule || '', type: extracted.type || '',
+          intitule: extracted.intitule || '',
+          // ✅ TRADUCTION AR → FR
+          type: traduireArVersFr(extracted.type) || '',
+          mode_renouvellement: traduireArVersFr(extracted.mode_renouvellement) || '',
+          signataire_um5: traduireArVersFr(extracted.signataire_um5) || '',
+          // Reste inchangé
           date_signature: extracted.date_signature || '', date_expiration: extracted.date_expiration || '',
-          duree_annees: extracted.duree_annees || '', mode_renouvellement: extracted.mode_renouvellement || '',
+          duree_annees: extracted.duree_annees || '',
           avec_budget: extracted.avec_budget || false, validation_conseil: extracted.validation_conseil || false,
           formation_continue: extracted.formation_continue || false, mots_cles: extracted.mots_cles || [],
-          signataire_um5: extracted.signataire_um5 || '', signataire_um5_autre: extracted.signataire_um5_autre || '',
+          signataire_um5_autre: extracted.signataire_um5_autre || '',
           signataire_partenaire: extracted.signataire_partenaire || '', signataire_partenaire_autre: extracted.signataire_partenaire_autre || '',
           articles: extracted.articles || {}, articles_personnalises: extracted.articles_personnalises || [],
           statut: extracted.statut || 'EN_COURS'
@@ -128,13 +134,18 @@ export default function ConventionForm() {
 
         if (extracted.partenaires?.length > 0) {
           setPartenaires(extracted.partenaires.map(p => ({
-            nom: p.nom || '', type: p.type || '', ville: p.ville || '',
+            nom: p.nom || '',
+            type: traduireArVersFr(p.type) || '',   // ⬅️ TRADUCTION
+            ville: p.ville || '',
             region: p.region || '', pays: p.pays || 'Maroc', signataire: p.signataire || ''
           })));
         }
         if (extracted.comites?.length > 0) {
           setCommittees(extracted.comites.map((c, index) => ({
-            ...c, id: `temp_${Date.now()}_${index}`, expanded: false, reunions: c.reunions || []
+            ...c,
+            type: traduireArVersFr(c.type) || '',              // ⬅️ TRADUCTION
+            frequence: traduireArVersFr(c.frequence) || '',    // ⬅️ TRADUCTION
+            id: `temp_${Date.now()}_${index}`, expanded: false, reunions: c.reunions || []
           })));
         }
         if (extracted.budget) setBudgetData(extracted.budget);
@@ -180,12 +191,17 @@ export default function ConventionForm() {
     }
     setFormData(prev => ({
       ...prev,
-      intitule: extractedData.intitule || '', type: extractedData.type || '',
+      intitule: extractedData.intitule || '',
+      // ✅ TRADUCTION AR → FR
+      type: traduireArVersFr(extractedData.type) || '',
+      mode_renouvellement: traduireArVersFr(extractedData.mode_renouvellement) || '',
+      signataire_um5: traduireArVersFr(extractedData.signataire_um5) || '',
+      // Reste inchangé
       date_signature: extractedData.date_signature || '', date_expiration: extractedData.date_expiration || '',
-      duree_annees: extractedData.duree_annees || '', mode_renouvellement: extractedData.mode_renouvellement || '',
+      duree_annees: extractedData.duree_annees || '',
       avec_budget: extractedData.avec_budget || false, validation_conseil: extractedData.validation_conseil || false,
       formation_continue: extractedData.formation_continue || false, mots_cles: extractedData.mots_cles || [],
-      signataire_um5: extractedData.signataire_um5 || '', signataire_um5_autre: extractedData.signataire_um5_autre || '',
+      signataire_um5_autre: extractedData.signataire_um5_autre || '',
       signataire_partenaire: extractedData.signataire_partenaire || '', signataire_partenaire_autre: extractedData.signataire_partenaire_autre || '',
       articles: extractedData.articles || {}, articles_personnalises: extractedData.articles_personnalises || [],
       articles_masques: [], statut: extractedData.statut || 'EN_COURS',
@@ -194,13 +210,18 @@ export default function ConventionForm() {
     }));
     if (extractedData.partenaires?.length > 0) {
       setPartenaires(extractedData.partenaires.map(p => ({
-        nom: p.nom || '', type: p.type || '', ville: p.ville || '',
+        nom: p.nom || '',
+        type: traduireArVersFr(p.type) || '',   // ⬅️ TRADUCTION
+        ville: p.ville || '',
         region: p.region || '', pays: p.pays || 'Maroc', signataire: p.signataire || ''
       })));
     }
     if (extractedData.comites?.length > 0) {
       setCommittees(extractedData.comites.map((c, index) => ({
-        ...c, id: `temp_${Date.now()}_${index}`, expanded: false,
+        ...c,
+        type: traduireArVersFr(c.type) || '',              // ⬅️ TRADUCTION
+        frequence: traduireArVersFr(c.frequence) || '',    // ⬅️ TRADUCTION
+        id: `temp_${Date.now()}_${index}`, expanded: false,
         reunions: c.reunions || [], taches: c.taches || []
       })));
     }
@@ -243,10 +264,16 @@ export default function ConventionForm() {
       } catch (fichiersErr) { console.error('Erreur chargement fichiers:', fichiersErr); }
 
       setFormData({
-        intitule: data.intitule || '', type: data.type || '', numero_reference: data.numero_reference || '',
+        intitule: data.intitule || '',
+        // ✅ TRADUCTION AR → FR
+        type: traduireArVersFr(data.type) || '',
+        mode_renouvellement: traduireArVersFr(data.mode_renouvellement) || '',
+        signataire_um5: traduireArVersFr(data.signataire_um5) || '',
+        // Reste inchangé
+        numero_reference: data.numero_reference || '',
         date_signature: data.date_signature || '', date_expiration: data.date_expiration || '',
-        duree_annees: data.duree_annees || '', mode_renouvellement: data.mode_renouvellement || '',
-        signataire_um5: data.signataire_um5 || '', signataire_um5_autre: data.signataire_um5_autre || '',
+        duree_annees: data.duree_annees || '',
+        signataire_um5_autre: data.signataire_um5_autre || '',
         signataire_partenaire: data.signataire_partenaire || '', signataire_partenaire_autre: data.signataire_partenaire_autre || '',
         avec_budget: data.avec_budget || false, validation_conseil: data.validation_conseil || false,
         formation_continue: data.formation_continue || false, mots_cles: data.mots_cles || [],
@@ -255,18 +282,27 @@ export default function ConventionForm() {
         signe: hasFile || data.signe || false
       });
 
-      setPartenaires(data.partenaires?.length > 0 ? data.partenaires : [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]);
-
+      // ✅ Traduire les partenaires
+      setPartenaires(
+        data.partenaires?.length > 0 
+          ? data.partenaires.map(p => ({
+              ...p,
+              type: traduireArVersFr(p.type) || ''    // ⬅️ TRADUCTION
+            }))
+          : [{ nom: '', type: '', ville: '', region: '', pays: 'Maroc', signataire: '' }]
+      );
       try {
         const comitesResponse = await getComitesByConvention(id);
         if (comitesResponse.data?.length > 0) {
           setCommittees(comitesResponse.data.map(c => ({
-            ...c, expanded: false, reunions: c.reunions || [], taches: c.taches || [],
+            ...c,
+            type: traduireArVersFr(c.type) || '',              // ⬅️ TRADUCTION
+            frequence: traduireArVersFr(c.frequence) || '',    // ⬅️ TRADUCTION
+            expanded: false, reunions: c.reunions || [], taches: c.taches || [],
             membres_um5: c.membres_um5 || [], membres_partenaires: c.membres_partenaires || [], _existing: true
           })));
         } else { setCommittees([]); }
       } catch (err) { console.error('Erreur chargement comités:', err); setCommittees([]); }
-
       try {
         const budgetResponse = await getBudget(id);
         if (budgetResponse.data) {
