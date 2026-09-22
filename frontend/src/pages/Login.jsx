@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "../components/common/LanguageSwitcher";
+import bgImage from "../assets/bgd.png"; 
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +67,7 @@ export default function Login() {
                     />
                 </div>
 
-                <span className="border-t w-10 border-gray-400 hidden lg:block"></span>
+                <span className="border-t w-40 border-gray-400 hidden lg:block"></span>
 
                 <h1 className="text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-bold leading-tight">
                     {t("auth.loginTitle")}
@@ -88,15 +89,29 @@ export default function Login() {
                 p-6 sm:p-10 lg:p-16 xl:p-20 
                 w-full lg:w-2/3 
                 min-h-[60vh] lg:min-h-screen
-                relative
+                relative overflow-hidden
             ">
+                {/* 🖼️ Image de fond floue — seule cette div est floutée */}
+                <div
+                    className="absolute inset-0"
+                    style={{
+                        backgroundImage: `url(${bgImage})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                        filter: "blur(8px) saturate(1.3) contrast(1.1)",
+                        transform: "scale(1.1)",  // évite les bords blancs créés par le blur
+                    }}
+                />
+                <div className="absolute inset-0 bg-black/50" />
+
                 {/* ✅ Sélecteur de langue en haut à droite (desktop) */}
                 <div className="hidden lg:block absolute top-6 right-6">
                     <LanguageSwitcher />
                 </div>
 
-                <div className="w-full max-w-md">
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-8 lg:mb-12">
+                <div className="relative z-10 w-full max-w-md">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-8 lg:mb-12">
                         {t("auth.login")}
                     </h1>
 
@@ -107,12 +122,12 @@ export default function Login() {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="text-[#6b7280]">
-                        <div className="flex flex-col gap-5">
+                    <form onSubmit={handleSubmit} className="text-[#ffffff] ">
+                        <div className="flex flex-col gap-5 ">
 
                             {/* Email */}
                             <div className="flex flex-col gap-2">
-                                <label htmlFor="email" className="font-mono text-sm sm:text-base">
+                                <label htmlFor="email" className="font-mono text-xl">
                                     {t("auth.email")}
                                 </label>
                                 <input
@@ -121,19 +136,19 @@ export default function Login() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="prenom.nom@um5.ac.ma"
-                                    className="bg-white p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003087] text-sm sm:text-base"
+                                    className="text-[#000000] bg-white p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003087] "
                                 />
                             </div>
 
                             {/* Mot de passe */}
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between items-center">
-                                    <label htmlFor="password" className="font-mono text-sm sm:text-base">
+                                    <label htmlFor="password" className="font-mono text-xl ">
                                         {t("auth.password")}
                                     </label>
                                     <Link
                                         to="/forgot-password"
-                                        className="text-xs sm:text-sm underline text-[#003087] hover:text-blue-700"
+                                        className=" text-[#FFFF] text-xs sm:text-sm underline hover:text-gray-400"
                                     >
                                         {t("auth.forgotPassword")}
                                     </Link>
@@ -145,11 +160,11 @@ export default function Login() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="outline-none w-4/5 text-sm sm:text-base"
+                                        className="outline-none w-4/5 text-sm sm:text-base text-[#000000]"
                                     />
                                     <button
                                         type="button"
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                        className=" absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                                         onClick={() => setShowPassword(!showPassword)}
                                     >
                                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}

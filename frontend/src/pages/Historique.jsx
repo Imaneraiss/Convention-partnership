@@ -159,25 +159,28 @@ export default function Historique() {
       )}
 
       {/* STATISTIQUES */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-3 sm:p-4 text-center">
-          <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('history.totalActions')}</p>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="min-h-[140px] flex flex-col justify-center items-center text-center px-4 py-4 bg-gray-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-gray-200 cursor-pointer">
+            <p className="text-3xl sm:text-4xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('history.totalActions')}</p>
         </Card>
-        <Card className="p-3 sm:p-4 text-center border-l-4 border-l-green-500">
-          <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.creations}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('history.creations')}</p>
-        </Card>
-        <Card className="p-3 sm:p-4 text-center border-l-4 border-l-blue-500">
-          <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.modifications}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('history.modifications')}</p>
-        </Card>
-        <Card className="p-3 sm:p-4 text-center border-l-4 border-l-red-500">
-          <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.suppressions}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('history.deletions')}</p>
-        </Card>
-      </div>
 
+        <Card className="min-h-[140px] flex flex-col justify-center items-center text-center px-4 py-4 bg-green-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-green-200 cursor-pointer">
+            <p className="text-3xl sm:text-4xl font-bold text-gray-900">{stats.creations}</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('history.creations')}</p>
+        </Card>
+
+        <Card className="min-h-[140px] flex flex-col justify-center items-center text-center px-4 py-4 bg-blue-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-blue-200 cursor-pointer">
+            <p className="text-3xl sm:text-4xl font-bold text-gray-900">{stats.modifications}</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('history.modifications')}</p>
+        </Card>
+
+        <Card className="min-h-[140px] flex flex-col justify-center items-center text-center px-4 py-4 bg-red-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-red-200 cursor-pointer">
+            <p className="text-3xl sm:text-4xl font-bold text-gray-900">{stats.suppressions}</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('history.deletions')}</p>
+        </Card>
+    </div>
+    
       {/* FILTRES */}
       <Card className="p-3 sm:p-4">
         <div className="flex flex-col gap-3">

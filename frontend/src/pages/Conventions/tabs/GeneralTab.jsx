@@ -12,7 +12,8 @@ import {
   MODES_RENOUVELLEMENT,
   TYPES_PARTENAIRE,
   ETABLISSEMENTS_UM5,
-  SIGNATAIRES_UM5
+  SIGNATAIRES_UM5,
+  optionsBilingues
 } from '../../../utils/constants';
 import { X, Plus, Upload, FileText, AlertCircle, Download, RefreshCw } from 'lucide-react';
 

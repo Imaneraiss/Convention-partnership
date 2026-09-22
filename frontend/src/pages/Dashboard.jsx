@@ -179,14 +179,7 @@ export default function Dashboard() {
             case 'last_year':
                 startDate = new Date(year - 1, 0, 1)
                 endDate = new Date(year - 1, 11, 31)
-                break
-            case 'last_3_years':
-                startDate = new Date(year - 3, 0, 1)
-                endDate = new Date(year, 11, 31)
-                break
-            case 'last_5_years':
-                startDate = new Date(year - 5, 0, 1)
-                endDate = new Date(year, 11, 31)
+                
                 break
             case 'custom':
                 startDate = customStart ? new Date(customStart) : null
@@ -672,24 +665,27 @@ export default function Dashboard() {
             </Card>
 
             {/* ═══ STATISTIQUES ═══ */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <Card className="p-3 sm:p-4 text-center">
-                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.totalConventions')}</p>
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</h2>
-                </Card>
-                <Card className="p-3 sm:p-4 text-center border-l-4 border-l-green-500">
-                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.inProgress')}</p>
-                    <h2 className="text-xl sm:text-2xl font-bold text-green-600">{stats.enCours}</h2>
-                </Card>
-                <Card className="p-3 sm:p-4 text-center border-l-4 border-l-red-500">
-                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.expired')}</p>
-                    <h2 className="text-xl sm:text-2xl font-bold text-red-600">{stats.expirees}</h2>
-                </Card>
-                <Card className="p-3 sm:p-4 text-center border-l-4 border-l-yellow-500">
-                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.toRenew')}</p>
-                    <h2 className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.aRenouveler}</h2>
-                </Card>
-            </div>
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <Card className="px-4 py-6 sm:py-8 text-center bg-gray-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-gray-200 cursor-pointer">
+        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.totalConventions')}</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</h2>
+    </Card>
+
+    <Card className="px-4 py-6 sm:py-8 text-center bg-green-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-green-200 cursor-pointer">
+        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.inProgress')}</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.enCours}</h2>
+    </Card>
+
+    <Card className="px-4 py-6 sm:py-8 text-center bg-red-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-red-200 cursor-pointer">
+        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.expired')}</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.expirees}</h2>
+    </Card>
+
+    <Card className="px-4 py-6 sm:py-8 text-center bg-yellow-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-yellow-200 cursor-pointer">
+        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.toRenew')}</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.aRenouveler}</h2>
+    </Card>
+</div>
 
             {/* ═══ GRAPHIQUES ═══ */}
             {widgets.length === 0 ? (

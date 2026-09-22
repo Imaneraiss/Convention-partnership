@@ -60,3 +60,26 @@
 .animate-slide-in {
     animation: slide-in 0.3s ease-out;
 }
+
+@layer base {
+    html {
+        font-size: 16px; /* par défaut */
+    }
+
+    /* Sur grands écrans, on agrandit tout */
+    @media (min-width: 1280px) {
+        html {
+            font-size: 17px;
+        }
+    }
+
+    @media (min-width: 1536px) {
+        html {
+            font-size: 20px;
+        }
+    }
+}
+
+body.modal-open header {
+  display: none;
+}

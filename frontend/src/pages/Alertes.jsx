@@ -160,28 +160,31 @@ export default function Alertes() {
 
       {/* STATISTIQUES */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <Card className="p-3 sm:p-4 text-center">
-          <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('alerts.total')}</p>
-        </Card>
-        <Card className="p-3 sm:p-4 text-center border-l-4 border-l-green-500">
-          <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.actives}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('alerts.active')}</p>
-        </Card>
-        <Card className="p-3 sm:p-4 text-center border-l-4 border-l-gray-400">
-          <p className="text-xl sm:text-2xl font-bold text-gray-400">{stats.traitees}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('alerts.treated')}</p>
-        </Card>
-        <Card className="p-3 sm:p-4 text-center border-l-4 border-l-red-500">
-          <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.fin_convention}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('alerts.finConvention')}</p>
-        </Card>
-        <Card className="p-3 sm:p-4 text-center border-l-4 border-l-blue-500 col-span-2 md:col-span-1">
-          <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.reunion}</p>
-          <p className="text-xs sm:text-sm text-gray-500">{t('alerts.reunions')}</p>
-        </Card>
-      </div>
+          <Card className="px-4 py-8 text-center bg-gray-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-gray-200 cursor-pointer">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.total')}</p>
+          </Card>
 
+          <Card className="px-4 py-8 text-center bg-green-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-green-200 cursor-pointer">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.actives}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.active')}</p>
+          </Card>
+
+          <Card className="px-4 py-8 text-center bg-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-slate-200 cursor-pointer">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.traitees}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.treated')}</p>
+          </Card>
+
+          <Card className="px-4 py-8 text-center bg-red-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-red-200 cursor-pointer">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.fin_convention}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.finConvention')}</p>
+          </Card>
+
+          <Card className="px-4 py-8 text-center bg-blue-100 col-span-2 md:col-span-1 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-blue-200 cursor-pointer">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.reunion}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.reunions')}</p>
+          </Card>
+      </div>
       {/* FILTRES */}
       <Card className="p-3 sm:p-4">
         <div className="flex flex-col md:flex-row gap-3 sm:gap-4">

@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { ROLES } from "../../utils/constants";
 import um5_logo from "../../assets/um5.png";
 import { useTranslation } from "react-i18next";
+import bg_zellig from "../../assets/bg_zellig.png";
 import {
     LayoutDashboard,
     FileText,
@@ -83,21 +84,22 @@ export default function Sidebar({ isOpen = true, onClose }) {
 
     return (
         <div className="
-            flex flex-col justify-between 
+            flex flex-col 
             h-full 
-            bg-white 
             border-r border-gray-200
             w-64
             p-4
+            relative
+            overflow-hidden
         ">
             {/* ═══ HEADER ═══ */}
             <div>
                 {/* Logo + Bouton fermer (mobile) */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-20">
                     <img
                         src={um5_logo}
                         alt="Logo UM5"
-                        className="bg-white w-50 h-24"
+                        className=" w-50 h-24"
                     />
                     {/* Bouton fermer visible seulement sur mobile */}
                     {onClose && (
@@ -142,6 +144,15 @@ export default function Sidebar({ isOpen = true, onClose }) {
                     })}
                 </ul>
             </div>
+            <div
+                className="absolute inset-0 -z-10"
+                style={{
+                    backgroundImage: `url(${bg_zellig})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                }}
+            />
 
             {/* ═══ DÉCONNEXION ═══ */}
             <button
@@ -149,6 +160,7 @@ export default function Sidebar({ isOpen = true, onClose }) {
                 className="
                     flex items-center gap-3 
                     px-3 py-3 
+                    mt-20
                     rounded-lg 
                     cursor-pointer 
                     text-red-600 

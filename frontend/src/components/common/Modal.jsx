@@ -1,3 +1,5 @@
+import { useEffect } from "react"   // ← 1. ajoute cet import en haut
+
 const Modal = ({
   isOpen,
   onClose,
@@ -5,6 +7,18 @@ const Modal = ({
   children,
   size = "md"
 }) => {
+
+  // 👇 2. ajoute ce useEffect ici
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("modal-open")
+    } else {
+      document.body.classList.remove("modal-open")
+    }
+
+    // nettoyage quand le composant est démonté
+    return () => document.body.classList.remove("modal-open")
+  }, [isOpen])
 
   if (!isOpen) return null
 

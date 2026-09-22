@@ -1,3 +1,6 @@
+import { bil } from './traductionsBilingues';
+
+
 // ─────────────────────────────────────────
 // RÔLES UTILISATEURS
 // ─────────────────────────────────────────
@@ -174,3 +177,14 @@ export const DUREES_CONVENTION = [
 // CONFIG API
 // ─────────────────────────────────────────
 export const API_BASE_URL = "http://localhost:8000/api"
+
+// ═══════════════════════════════════════════════════════════
+// HELPER : Génère les options bilingues pour les dropdowns
+// ═══════════════════════════════════════════════════════════
+
+export const optionsBilingues = (valeurs) => {
+  return valeurs.map(v => ({
+    value: v,        // ⬅️ TOUJOURS en français (pour la DB)
+    label: bil(v)    // ⬅️ Affichage "FR / AR"
+  }));
+};
