@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy import extract
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError          # ⬅️ AJOUTÉ
@@ -13,6 +13,7 @@ from app.services.historique_service import HistoriqueService
 from app.database import get_db
 from app.models.convention import Convention
 from app.models.user import User
+from app.models.comite import Comite
 from app.schemas.convention import ConventionCreate, ConventionUpdate, ConventionResponse
 from app.auth import get_current_user
 from app.services.convention_service import ConventionService
@@ -350,3 +351,131 @@ def export_conventions_excel(
             "Content-Disposition": f"attachment; filename=conventions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         }
     )
+
+# ═══════════════════════════════════════════════════════════
+# GET — Export Word (FR / AR)
+# ═══════════════════════════════════════════════════════════
+@router.get("/{convention_id}/export-word")
+def export_convention_word(
+    convention_id: UUID,
+    langue: str = Query("fr", regex="^(fr|ar)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Exporte une convention en Word.
+    
+    Paramètres :
+    - langue : 'fr' (français) ou 'ar' (arabe)
+    """
+    print(f"\n{'=' * 60}")
+    print(f"📄 EXPORT WORD — Langue : {langue}")
+    print(f"{'=' * 60}")
+    
+    # ✅ Récupérer la convention avec ses partenaires
+    convention = db.query(Convention).options(
+        joinedload(Convention.partenaires)
+    ).filter(Convention.id == convention_id).first()
+    
+    if not convention:
+        raise HTTPException(status_code=404, detail="Convention non trouvée")
+    
+    print(f"✅ Convention trouvée : {convention.intitule}")
+    
+    # ✅ Récupérer les comités
+    comites = db.query(Comite).filter(
+        Comite.convention_id == convention_id
+    ).all()
+    
+    comites_data = [
+        {
+            'type': c.type,
+            'frequence': c.frequence,
+            'membres_um5': c.membres_um5 or [],
+            'membres_partenaires': c.membres_partenaires or [],
+            'taches': c.taches or []
+        }
+        for c in comites
+    ]
+    
+    print(f"✅ {len(comites_data)} comité(s)")
+    
+    # ✅ Récupérer les partenaires
+    partenaires_data = [
+        {
+            'nom': p.nom,
+            'type': p.type,
+            'ville': p.ville,
+            'region': p.region,
+            'pays': p.pays,
+            'signataire': ''
+        }
+        for p in (convention.partenaires or [])
+    ]
+    
+    print(f"✅ {len(partenaires_data)} partenaire(s)")
+    
+    # ✅ Récupérer les articles
+    articles = convention.articles or {}
+    
+    # ✅ Générer le Word
+    try:
+        from app.services.word_export_service import WordExportService
+        
+        service = WordExportService()
+        
+        output = service.generer_convention(
+            convention=convention,
+            partenaires=partenaires_data,
+            comites=comites_data,
+            articles=articles,
+            langue=langue
+        )
+        
+        filename = service.get_filename(convention, langue)
+        
+        print(f"✅ Fichier généré : {filename}")
+        print(f"{'=' * 60}\n")
+        
+        # ✅ Enregistrer dans l'historique
+        try:
+            historique_service = HistoriqueService(db)
+            historique_service.log_action(
+                user_id=current_user.id,
+                action="download",
+                description=f"Export Word ({langue.upper()}) : {convention.intitule}",
+                details={
+                    "convention_id": str(convention.id),
+                    "langue": langue,
+                    "filename": filename
+                },
+                convention_id=convention.id,
+                request=None
+            )
+        except Exception as e:
+            print(f"⚠️ Erreur historique : {e}")
+        
+        # ✅ Retourner le fichier
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    
+    except FileNotFoundError as e:
+        print(f"❌ Template manquant : {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Template Word non trouvé. Vérifiez backend/templates/convention_{langue.upper()}.docx"
+        )
+    
+    except Exception as e:
+        print(f"❌ Erreur génération Word : {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la génération du Word : {str(e)}"
+        )

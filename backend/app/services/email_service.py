@@ -212,3 +212,127 @@ class EmailService:
             corps = f"<p>{corps}</p>"
         
         return self.send_email(emails, sujet, corps)
+
+   # ═══════════════════════════════════════════════════════════
+    # NOTIFICATION : Le SG a modifié le budget d'une convention
+    # ═══════════════════════════════════════════════════════════
+    def send_sg_update_notification(self, convention, sg_user) -> bool:
+        """Envoie UN SEUL email aux chargés quand le SG modifie le budget."""
+        from app.models.user import User
+        from app.database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            charges = db.query(User).filter(
+                User.role == "CHARGE",
+                User.actif == True,
+                User.premiere_connexion == False
+            ).all()
+            emails = [c.email for c in charges if c.email]
+        finally:
+            db.close()
+        
+        if not emails:
+            logger.warning("Aucun chargé à notifier")
+            return False
+        
+        sg_nom = f"{sg_user.prenom or ''} {sg_user.nom or ''}".strip() or "Le Secrétaire Général"
+        subject = f"[NOTIFICATION] Mises à jour budget par le SG - {convention.intitule[:60]}"
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+            
+            <div style="background-color: #003087; color: white; padding: 25px 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 22px;">💰 Mises à jour du budget</h1>
+            </div>
+            
+            <div style="padding: 30px 25px; background-color: #f9fafb;">
+                
+                <p style="font-size: 16px;">Bonjour,</p>
+                
+                <p style="font-size: 15px; line-height: 1.6;">
+                    Nous vous informons que le <strong>Secrétaire Général</strong> 
+                    a effectué des <strong>mises à jour budgétaires</strong> dans la convention suivante :
+                </p>
+                
+                <div style="background-color: white; padding: 20px; border-left: 5px solid #003087; 
+                            margin: 25px 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 40%;">
+                                <strong>Convention :</strong>
+                            </td>
+                            <td style="padding: 8px 0; color: #111827; font-size: 14px;">
+                                {convention.intitule}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                                <strong>Référence :</strong>
+                            </td>
+                            <td style="padding: 8px 0; color: #111827; font-size: 14px;">
+                                {convention.numero_reference or '—'}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                                <strong>Modifiée par :</strong>
+                            </td>
+                            <td style="padding: 8px 0; color: #111827; font-size: 14px;">
+                                {sg_nom}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                                <strong>Date :</strong>
+                            </td>
+                            <td style="padding: 8px 0; color: #111827; font-size: 14px;">
+                                {self._format_date_now()}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <p style="font-size: 15px; line-height: 1.6;">
+                    Ces modifications peuvent concerner :
+                </p>
+                
+                <ul style="font-size: 14px; color: #374151; line-height: 1.8;">
+                    <li>💰 Le montant ou les modalités de paiement</li>
+                    <li>📄 Les justificatifs financiers</li>
+                    <li>📊 Le suivi de la réception des fonds</li>
+                </ul>
+                
+                <p style="text-align: center; margin: 35px 0;">
+                    <a href="http://conventions.intranet.um5/conventions/{convention.id}" 
+                    style="background-color: #0c3e9c; color: white; padding: 14px 28px; 
+                            text-decoration: none; border-radius: 6px; display: inline-block;
+                            font-weight: bold; font-size: 15px;">
+                        📄 Consulter la convention
+                    </a>
+                </p>
+                
+            </div>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; text-align: center; 
+                        font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb;">
+                <p style="margin: 0;">
+                    <strong style="color: #003087;">Direction des Partenariats — UM5 Rabat</strong>
+                </p>
+            </div>
+            
+        </body>
+        </html>
+        """
+        
+        return self.send_email(emails, subject, body)
+
+
+    def _format_date_now(self):
+        """Date et heure actuelles en français."""
+        from datetime import datetime
+        mois_fr = ["janvier", "février", "mars", "avril", "mai", "juin",
+                "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+        now = datetime.now()
+        return f"{now.day} {mois_fr[now.month - 1]} {now.year} à {now.strftime('%H:%M')}"

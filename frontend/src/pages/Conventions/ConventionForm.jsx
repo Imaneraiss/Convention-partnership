@@ -7,17 +7,18 @@ import { createConvention, updateConvention, getConvention, deleteConvention } f
 import { uploadFichier, extractConvention, getFichiersByConvention as getFichiersConvention, getFichiersByBudget } from '../../services/fichierService';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
+import Modal from '../../components/common/Modal';
 import GeneralTab from './tabs/GeneralTab';
 import CommitteesTab from './tabs/CommitteesTab';
 import BudgetTab from './tabs/BudgetTab';
 import AlertsTab from './tabs/AlertsTab';
 import { createPartenaire, updatePartenaire } from '../../services/partenaireService';
-import { exportConventionToWord } from '../../services/wordExportService';
 import { FileDown, ArrowLeft } from 'lucide-react';
 import { createComite, updateComite, deleteComite } from '../../services/comiteService';
 import { createBudget, updateBudget, getBudget } from '../../services/budgetService';
 import { getComitesByConvention } from '../../services/comiteService';
 import { createAlerte, updateAlerte, getAlertesByConvention } from '../../services/alerteService';
+import api from '../../services/api'; 
 
 export default function ConventionForm() {
   const { id } = useParams();
@@ -44,6 +45,7 @@ export default function ConventionForm() {
   const [isFromUpload, setIsFromUpload] = useState(false);
   const [uploadedFileInfo, setUploadedFileInfo] = useState(null);
   const [file, setFile] = useState(null);
+  const [isWordModalOpen, setIsWordModalOpen] = useState(false);
 
   const handleCommitteesChange = useCallback((newCommittees) => {
     setCommittees(newCommittees);
@@ -359,11 +361,46 @@ export default function ConventionForm() {
     } catch (err) { console.error(err); setError(t('common.error')); }
   };
 
-  const handleExportWord = async () => {
-    try {
-      const result = await exportConventionToWord(formData, partenaires, committees, budgetData, alertsData, uploadedFileInfo, `Convention_${formData.intitule || 'sans_titre'}_${new Date().toISOString().split('T')[0]}.docx`);
-      if (!result.success) setError(result.error);
-    } catch (err) { console.error(err); setError(t('common.error')); }
+  const handleExportWord = async (langue) => {
+      setIsWordModalOpen(false);
+      
+      try {
+          console.log(`📄 Export Word en ${langue.toUpperCase()}...`);
+          
+          const response = await api.get(
+              `/conventions/${id}/export-word`,
+              {
+                  params: { langue },
+                  responseType: 'blob'    // ⬅️ Important pour télécharger le fichier
+              }
+          );
+          
+          // Créer un blob URL pour télécharger
+          const blob = new Blob([response.data], {
+              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          });
+          const url = window.URL.createObjectURL(blob);
+          
+          // Nom du fichier
+          const intitule = (formData.intitule || 'convention').substring(0, 50).replace(/\s+/g, '_');
+          const filename = `Convention_${intitule}_${langue.toUpperCase()}.docx`;
+          
+          // Télécharger
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          
+          // Nettoyer
+          window.URL.revokeObjectURL(url);
+          
+          console.log(`✅ Fichier téléchargé : ${filename}`);
+      } catch (err) {
+          console.error('❌ Erreur export Word:', err);
+          setError(t('common.error'));
+      }
   };
 
   const handleSubmit = async (e) => {
@@ -524,6 +561,18 @@ export default function ConventionForm() {
         fileRef.current = null;
         setFile(null);
       }
+      // ═══════════════════════════════════════════════════════════
+      // ✅ NOTIFICATION AUX CHARGÉS si c'est le SG qui a modifié
+      // ═══════════════════════════════════════════════════════════
+      if (role === ROLES.SG && id) {
+        try {
+          await api.post(`/notifications/sg-update/${conventionId}`);
+          console.log('✅ Notification SG envoyée aux chargés');
+        } catch (notifError) {
+          console.error('⚠️ Erreur notification SG (non bloquant):', notifError);
+          // ⚠️ Ne pas bloquer — l'enregistrement a réussi
+        }
+      }
 
       setIsEditing(false);
       navigate(`/conventions/${conventionId}`, { replace: true });
@@ -555,7 +604,7 @@ export default function ConventionForm() {
         <div className="flex flex-wrap gap-2">
           {id && !isEditing && !isEditingBudget && (
             <>
-              <Button onClick={handleExportWord} variant="success" className="flex items-center gap-2 text-xs sm:text-sm">
+              <Button onClick={() => setIsWordModalOpen(true)} variant="success" className="flex items-center gap-2 text-xs sm:text-sm">
                 <FileDown className="w-4 h-4" />
                 <span className="hidden sm:inline">{t('dashboard.exportWord')}</span>
               </Button>
@@ -598,6 +647,67 @@ export default function ConventionForm() {
           </form>
         </div>
       </Card>
+       {/* ═══ MODAL EXPORT WORD ═══ */}
+      <Modal isOpen={isWordModalOpen} onClose={() => setIsWordModalOpen(false)}>
+        <div className="p-4 sm:p-6 space-y-4">
+          
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <FileDown size={20} className="text-green-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Exporter en Word
+              </h3>
+              <p className="text-sm text-gray-500">
+                Choisissez la langue du document
+              </p>
+            </div>
+          </div>
+
+          {/* Choix de langue */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            
+            {/* 🇫🇷 Français */}
+            <button
+              type="button"
+              onClick={() => handleExportWord('fr')}
+              className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center group"
+            >
+              <div className="text-4xl mb-2">🇫🇷</div>
+              <div className="font-semibold text-gray-900 group-hover:text-blue-600">
+                Français
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Version FR
+              </div>
+            </button>
+
+            {/* 🇲🇦 Arabe */}
+            <button
+              type="button"
+              onClick={() => handleExportWord('ar')}
+              className="p-4 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-center group"
+            >
+              <div className="text-4xl mb-2">🇲🇦</div>
+              <div className="font-semibold text-gray-900 group-hover:text-green-600">
+                العربية
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Version AR
+              </div>
+            </button>
+          </div>
+
+          {/* Annuler */}
+          <div className="flex justify-end pt-2">
+            <Button variant="secondary" onClick={() => setIsWordModalOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

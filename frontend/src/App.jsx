@@ -89,7 +89,7 @@ function AppRoutes() {
             } />
             {/* Conventions — Chargé + Président */}
             <Route path="conventions" element={
-                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT, , ROLES.SG]}>
+                <PrivateRoute allowedRoles={[ROLES.CHARGE, ROLES.PRESIDENT, ROLES.SG]}>
                     <ConventionsList />
                 </PrivateRoute>
             } />

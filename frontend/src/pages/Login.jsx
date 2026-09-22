@@ -29,7 +29,7 @@ export default function Login() {
             if (data.premiere_connexion) {
                 navigate("/change-password");
             } else if (data.role === "SG") {
-                navigate("/budget");
+                navigate("/conventions");
             } else {
                 navigate("/dashboard");
             }

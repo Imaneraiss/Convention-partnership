@@ -8,6 +8,7 @@ from app.routers import alertes, budget, comites, fichiers, users, auth
 from app.routers import historique
 from app.routers import statistiques
 from app.routers import partenaires
+from app.routers import notifications
 from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 # ═══════════════════════════════════════════════════════════
@@ -70,6 +71,7 @@ app.include_router(fichiers.router)
 app.include_router(historique.router)
 app.include_router(statistiques.router)
 app.include_router(partenaires.router)
+app.include_router(notifications.router)
 
 
 # ═══════════════════════════════════════════════════════════
