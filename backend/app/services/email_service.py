@@ -299,19 +299,11 @@ class EmailService:
                 </p>
                 
                 <ul style="font-size: 14px; color: #374151; line-height: 1.8;">
-                    <li>💰 Le montant ou les modalités de paiement</li>
-                    <li>📄 Les justificatifs financiers</li>
-                    <li>📊 Le suivi de la réception des fonds</li>
+                    <li> Le montant ou les modalités de paiement</li>
+                    <li> Les justificatifs financiers</li>
+                    <li> Le suivi de la réception des fonds</li>
                 </ul>
                 
-                <p style="text-align: center; margin: 35px 0;">
-                    <a href="http://conventions.intranet.um5/conventions/{convention.id}" 
-                    style="background-color: #0c3e9c; color: white; padding: 14px 28px; 
-                            text-decoration: none; border-radius: 6px; display: inline-block;
-                            font-weight: bold; font-size: 15px;">
-                        📄 Consulter la convention
-                    </a>
-                </p>
                 
             </div>
             

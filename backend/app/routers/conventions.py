@@ -34,7 +34,8 @@ def get_conventions(
     current_user: User = Depends(get_current_user)
 ):
     conventions = db.query(Convention).options(
-        joinedload(Convention.partenaires)
+        joinedload(Convention.partenaires),
+        joinedload(Convention.comites),   
     ).all()
 
     for convention in conventions:
@@ -56,7 +57,8 @@ def get_convention(
     current_user: User = Depends(get_current_user)
 ):
     convention = db.query(Convention).options(
-        joinedload(Convention.partenaires)
+        joinedload(Convention.partenaires),
+        joinedload(Convention.comites), 
     ).filter(Convention.id == convention_id).first()
 
     if not convention:
@@ -374,7 +376,8 @@ def export_convention_word(
     
     # ✅ Récupérer la convention avec ses partenaires
     convention = db.query(Convention).options(
-        joinedload(Convention.partenaires)
+        joinedload(Convention.partenaires),
+        joinedload(Convention.comites),   
     ).filter(Convention.id == convention_id).first()
     
     if not convention:

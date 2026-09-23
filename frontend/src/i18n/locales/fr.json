@@ -251,7 +251,8 @@
     "notDefined": "Non définie",
     "typeFinConvention": "Fin de convention",
     "typeReunion": "Réunion",
-    "typeManuelle": "Manuelle"
+    "typeManuelle": "Manuelle",
+    "expiration": "Expiration"
   },
     "budget": {
         "title": "Budget",
@@ -514,4 +515,5 @@
     "noDocument": "Vous ne disposez pas du document ?",
     "manualEntry": "Remplir la convention manuellement"
 }
+
 }

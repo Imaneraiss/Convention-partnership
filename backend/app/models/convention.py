@@ -17,7 +17,7 @@ class Convention(Base):
     numero_reference = Column(String, unique=True, nullable=False)
     intitule = Column(String, nullable=False)
     type = Column(String, nullable=False)
-    date_signature = Column(Date, nullable=False)
+    date_signature = Column(Date, nullable=True)
     date_expiration = Column(Date, nullable=True)
     statut = Column(String, default="EN_COURS")
     mode_renouvellement = Column(String, nullable=True)

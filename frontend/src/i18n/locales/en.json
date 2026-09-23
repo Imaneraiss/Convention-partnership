@@ -251,7 +251,8 @@
     "notDefined": "Not defined",
     "typeFinConvention": "End of convention",
     "typeReunion": "Meeting",
-    "typeManuelle": "Manual"
+    "typeManuelle": "Manual",
+    "expiration": "Expiration"
   },
     "budget": {
         "title": "Budget",

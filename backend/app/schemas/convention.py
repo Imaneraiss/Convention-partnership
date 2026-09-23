@@ -3,12 +3,12 @@ from typing import Optional, List, Dict
 from uuid import UUID
 from datetime import date
 from app.schemas.partenaire import PartenaireResponse
-
+from app.schemas.comite import ComiteResponse      
 
 class ConventionBase(BaseModel):
     intitule: str
     type: str
-    date_signature: date
+    date_signature: Optional[date] = None 
     date_expiration: Optional[date] = None
     duree_annees: Optional[int] = None  # 🆕 NOUVEAU
     mode_renouvellement: Optional[str] = None
@@ -56,6 +56,7 @@ class ConventionResponse(ConventionBase):
     user_id: UUID
     duree_annees: Optional[int] = None  
     partenaires: List[PartenaireResponse] = []  
+    comites: List[ComiteResponse] = []         
     expiree_manuellement: bool = False
     signe: bool = False  
     

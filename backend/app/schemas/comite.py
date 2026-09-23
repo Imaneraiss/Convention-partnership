@@ -26,8 +26,8 @@ class Reunion(BaseModel):
 class MembreUM5(BaseModel):
     id: Optional[str] = Field(default_factory=lambda: str(uuid4()))
     nom: str
-    email: EmailStr
-    etablissement: str
+    email: Optional[str] = ''              # ← EmailStr → str, optionnel
+    etablissement: Optional[str] = ''  
     
     class Config:
         from_attributes = True
@@ -36,8 +36,8 @@ class MembreUM5(BaseModel):
 class MembrePartenaire(BaseModel):
     id: Optional[str] = Field(default_factory=lambda: str(uuid4()))
     nom: str
-    email: EmailStr
-    organisme: str
+    email: Optional[str] = ''              # ← EmailStr → str, optionnel
+    organisme: Optional[str] = ''    
     
     class Config:
         from_attributes = True

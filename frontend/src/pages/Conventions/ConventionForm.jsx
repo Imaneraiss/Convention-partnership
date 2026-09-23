@@ -679,8 +679,7 @@ export default function ConventionForm() {
             {activeTab === 'general' && <GeneralTab formData={formData} partenaires={partenaires} motCle={motCle} setMotCle={setMotCle} onFormChange={handleFormChange} onPartenaireChange={handlePartenaireChange} onAddPartenaire={addPartenaire} onRemovePartenaire={removePartenaire} onAddMotCle={addMotCle} onRemoveMotCle={removeMotCle} readOnly={!isEditing} onExtractDocument={handleExtractDocument} onExtractedData={handleExtractedData} conventionId={id} isFromUpload={isFromUpload} uploadedFile={file} uploadedFileInfo={uploadedFileInfo} onFileChange={(newFile) => setFile(newFile)} />}
             {activeTab === 'committees' && <CommitteesTab readOnly={!isEditing} initialCommittees={committees} onChange={handleCommitteesChange} conventionId={id} dateSignature={formData.date_signature} />}
             {activeTab === 'budget' && <BudgetTab readOnly={!budgetEditable} initialBudget={budgetData} onChange={(newBudget) => setBudgetData(newBudget)} conventionId={id} budgetId={budgetData?.id} />}
-            {activeTab === 'alerts' && <AlertsTab readOnly={!isEditing} conventionData={{ date_expiration: formData.date_expiration, comites: committees, budget: budgetData }} initialManualAlerts={alertsData.manual} onChange={setAlertsData} />}
-          </form>
+            {activeTab === 'alerts' && <AlertsTab readOnly={!isEditing} conventionData={{ id: id, date_expiration: formData.date_expiration, comites: committees, budget: budgetData }} initialManualAlerts={alertsData.manual} onChange={setAlertsData} />}          </form>
         </div>
       </Card>
        {/* ═══ MODAL EXPORT WORD ═══ */}

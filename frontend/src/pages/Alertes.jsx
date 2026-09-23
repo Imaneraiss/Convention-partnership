@@ -42,8 +42,14 @@ export default function Alertes() {
   const filteredAlerts = alerts.filter(alert => {
     if (statutFilter === 'active' && alert.traitee) return false;
     if (statutFilter === 'traitee' && !alert.traitee) return false;
-    if (filter === 'fin_convention' && alert.type_alerte !== 'FIN_CONVENTION') return false;
+
+    // ✅ Expiration : regroupe FIN_CONVENTION ET RAPPEL_EXPIRATION
+    if (filter === 'expiration' &&
+        alert.type_alerte !== 'FIN_CONVENTION' &&
+        alert.type_alerte !== 'RAPPEL_EXPIRATION') return false;
+
     if (filter === 'reunion' && alert.type_alerte !== 'REUNION_COMITE') return false;
+
     if (search) {
       const s = search.toLowerCase();
       if (!alert.objet?.toLowerCase().includes(s)) return false;
@@ -55,7 +61,9 @@ export default function Alertes() {
     total: alerts.length,
     actives: alerts.filter(a => !a.traitee).length,
     traitees: alerts.filter(a => a.traitee).length,
-    fin_convention: alerts.filter(a => a.type_alerte === 'FIN_CONVENTION').length,
+    expirations: alerts.filter(a =>
+      a.type_alerte === 'FIN_CONVENTION' || a.type_alerte === 'RAPPEL_EXPIRATION'
+    ).length,
     reunion: alerts.filter(a => a.type_alerte === 'REUNION_COMITE').length,
   };
 
@@ -115,10 +123,11 @@ export default function Alertes() {
     setEditingAlert(null);
   };
 
-  // ✅ Types traduits
+  // ✅ Types traduits — EXPIRATION partout
   const getTypeLabel = (type) => {
     const labels = {
-      'FIN_CONVENTION': `📅 ${t('alerts.typeFinConvention')}`,
+      'FIN_CONVENTION': `📅 ${t('alerts.expiration')}`,
+      'RAPPEL_EXPIRATION': `📅 ${t('alerts.expiration')}`,
       'REUNION_COMITE': `📋 ${t('alerts.typeReunion')}`,
       'MANUELLE': `✏️ ${t('alerts.typeManuelle')}`
     };
@@ -128,6 +137,7 @@ export default function Alertes() {
   const getTypeColor = (type) => {
     const colors = {
       'FIN_CONVENTION': 'bg-red-100 text-red-800',
+      'RAPPEL_EXPIRATION': 'bg-red-100 text-red-800',
       'REUNION_COMITE': 'bg-blue-100 text-blue-800',
       'MANUELLE': 'bg-purple-100 text-purple-700'
     };
@@ -176,8 +186,8 @@ export default function Alertes() {
           </Card>
 
           <Card className="px-4 py-8 text-center bg-red-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-red-200 cursor-pointer">
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.fin_convention}</p>
-              <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.finConvention')}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.expirations}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.expiration')}</p>
           </Card>
 
           <Card className="px-4 py-8 text-center bg-blue-100 col-span-2 md:col-span-1 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-blue-200 cursor-pointer">
@@ -185,6 +195,7 @@ export default function Alertes() {
               <p className="text-xs sm:text-sm text-gray-500 mt-2">{t('alerts.reunions')}</p>
           </Card>
       </div>
+
       {/* FILTRES */}
       <Card className="p-3 sm:p-4">
         <div className="flex flex-col md:flex-row gap-3 sm:gap-4">
@@ -203,7 +214,7 @@ export default function Alertes() {
             <Select value={filter} onChange={(e) => setFilter(e.target.value)}
               options={[
                 { value: 'all', label: t('alerts.allTypes') },
-                { value: 'fin_convention', label: t('alerts.finConvention') },
+                { value: 'expiration', label: t('alerts.expiration') },
                 { value: 'reunion', label: t('alerts.reunions') }
               ]}
               className="w-36 sm:w-44" />
@@ -266,14 +277,24 @@ export default function Alertes() {
 
                 {/* ACTIONS */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Button size="sm" variant={alert.traitee ? "secondary" : "success"}
-                    onClick={() => handleToggleAlerte(alert.id)} className="text-xs whitespace-nowrap">
-                    {alert.traitee ? ` ${t('alerts.restart')}` : ` ${t('alerts.markTreated')}`}
-                  </Button>
+                  {/* ✅ Bouton Traiter : uniquement pour les alertes MANUELLES */}
+                  {alert.type_alerte === 'MANUELLE' && (
+                    <Button size="sm" variant={alert.traitee ? "secondary" : "success"}
+                      onClick={() => handleToggleAlerte(alert.id)} className="text-xs whitespace-nowrap">
+                      {alert.traitee ? ` ${t('alerts.restart')}` : ` ${t('alerts.markTreated')}`}
+                    </Button>
+                  )}
+                  {/* ✅ Bouton Éditer : uniquement pour les manuelles */}
                   {alert.type_alerte === 'MANUELLE' && (
                     <Button size="sm" variant="secondary" onClick={() => openEditModal(alert)} className="text-xs">
                       {t('common.edit')}
                     </Button>
+                  )}
+                  {/* ✅ Indicateur pour les auto */}
+                  {alert.type_alerte !== 'MANUELLE' && (
+                    <span className="text-xs text-gray-400 whitespace-nowrap flex items-center gap-1">
+                      <Clock size={12} /> {t('alerts.auto')}
+                    </span>
                   )}
                 </div>
               </div>

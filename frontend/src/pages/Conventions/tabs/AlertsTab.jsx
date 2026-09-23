@@ -6,6 +6,7 @@ import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import Textarea from '../../../components/common/Textarea';
 import Modal from '../../../components/common/Modal';
+import { getAlertesByConvention } from '../../../services/alerteService';
 
 export default function AlertsTab({ 
   readOnly, 
@@ -14,120 +15,49 @@ export default function AlertsTab({
   initialManualAlerts = []
 }) {
   const { t } = useTranslation();
-  const [autoAlerts, setAutoAlerts] = useState([]);
+  const [dbAlerts, setDbAlerts] = useState([]);          // ← Alertes depuis la BDD
   const [manualAlerts, setManualAlerts] = useState(initialManualAlerts || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [newAlert, setNewAlert] = useState({
     titre: '', description: '', date: '', niveau: 'info'
   });
 
-  // ✅ Init alertes manuelles
+  // ✅ Charger les alertes depuis la BDD (auto + manuelles existantes)
+  useEffect(() => {
+    if (conventionData.id) {
+      fetchAlertsFromDB();
+    } else {
+      setLoading(false);
+    }
+  }, [conventionData.id]);
+
+  const fetchAlertsFromDB = async () => {
+    setLoading(true);
+    try {
+      const response = await getAlertesByConvention(conventionData.id);
+      setDbAlerts(response.data || []);
+    } catch (error) {
+      console.error('Erreur chargement alertes:', error);
+      setDbAlerts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Init alertes manuelles locales (non sauvegardées)
   useEffect(() => {
     if (initialManualAlerts && initialManualAlerts.length > 0) {
       setManualAlerts(initialManualAlerts);
     }
   }, [initialManualAlerts]);
 
-  // 🔄 Génération alertes auto
-  useEffect(() => { generateAutomaticAlerts(); }, [conventionData]);
-
   // ✅ Sync parent
   useEffect(() => {
-    if (onChange) onChange({ auto: autoAlerts, manual: manualAlerts });
-  }, [manualAlerts, autoAlerts]);
+    if (onChange) onChange({ alerts: dbAlerts, manual: manualAlerts });
+  }, [manualAlerts, dbAlerts]);
 
-  const generateAutomaticAlerts = () => {
-    const newAlerts = [];
-    const today = new Date();
-
-    // 1️⃣ FIN DE CONVENTION
-    if (conventionData.date_expiration) {
-      const expirationDate = new Date(conventionData.date_expiration);
-      const joursRestants = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
-      
-      if (joursRestants <= 7 && joursRestants > 0) {
-        newAlerts.push({
-          id: 'auto-fin-convention', type: 'auto', niveau: 'critique',
-          titre: `🔴 ${t('alerts.autoEndImminent')}`,
-          description: `${t('alerts.expiresIn')} ${joursRestants} ${t('alerts.days')} — ${conventionData.date_expiration}`,
-          date: conventionData.date_expiration, active: true, auto: true
-        });
-      } else if (joursRestants <= 30 && joursRestants > 0) {
-        newAlerts.push({
-          id: 'auto-fin-convention-warning', type: 'auto', niveau: 'warning',
-          titre: `🟡 ${t('alerts.autoEndApproaching')}`,
-          description: `${t('alerts.expiresIn')} ${joursRestants} ${t('alerts.days')} — ${conventionData.date_expiration}`,
-          date: conventionData.date_expiration, active: true, auto: true
-        });
-      }
-    }
-
-    // 2️⃣ RÉUNION COMITÉ
-    if (conventionData.comites?.length > 0) {
-      conventionData.comites.forEach(comite => {
-        if (comite.prochaineReunion) {
-          const reunionDate = new Date(comite.prochaineReunion);
-          const joursAvant = Math.ceil((reunionDate - today) / (1000 * 60 * 60 * 24));
-          
-          if (joursAvant <= 7 && joursAvant > 0) {
-            newAlerts.push({
-              id: `auto-reunion-${comite.nom}`, type: 'auto', niveau: 'warning',
-              titre: `🟡 ${t('alerts.autoMeeting')} ${comite.nom}`,
-              description: `${t('alerts.nextMeetingIn')} ${joursAvant} ${t('alerts.days')} (${comite.frequence || t('committees.freqNotDefined')})`,
-              date: comite.prochaineReunion, active: true, auto: true
-            });
-          }
-        }
-      });
-    }
-
-    // 3️⃣ BUDGET
-    if (conventionData.budget) {
-      const { montantTotal = 0, montantRecu = 0 } = conventionData.budget;
-      if (montantTotal > 0) {
-        const resteAPayer = montantTotal - montantRecu;
-        const pourcentageReste = (resteAPayer / montantTotal) * 100;
-
-        if (pourcentageReste > 50) {
-          newAlerts.push({
-            id: 'auto-budget-critique', type: 'auto', niveau: 'critique',
-            titre: `🔴 ${t('alerts.autoBudgetCritical')}`,
-            description: `${pourcentageReste.toFixed(0)}${t('alerts.ofBudgetRemaining')} (${resteAPayer.toLocaleString()} DH)`,
-            date: new Date().toISOString().split('T')[0], active: true, auto: true
-          });
-        } else if (pourcentageReste > 20) {
-          newAlerts.push({
-            id: 'auto-budget-warning', type: 'auto', niveau: 'warning',
-            titre: `🟡 ${t('alerts.autoBudgetPartial')}`,
-            description: `${pourcentageReste.toFixed(0)}${t('alerts.ofBudgetRemaining')}`,
-            date: new Date().toISOString().split('T')[0], active: true, auto: true
-          });
-        }
-      }
-    }
-
-    // 4️⃣ RELANCE DOCUMENT
-    if (conventionData.budget?.justificatifs?.length > 0) {
-      const dernier = conventionData.budget.justificatifs[conventionData.budget.justificatifs.length - 1];
-      if (dernier?.uploadDate) {
-        const dateUpload = new Date(dernier.uploadDate);
-        const joursDepuis = Math.ceil((today - dateUpload) / (1000 * 60 * 60 * 24));
-        
-        if (joursDepuis > 30) {
-          newAlerts.push({
-            id: 'auto-relance-doc', type: 'auto', niveau: 'info',
-            titre: `🟢 ${t('alerts.autoDocReminder')}`,
-            description: `${t('alerts.lastDocFrom')} ${joursDepuis} ${t('alerts.days')}`,
-            date: new Date().toISOString().split('T')[0], active: true, auto: true
-          });
-        }
-      }
-    }
-
-    setAutoAlerts(newAlerts);
-  };
-
-  // ➕ Ajout alerte manuelle
+  // ➕ Ajout alerte manuelle (locale, en attente de sauvegarde)
   const addManualAlert = () => {
     if (newAlert.titre && newAlert.date) {
       const newManualAlerts = [...manualAlerts, {
@@ -137,37 +67,77 @@ export default function AlertsTab({
         _new: true, _deleted: false, destinataires: []
       }];
       setManualAlerts(newManualAlerts);
-      if (onChange) onChange({ auto: autoAlerts, manual: newManualAlerts });
+      if (onChange) onChange({ alerts: dbAlerts, manual: newManualAlerts });
       setNewAlert({ titre: '', description: '', date: '', niveau: 'info' });
       setIsModalOpen(false);
     }
   };
 
-  // ❌ Supprimer
+  // ❌ Supprimer (locale)
   const deleteAlert = (id) => {
     const newManualAlerts = manualAlerts.map(a =>
       a.id === id ? { ...a, _deleted: true, active: false } : a
     );
     setManualAlerts(newManualAlerts);
-    if (onChange) onChange({ auto: autoAlerts, manual: newManualAlerts });
+    if (onChange) onChange({ alerts: dbAlerts, manual: newManualAlerts });
   };
 
-  // 🔄 Toggle
+  // 🔄 Toggle (locale)
   const toggleAlert = (id) => {
     const newManualAlerts = manualAlerts.map(a =>
       a.id === id ? { ...a, active: !a.active } : a
     );
     setManualAlerts(newManualAlerts);
-    if (onChange) onChange({ auto: autoAlerts, manual: newManualAlerts });
+    if (onChange) onChange({ alerts: dbAlerts, manual: newManualAlerts });
   };
 
-  const allAlerts = [...autoAlerts, ...manualAlerts];
+  // ✅ Formater une alerte BDD pour l'affichage
+  const formatDbAlert = (alert) => {
+    const isAuto = alert.type_alerte !== 'MANUELLE';
+    let niveau = 'info';
+
+    if (alert.type_alerte === 'RAPPEL_EXPIRATION' || alert.type_alerte === 'FIN_CONVENTION') {
+      const obj = (alert.objet || '').toUpperCase();
+      if (obj.startsWith('T-1')) niveau = 'critique';
+      else if (obj.startsWith('T-2')) niveau = 'warning';
+      else niveau = 'info';
+    } else if (alert.type_alerte === 'REUNION_COMITE') {
+      niveau = 'warning';
+    }
+
+    return {
+      id: alert.id,
+      type: isAuto ? 'auto' : 'manuel',
+      niveau,
+      titre: alert.objet || '',
+      description: alert.description || '',
+      date: alert.date_declenchement,
+      active: !alert.traitee,
+      auto: isAuto,
+      traitee: alert.traitee,
+    };
+  };
+
+  // ✅ Fusion : alertes BDD (auto) + alertes locales en cours d'édition
+  const autoAlertsFromDB = dbAlerts
+    .filter(a => a.type_alerte !== 'MANUELLE')
+    .map(formatDbAlert);
+
+  const allAlerts = [...autoAlertsFromDB, ...manualAlerts];
 
   const getNiveauBorder = (niveau) => {
     return niveau === 'critique' ? 'border-l-red-500' :
            niveau === 'warning' ? 'border-l-yellow-500' :
            'border-l-blue-500';
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <div className="text-gray-500 text-sm">{t('alerts.loadingAlerts')}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -197,7 +167,9 @@ export default function AlertsTab({
       ) : (
         <div className="space-y-3">
           {allAlerts.map((alert) => (
-            <Card key={alert.id} className={`p-3 sm:p-4 border-l-4 ${getNiveauBorder(alert.niveau)} ${alert.active ? 'opacity-100' : 'opacity-50'}`}>
+            <Card key={alert.id} className={`p-3 sm:p-4 border-l-4 ${getNiveauBorder(alert.niveau)} ${
+              alert.traitee ? 'opacity-50 bg-gray-50' : 'opacity-100'
+            }`}>
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -207,7 +179,10 @@ export default function AlertsTab({
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">✏️ {t('alerts.manual')}</span>
                     )}
-                    {!alert.active && (
+                    {alert.traitee && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">{t('alerts.treated')}</span>
+                    )}
+                    {!alert.active && !alert.traitee && (
                       <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{t('alerts.disabled')}</span>
                     )}
                   </div>

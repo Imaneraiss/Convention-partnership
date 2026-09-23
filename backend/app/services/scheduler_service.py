@@ -81,7 +81,7 @@ def check_expiration_job():
                 objet=f"{rappel_type} avant expiration - {convention.intitule}",
                 date_declenchement=datetime.now(),
                 envoyee=success,
-                traitee=False                     # ⬅️ À traiter par le chargé
+                traitee=success                     # ⬅️ À traiter par le chargé
             )
             db.add(alerte)
             alerts_created += 1
@@ -157,7 +157,7 @@ def check_reunions_job():
                                 objet=f"Réunion du comité {comite.type} - {reunion_date}",
                                 date_declenchement=datetime.now(),
                                 envoyee=success,
-                                traitee=False
+                                traitee=success
                             )
                             db.add(alerte)
                             alerts_created += 1
