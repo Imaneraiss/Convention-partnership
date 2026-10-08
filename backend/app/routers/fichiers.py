@@ -284,24 +284,5 @@ async def extract_convention(
 
     print(f"\n🏁 Résultat retourné: {list(result.keys()) if isinstance(result, dict) else 'non-dict'}")
 
-    # ✅ Enregistrer dans l'historique avec la session injectée
-    try:
-        historique_service = HistoriqueService(db)
-        historique_service.log_action(
-            user_id=current_user.id,
-            action="consultation",
-            description=f"Extraction OCR du fichier: {file.filename}",
-            details={
-                "fichier_nom": file.filename,
-                "type": file.content_type,
-                "resultat": "success" if result and not result.get('error') else "error"
-            },
-            request=request
-        )
-        db.commit()
-        print("✅ Log d'extraction enregistré")
-    except Exception as e:
-        print(f"❌ Erreur log extraction: {e}")
-        db.rollback()
 
     return result

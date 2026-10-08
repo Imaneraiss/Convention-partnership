@@ -16,7 +16,6 @@ class Convention(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     numero_reference = Column(String, unique=True, nullable=False)
     intitule = Column(String, nullable=False)
-    type = Column(String, nullable=False)
     date_signature = Column(Date, nullable=True)
     date_expiration = Column(Date, nullable=True)
     statut = Column(String, default="EN_COURS")

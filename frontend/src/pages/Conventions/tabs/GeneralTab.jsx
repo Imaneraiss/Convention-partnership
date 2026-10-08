@@ -8,7 +8,7 @@ import Button from '../../../components/common/Button';
 import DownloadButton from '../../../components/common/DownloadButton';
 
 import { 
-  TYPES_CONVENTION, 
+  INTITULES_CONVENTION, 
   MODES_RENOUVELLEMENT,
   TYPES_PARTENAIRE,
   ETABLISSEMENTS_UM5,
@@ -269,15 +269,18 @@ export default function GeneralTab({
         <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('general.identification')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div className="md:col-span-2">
-            <Input label={t('conventions.intitule')} name="intitule" value={formData.intitule || ''}
-              onChange={(e) => onFormChange('intitule', e.target.value)} required readOnly={readOnly}
-              placeholder={t('general.intitulePlaceholder')} />
+            <Select 
+              label={`${t('conventions.intitule')}`} 
+              name="intitule" 
+              value={formData.intitule || ''}
+              onChange={(e) => onFormChange('intitule', e.target.value)}
+              options={optionsBilingues(INTITULES_CONVENTION)}
+              required 
+              readOnly={readOnly}
+              placeholder={t('general.selectIntitule') || 'Sélectionner…'} 
+            />
           </div>
-          <Select label={t('conventions.type')} name="type" value={formData.type || ''}
-            onChange={(e) => onFormChange('type', e.target.value)}
-            options={optionsBilingues(TYPES_CONVENTION)}              /* ⬅️ BILINGUE */
-            required readOnly={readOnly} />
-          <div className="space-y-2">
+          <div className="md:col-span-2">
             <Select label={t('general.renewalMode')} name="mode_renouvellement" value={formData.mode_renouvellement || ''}
               onChange={(e) => onFormChange('mode_renouvellement', e.target.value)}
               options={optionsBilingues(MODES_RENOUVELLEMENT)}        /* ⬅️ BILINGUE */

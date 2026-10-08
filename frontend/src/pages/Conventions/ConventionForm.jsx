@@ -67,7 +67,7 @@ export default function ConventionForm() {
 
 
   const [formData, setFormData] = useState({
-    intitule: '', type: '', numero_reference: '', date_signature: '', date_expiration: '',
+    intitule: '', numero_reference: '', date_signature: '', date_expiration: '',
     duree_annees: '', mode_renouvellement: '', signataire_um5: '', signataire_um5_autre: '',
     signataire_partenaire: '', signataire_partenaire_autre: '', avec_budget: false,
     validation_conseil: false, formation_continue: false, mots_cles: [], articles: {},
@@ -118,7 +118,7 @@ export default function ConventionForm() {
           ...prev,
           intitule: extracted.intitule || '',
           // ✅ TRADUCTION AR → FR
-          type: traduireArVersFr(extracted.type) || '',
+    
           mode_renouvellement: traduireArVersFr(extracted.mode_renouvellement) || '',
           signataire_um5: traduireArVersFr(extracted.signataire_um5) || '',
           // Reste inchangé
@@ -266,7 +266,6 @@ export default function ConventionForm() {
       setFormData({
         intitule: data.intitule || '',
         // ✅ TRADUCTION AR → FR
-        type: traduireArVersFr(data.type) || '',
         mode_renouvellement: traduireArVersFr(data.mode_renouvellement) || '',
         signataire_um5: traduireArVersFr(data.signataire_um5) || '',
         // Reste inchangé
@@ -446,7 +445,6 @@ export default function ConventionForm() {
 
     const requiredFields = [
       { field: 'intitule', label: t('conventions.intitule') },
-      { field: 'type', label: t('conventions.type') },
       { field: 'date_signature', label: t('conventions.signatureDate') },
       { field: 'signataire_um5', label: t('conventions.signatoryUM5') }
     ];
@@ -459,7 +457,7 @@ export default function ConventionForm() {
     }
 
     const dataToSend = {
-      intitule: formData.intitule, type: formData.type, date_signature: formData.date_signature,
+      intitule: formData.intitule, date_signature: formData.date_signature,
       date_expiration: formData.date_expiration || null, duree_annees: formData.duree_annees || null,
       mode_renouvellement: formData.mode_renouvellement || null, signataire_um5: formData.signataire_um5,
       signataire_um5_autre: formData.signataire_um5_autre || null,

@@ -24,7 +24,7 @@ const CHART_TYPES = [
 // ✅ Variables disponibles (traduits)
 const X_AXIS_VARIABLES = {
     'statut': 'dashboard.xStatut',
-    'type': 'dashboard.xType',
+    'intitule': 'dashboard.xIntitule', 
     'annee': 'dashboard.xAnnee',
     'partenaire': 'dashboard.xPartenaire',
     'budget': 'dashboard.xBudget',
@@ -61,15 +61,15 @@ const DEFAULT_WIDGETS = {
         yAxis: 'count',
         period: null
     },
-    type: {
-        id: 'type',
+    intitule: {
+        id: 'intitule',
         isDefault: true,
         type: 'bar',
         colors: ['#003087', '#0F6E56', '#993C1D', '#BA7517', '#185FA5'],
-        titleKey: 'dashboard.chartType',
-        showLegend: true,
+        titleKey: 'dashboard.chartIntitule',
+        showLegend: false,
         showTooltip: true,
-        xAxis: 'type',
+        xAxis: 'intitule',
         yAxis: 'count',
         period: null
     },
@@ -232,12 +232,16 @@ export default function Dashboard() {
                     { name: t('status.RENOUVELEE'), value: convs.filter(c => c.statut === STATUTS.RENOUVELEES).length }
                 ].filter(d => d.value > 0)
                 break
-            case 'type':
+            case 'intitule':
                 data = Object.entries(convs.reduce((acc, c) => {
-                    acc[c.type] = (acc[c.type] || 0) + 1
+                    const label = (c.intitule || 'Sans intitulé').trim()
+                    acc[label] = (acc[label] || 0) + 1
                     return acc
-                }, {})).map(([name, value]) => ({ name, value }))
+                }, {}))
+                .map(([name, value]) => ({ name, value }))
+                .sort((a, b) => b.value - a.value)   // ← tri décroissant
                 break
+
             case 'annee':
                 data = Object.entries(convs.reduce((acc, c) => {
                     if (!c.date_signature) return acc
@@ -665,27 +669,27 @@ export default function Dashboard() {
             </Card>
 
             {/* ═══ STATISTIQUES ═══ */}
-<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-    <Card className="px-4 py-6 sm:py-8 text-center bg-gray-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-gray-200 cursor-pointer">
-        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.totalConventions')}</p>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</h2>
-    </Card>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <Card className="px-4 py-6 sm:py-8 text-center bg-gray-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-gray-200 cursor-pointer">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.totalConventions')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</h2>
+                </Card>
 
-    <Card className="px-4 py-6 sm:py-8 text-center bg-green-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-green-200 cursor-pointer">
-        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.inProgress')}</p>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.enCours}</h2>
-    </Card>
+                <Card className="px-4 py-6 sm:py-8 text-center bg-green-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-green-200 cursor-pointer">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.inProgress')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.enCours}</h2>
+                </Card>
 
-    <Card className="px-4 py-6 sm:py-8 text-center bg-red-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-red-200 cursor-pointer">
-        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.expired')}</p>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.expirees}</h2>
-    </Card>
+                <Card className="px-4 py-6 sm:py-8 text-center bg-red-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-red-200 cursor-pointer">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.expired')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.expirees}</h2>
+                </Card>
 
-    <Card className="px-4 py-6 sm:py-8 text-center bg-yellow-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-yellow-200 cursor-pointer">
-        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.toRenew')}</p>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.aRenouveler}</h2>
-    </Card>
-</div>
+                <Card className="px-4 py-6 sm:py-8 text-center bg-yellow-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl hover:bg-yellow-200 cursor-pointer">
+                    <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.toRenew')}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{stats.aRenouveler}</h2>
+                </Card>
+            </div>
 
             {/* ═══ GRAPHIQUES ═══ */}
             {widgets.length === 0 ? (
@@ -741,23 +745,7 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* ═══ ALERTES ═══ */}
-            {alertes.length > 0 && (
-                <Card className="p-3 sm:p-4">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">{t('dashboard.lastAlerts')}</h3>
-                    <div className="space-y-2">
-                        {alertes.slice(0, 4).map((alerte) => (
-                            <div key={alerte.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-gray-100 last:border-0 gap-1">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: TYPES_ALERTE_COLORS?.[alerte.type_alerte] || '#888' }} />
-                                    <span className="text-xs sm:text-sm text-gray-700 truncate">{alerte.objet || alerte.type_alerte}</span>
-                                </div>
-                                <span className="text-xs text-gray-400 flex-shrink-0">{formatDate(alerte.date_declenchement)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-            )}
+         
 
             {/* Modales */}
             {configModal && (

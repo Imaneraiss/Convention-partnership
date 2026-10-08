@@ -50,37 +50,32 @@ class EmailService:
             logger.error(f"❌ Erreur envoi email: {e}")
             return False
     
-    # ─── ALERTE D'EXPIRATION ───
-    def send_expiration_alert(self, convention, comites, rappel_type: str) -> bool:
-        """
-        Envoyer l'alerte d'expiration à tous les membres des comités
-        ✅ Version corrigée - Utilise les champs JSON membres_um5 et membres_partenaires
-        """
-        emails = []
-        for comite in comites:
-            # ✅ Membres internes (UM5) - depuis le JSON
-            if hasattr(comite, 'membres_um5') and comite.membres_um5:
-                for membre in comite.membres_um5:
-                    if membre.get('email'):
-                        emails.append(membre.get('email'))
-            
-            # ✅ Membres externes (partenaires) - depuis le JSON
-            if hasattr(comite, 'membres_partenaires') and comite.membres_partenaires:
-                for membre in comite.membres_partenaires:
-                    if membre.get('email'):
-                        emails.append(membre.get('email'))
-        
-        # Supprimer les doublons
-        emails = list(set(emails))
-        
-        if not emails:
-            logger.warning(f"Aucun email trouvé pour la convention {convention.id}")
-            return False
-        
-        # Générer le message
-        subject, body = self._generate_expiration_message(convention, rappel_type)
-        return self.send_email(emails, subject, body)
+# ─── ALERTE D'EXPIRATION (⚠️ envoyée UNIQUEMENT aux chargés) ───
+def send_expiration_alert(self, convention, comites, rappel_type: str) -> bool:
+    """
+    Envoyer l'alerte d'expiration UNIQUEMENT aux chargés de partenariat.
+    ⚠️ Les membres des comités (internes + externes) sont IGNORÉS.
+    """
+    from app.models.user import User
+    from app.database import SessionLocal
     
+    db = SessionLocal()
+    try:
+        charges = db.query(User).filter(User.role == "CHARGE").all()
+        emails = [u.email for u in charges if u.email]
+    finally:
+        db.close()
+    
+    emails = list(set(emails))
+    
+    if not emails:
+        logger.warning(f"⚠️ Aucun chargé de partenariat pour la convention {convention.id}")
+        return False
+    
+    logger.info(f"📧 Alerte expiration {rappel_type} → {len(emails)} chargé(s)")
+    
+    subject, body = self._generate_expiration_message(convention, rappel_type)
+    return self.send_email(emails, subject, body) 
     def _generate_expiration_message(self, convention, rappel_type: str):
         """
         Générer le message d'expiration dynamique

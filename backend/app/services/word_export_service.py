@@ -278,7 +278,7 @@ class WordExportService:
         # Contexte final
         context = {
             # Titre
-            'titre_convention': self._generer_titre(convention.type, langue),
+            'titre_convention': self._generer_titre(convention.intitule, langue),
             
             # Partenaire (TRADUIRE le type)
             'partenaire_nom': partenaire_principal.get('nom', '—'),

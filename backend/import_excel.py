@@ -124,6 +124,25 @@ def parse_bool(value):
     return v in ['oui', 'yes', 'true', '1', 'vrai', 'نعم']
 
 
+def extraire_annee_depuis_numero(numero_reference):
+    """Extrait l'année depuis '29/18' → 2018, '05/2020' → 2020."""
+    if not numero_reference:
+        return None
+    try:
+        parts = str(numero_reference).split('/')
+        if len(parts) < 2:
+            return None
+        annee_str = parts[1].strip()
+        if len(annee_str) == 2:
+            return 2000 + int(annee_str)   # "18" → 2018
+        elif len(annee_str) == 4:
+            return int(annee_str)          # "2018" → 2018
+    except (ValueError, IndexError):
+        return None
+    return None
+
+
+
 def map_type_partenaire(value):
     v = clean(value).lower()
     if 'semi' in v and 'public' in v:
@@ -143,7 +162,7 @@ def map_type_convention(value):
         return 'Convention cadre'
     if 'cadre' in v:
         return 'Convention cadre'
-    if 'specifique' in v:
+    if 'spécifique' in v:
         return 'Convention spécifique'
     if 'cooperation' in v:
         return 'Convention de coopération'
@@ -298,11 +317,17 @@ def import_sheet(df, sheet_name, db, admin):
                 print(f"   ✅ NEW  : {numero}")
 
             type_src = get_val(row, col_type_conv) if col_type_conv else intitule_val
-            convention.type = map_type_convention(type_src)
-            convention.intitule = intitule_val or f"{convention.type} N° {numero}"
+            convention.intitule = intitule_val or f"Convention N° {numero}"
 
             date_debut = parse_date(get_val(row, col_date_debut)) if col_date_debut else None
             date_fin   = parse_date(get_val(row, col_date_fin))   if col_date_fin   else None
+
+             # ✅ Fallback : si date_signature vide → déduire des 2 derniers chiffres du numéro
+            if not date_debut and numero:
+                annee_num = extraire_annee_depuis_numero(numero)
+                if annee_num:
+                    date_debut = date(annee_num, 1, 1)
+                    print(f"      📅 Date signature déduite de {numero} → {date_debut}")
 
             convention.date_signature  = date_debut
             convention.date_expiration = date_fin
@@ -344,6 +369,7 @@ def import_sheet(df, sheet_name, db, admin):
             convention.validation_conseil = parse_bool(get_val(row, col_valide_conseil)) if col_valide_conseil else False
             convention.formation_continue = parse_bool(get_val(row, col_formation)) if col_formation else False
             convention.statut = 'EN_COURS'
+            convention.signe = True
 
             db.flush()
 

@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getConventions, exportConventions } from '../../services/conventionService';
 import { formatDate } from '../../utils/formatDate';
-import { TYPES_CONVENTION, STATUTS, TYPES_PARTENAIRE, ROLES } from '../../utils/constants';
+import { INTITULES_CONVENTION, STATUTS, TYPES_PARTENAIRE, ROLES } from '../../utils/constants';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
@@ -21,10 +21,10 @@ export default function ConventionsList() {
   const [conventions, setConventions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filtreType, setFiltreType] = useState('');
   const [filtreStatut, setFiltreStatut] = useState('');
   const [filtreTypesPartenaire, setFiltreTypesPartenaire] = useState([]);
   const [filtreDateDebut, setFiltreDateDebut] = useState('');
+  const [filtreIntitule, setFiltreIntitule] = useState('');
   const [filtreDateFin, setFiltreDateFin] = useState('');
   const [filtreSigne, setFiltreSigne] = useState('');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -43,7 +43,6 @@ export default function ConventionsList() {
     [t('conventions.groupIdentification')]: [
       { id: 'numero_reference', labelKey: 'conventions.reference' },
       { id: 'intitule', labelKey: 'conventions.intitule' },
-      { id: 'type', labelKey: 'conventions.type' },
       { id: 'statut', labelKey: 'conventions.status' },
       { id: 'signe', labelKey: 'conventions.signed' },
     ],
@@ -99,14 +98,14 @@ export default function ConventionsList() {
       const inPartenaires = c.partenaires?.some(p => p.nom?.toLowerCase().includes(s));
       if (!inIntitule && !inPartenaires) return false;
     }
-    if (filtreType && c.type !== filtreType) return false;
     if (filtreStatut && c.statut !== filtreStatut) return false;
     if (filtreTypesPartenaire.length > 0) {
       const hasMatch = c.partenaires?.some(p => filtreTypesPartenaire.includes(p.type));
       if (!hasMatch) return false;
     }
     if (filtreDateDebut && c.date_signature < filtreDateDebut) return false;
-    if (filtreDateFin && c.date_expiration > filtreDateFin) return false;
+    if (filtreDateFin && c.date_signature > filtreDateFin) return false;
+    if (filtreIntitule && c.intitule !== filtreIntitule) return false;
     if (filtreSigne === 'signe' && !c.signe) return false;
     if (filtreSigne === 'non_signe' && c.signe) return false;
     if (filtreBudget && !c.avec_budget) return false;
@@ -149,7 +148,7 @@ export default function ConventionsList() {
 
   const resetFiltres = () => {
     setSearch('');
-    setFiltreType('');
+    setFiltreIntitule('');
     setFiltreStatut('');
     setFiltreTypesPartenaire([]);
     setFiltreDateDebut('');
@@ -204,7 +203,6 @@ export default function ConventionsList() {
     switch(field) {
       case 'numero_reference': return convention.numero_reference || '';
       case 'intitule': return convention.intitule || '';
-      case 'type': return convention.type || '';
       case 'statut': return getStatutLabel(convention.statut) || '';
       case 'signe': return convention.signe ? `✅ ${t('conventions.signed')}` : `❌ ${t('conventions.notSigned')}`;
       case 'date_signature': return formatDate(convention.date_signature);
@@ -326,11 +324,12 @@ export default function ConventionsList() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
               <Select
-                value={filtreType}
-                onChange={(e) => setFiltreType(e.target.value)}
-                options={TYPES_CONVENTION.map(tc => ({ value: tc, label: tc }))}
-                placeholder={t('conventions.allTypes')}
+                value={filtreIntitule}
+                onChange={(e) => setFiltreIntitule(e.target.value)}
+                options={INTITULES_CONVENTION.map(v => ({ value: v, label: v }))}
+                placeholder={t('conventions.allIntitules') || 'Tous les intitulés'}
               />
+              
               <Select
                 value={filtreStatut}
                 onChange={(e) => setFiltreStatut(e.target.value)}
@@ -401,7 +400,6 @@ export default function ConventionsList() {
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.number')}</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.intitule')}</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.partners')}</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.type')}</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.signatureDate')}</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.expirationDate')}</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.status')}</th>
@@ -411,7 +409,7 @@ export default function ConventionsList() {
               <tbody className="divide-y divide-gray-200">
                 {conventionsFiltrees.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500 text-sm">
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">
                       {t('conventions.noConventions')}
                     </td>
                   </tr>
@@ -425,7 +423,6 @@ export default function ConventionsList() {
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{c.numero_reference}</td>
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium">{c.intitule}</td>
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{getPartenairesDisplay(c.partenaires)}</td>
-                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{c.type}</td>
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{formatDate(c.date_signature)}</td>
                       <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm">{formatDate(c.date_expiration) || '—'}</td>
                       <td className="px-3 sm:px-4 py-3">

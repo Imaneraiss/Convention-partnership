@@ -116,7 +116,9 @@
         "periodLastYear": "Last year",
         "periodLast3Years": "Last 3 years",
         "periodLast5Years": "Last 5 years",
-        "periodCustom": "Custom..."
+        "periodCustom": "Custom...",
+        "xIntitule": "Convention title",
+        "chartIntitule": "Distribution by title"
     },
   "conventions": {
     "title": "Tracking and management of partnership conventions",
@@ -168,7 +170,8 @@
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "confirmDelete": "Are you sure you want to delete this convention? This action is irreversible.",
-    "saveSuccess": "Convention saved successfully!"
+    "saveSuccess": "Convention saved successfully!",
+    "allIntitules": "All titles"
   },
   "alerts": {
     "title": "Manage all your alerts in one place",
@@ -428,6 +431,7 @@
         "alertDetail": "Alert details"
     },
     "general": {
+    "selectIntitule": "Select a title",
     "uploadedDocument": "Uploaded document",
     "uploadDocument": "Upload document",
     "replace": "Replace",

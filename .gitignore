@@ -202,6 +202,7 @@ __marimo__/
 
 # Fichier Excel des conventions (données réelles UM5)
 backend/conventions.xlsx
+backend/non_signees.xlsx
 backend/data/
 
 # Dossiers d'upload (fichiers joints par les utilisateurs)

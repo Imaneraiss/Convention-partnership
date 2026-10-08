@@ -30,17 +30,20 @@ export const STATUTS_COLORS = {
 // ─────────────────────────────────────────
 // TYPES DE CONVENTIONS
 // ─────────────────────────────────────────
-export const TYPES_CONVENTION = [
-    "Convention cadre de partenariat",
-    "Convention cadre",
-    "Convention de partenariat",
-    "Convention spécifique",
-    "Convention de coopération",
-    "Entente",
-    "Contrat",
-    "Avenant",
-    "Mémorandum"
-]
+export const INTITULES_CONVENTION = [
+  'Convention cadre',
+  'Convention cadre de partenariat',
+  'Convention spécifique',
+  'Convention de coopération',
+  'Convention de partenariat',
+  'Mémorandum',
+  'Avenant',
+  'Contrat',
+  'Entente',
+];
+
+// ✅ Alias pour compatibilité avec l'existant
+export const TYPES_CONVENTION = INTITULES_CONVENTION;
 
 // ─────────────────────────────────────────
 // TYPES DE PARTENAIRES
@@ -152,9 +155,6 @@ export const ACTIONS_HISTORIQUE = {
     MODIFICATION_COMPTE: "MODIFICATION_COMPTE",
     SUPPRESSION_COMPTE: "SUPPRESSION_COMPTE",
     MODIFICATION_BUDGET: "MODIFICATION_BUDGET",
-    CREATION_COMITE: "CREATION_COMITE",
-    CREATION_REUNION: "CREATION_REUNION",
-    CREATION_ALERTE: "CREATION_ALERTE",
     UPLOAD_FICHIER: "UPLOAD_FICHIER",
     SUPPRESSION_FICHIER: "SUPPRESSION_FICHIER"
 }

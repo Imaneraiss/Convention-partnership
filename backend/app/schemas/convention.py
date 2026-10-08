@@ -7,7 +7,6 @@ from app.schemas.comite import ComiteResponse
 
 class ConventionBase(BaseModel):
     intitule: str
-    type: str
     date_signature: Optional[date] = None 
     date_expiration: Optional[date] = None
     duree_annees: Optional[int] = None  # 🆕 NOUVEAU
@@ -31,7 +30,6 @@ class ConventionCreate(ConventionBase):
 
 class ConventionUpdate(BaseModel):
     intitule: Optional[str] = None
-    type: Optional[str] = None
     date_signature: Optional[date] = None
     date_expiration: Optional[date] = None
     duree_annees: Optional[int] = None  # 🆕 NOUVEAU

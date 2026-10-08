@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy import extract
 from sqlalchemy.orm import Session, joinedload
@@ -36,7 +36,7 @@ def get_conventions(
     conventions = db.query(Convention).options(
         joinedload(Convention.partenaires),
         joinedload(Convention.comites),   
-    ).all()
+    ).order_by(Convention.date_signature.desc().nullslast()).all()
 
     for convention in conventions:
         nouveau_statut = ConventionService.calculer_statut(convention)
@@ -83,36 +83,46 @@ def create_convention(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    annee = datetime.now().year
+    # ═══════════════════════════════════════════════════════
+    # 1️⃣ ANNÉE = celle de date_signature
+    # ═══════════════════════════════════════════════════════
+    if not data.date_signature:
+        raise HTTPException(status_code=400, detail="date_signature est obligatoire")
+
+    # Convertir en date si c'est une string
+    date_sig = data.date_signature
+    if isinstance(date_sig, str):
+        try:
+            date_sig = datetime.strptime(date_sig.strip(), '%Y-%m-%d').date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Format de date invalide: {date_sig}")
+
+    annee = date_sig.year
+    print(f"📅 Année de signature : {annee}")
 
     # ═══════════════════════════════════════════════════════
-    # GÉNÉRATION ROBUSTE DU NUMÉRO DE RÉFÉRENCE
+    # 2️⃣ GÉNÉRATION DU NUMÉRO NN/YY
     # ═══════════════════════════════════════════════════════
-    # Récupérer TOUTES les conventions de l'année
-    conventions_annee = db.query(Convention)\
-        .filter(extract('year', Convention.date_signature) == annee)\
-        .all()
+    suffixe = f"/{str(annee)[-2:]}"
+    conventions_annee = db.query(Convention).filter(
+        Convention.numero_reference.like(f"%{suffixe}")
+    ).all()
 
-    # Extraire les numéros et trouver le max RÉEL (numérique)
     numeros = []
     for c in conventions_annee:
         if c.numero_reference:
             try:
-                num = int(c.numero_reference.split('/')[0])
-                numeros.append(num)
+                numeros.append(int(c.numero_reference.split('/')[0]))
             except (ValueError, IndexError):
                 continue
 
-    # Prochain numéro
     prochain_numero = max(numeros, default=0) + 1
-    numero_reference = f"{prochain_numero:02d}/{annee}"
+    numero_reference = f"{prochain_numero:02d}/{str(annee)[-2:]}"
 
     print(f"🔢 Génération numéro : {numero_reference}")
     print(f"   Conventions existantes en {annee}: {sorted(numeros)}")
 
-    # ═══════════════════════════════════════════════════════
-    # VÉRIFIER UNICITÉ (au cas où le numéro serait déjà pris)
-    # ═══════════════════════════════════════════════════════
+    # Unicité
     existing = db.query(Convention).filter(
         Convention.numero_reference == numero_reference
     ).first()
@@ -120,24 +130,27 @@ def create_convention(
     tentatives = 0
     while existing and tentatives < 100:
         prochain_numero += 1
-        numero_reference = f"{prochain_numero:02d}/{annee}"
+        numero_reference = f"{prochain_numero:02d}/{str(annee)[-2:]}"
         existing = db.query(Convention).filter(
             Convention.numero_reference == numero_reference
         ).first()
         tentatives += 1
 
     if existing:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Impossible de générer un numéro unique pour {annee}"
-        )
+        raise HTTPException(409, f"Impossible de générer un numéro unique pour {annee}")
 
     # ═══════════════════════════════════════════════════════
-    # CRÉATION
+    # 3️⃣ CRÉATION
     # ═══════════════════════════════════════════════════════
     data_dict = data.model_dump()
     data_dict["user_id"] = current_user.id
-    data_dict["numero_reference"] = numero_reference      # ⬅️ Assigner dans le dict
+    data_dict["numero_reference"] = numero_reference
+    data_dict["date_signature"] = date_sig           # ← on remet la date propre
+    data_dict["date_expiration"] = (
+        datetime.strptime(data.date_expiration, '%Y-%m-%d').date()
+        if data.date_expiration and isinstance(data.date_expiration, str)
+        else data.date_expiration
+    )
 
     convention = Convention(**data_dict)
     convention.statut = ConventionService.calculer_statut(convention)
@@ -149,20 +162,12 @@ def create_convention(
         print(f"✅ Convention créée avec numéro {numero_reference}")
     except IntegrityError as e:
         db.rollback()
-        print(f"❌ Erreur intégrité : {e}")
-        raise HTTPException(
-            status_code=409,
-            detail=f"Le numéro {numero_reference} existe déjà. Veuillez réessayer."
-        )
+        raise HTTPException(409, f"Le numéro {numero_reference} existe déjà.")
     except Exception as e:
         db.rollback()
-        print(f"❌ Erreur création : {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erreur lors de la création: {str(e)}"
-        )
+        raise HTTPException(500, f"Erreur lors de la création: {str(e)}")
 
-    # ✅ Enregistrer dans l'historique
+    # Historique (inchangé)
     try:
         historique_service = HistoriqueService(db)
         historique_service.log_action(
@@ -171,9 +176,7 @@ def create_convention(
             description=f"Convention créée: {convention.intitule}",
             details={
                 "intitule": convention.intitule,
-                "type": convention.type,
-                "numero_reference": convention.numero_reference,
-                "date_signature": str(convention.date_signature) if convention.date_signature else None
+                "numero_reference": convention.numero_reference
             },
             convention_id=convention.id,
             request=request
@@ -182,7 +185,6 @@ def create_convention(
         print(f"⚠️ Erreur historique (non bloquant): {e}")
 
     return convention
-
 
 # ═══════════════════════════════════════════════════════════
 # PUT — Modifier une convention
@@ -256,8 +258,7 @@ def delete_convention(
         description=f"Convention supprimée: {intitule}",
         details={
             "intitule": intitule,
-            "numero_reference": numero_reference,
-            "type": convention.type
+            "numero_reference": numero_reference
         },
         convention_id=None,
         request=request

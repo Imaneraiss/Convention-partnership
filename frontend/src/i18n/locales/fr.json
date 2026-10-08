@@ -116,7 +116,9 @@
         "periodLastYear": "Année dernière",
         "periodLast3Years": "3 dernières années",
         "periodLast5Years": "5 dernières années",
-        "periodCustom": "Personnalisée..."
+        "periodCustom": "Personnalisée...",
+        "xIntitule": "Intitulé de la convention",
+        "chartIntitule": "Répartition par intitulé"
     },
   "conventions": {
     "title": "Suivi et gestion des conventions de partenariat",
@@ -168,7 +170,8 @@
     "selectAll": "Tout sélectionner",
     "deselectAll": "Tout désélectionner",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette convention ? Cette action est irréversible.",
-    "saveSuccess": "Convention enregistrée avec succès !"
+    "saveSuccess": "Convention enregistrée avec succès !",
+    "allIntitules": "Tous les intitulés"
   },
   "alerts": {
     "title": "Gérez toutes vos alertes en un seul endroit",
@@ -428,6 +431,7 @@
         "alertDetail": "Détail de l'alerte"
     },
     "general": {
+    "selectIntitule": "Sélectionner un intitulé",
     "uploadedDocument": "Document uploadé",
     "uploadDocument": "Upload du document",
     "replace": "Remplacer",

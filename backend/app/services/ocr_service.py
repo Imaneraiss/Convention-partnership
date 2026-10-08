@@ -143,8 +143,7 @@ Retourne un JSON avec CES CHAMPS OBLIGATOIRES.
 Pour les champs à choix, utilise UNIQUEMENT les valeurs listées.
 
 {{
-  "intitule": "Le titre complet (GARDE dans la langue originale)",
-  "type": "Convention cadre OU Convention spécifique OU Convention de partenariat OU Mémorandum OU Avenant OU Contrat OU Entente",
+  "intitule": "⚠️ OBLIGATOIREMENT UNE valeur EXACTE parmi cette liste (ne rien inventer) :\n    'Convention cadre',\n    'Convention cadre de partenariat',\n    'Convention spécifique',\n    'Convention de coopération',\n    'Convention de partenariat',\n    'Mémorandum',\n    'Avenant',\n    'Contrat',\n    'Entente'",
   "mode_renouvellement": "Tacitement OU Par avenant OU Concertation des parties OU Non renouvelable OU Une fois d'une année",
   "date_signature": "YYYY-MM-DD",
   "date_expiration": null,
@@ -197,12 +196,12 @@ Il faut DISTINGUER 2 catégories de champs :
 
 🅰️ CHAMPS À TRADUIRE EN FRANÇAIS (ce sont des "dropdowns")
    → Ces champs ont des VALEURS FIXES prédéfinies
-   → Liste : type, mode_renouvellement, signataire_um5, partenaires[].type, comites[].type, comites[].frequence
+   → Liste : intitule, mode_renouvellement, signataire_um5, partenaires[].type, comites[].type, comites[].frequence
 
 🅱️ CHAMPS À GARDER DANS LA LANGUE ORIGINALE (ce sont des "textes libres")
    → Ces champs gardent le texte TEL QUEL
    → Si le document est en arabe → garder en ARABE
-   → Liste : intitule, objet, objectif, engagement_um5, engagement_partenaire,
+   → Liste : objet, objectif, engagement_um5, engagement_partenaire,
             engagement_commun, principaux_domaines, communication, reglement_litiges,
             forces_majeurs, modification_resiliation, confidentialite, protection_donnees,
             propriete_intellectuelle, partenaires[].nom, partenaires[].ville,
@@ -212,10 +211,12 @@ Il faut DISTINGUER 2 catégories de champs :
 📌 TRADUCTIONS POUR LES DROPDOWNS UNIQUEMENT
 ─────────────────────────────
 
-📌 Types de convention :
+📌 Intitulé de convention (dropdown obligatoire) :
   "اتفاقية إطار" → "Convention cadre"
-  "اتفاقية شراكة" → "Convention de partenariat"
+  "اتفاقية إطار للشراكة" → "Convention cadre de partenariat"
   "اتفاقية محددة" → "Convention spécifique"
+  "اتفاقية تعاون" → "Convention de coopération"
+  "اتفاقية شراكة" → "Convention de partenariat"
   "مذكرة تفاهم" → "Mémorandum"
   "ملحق" → "Avenant"
   "عقد" → "Contrat"
@@ -283,8 +284,8 @@ Réponds UNIQUEMENT avec le JSON valide, sans texte avant ou après.
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
-            max_tokens=3000,
-            timeout=60.0
+            max_tokens=8000,
+            timeout=90.0
         )
 
         content = response.choices[0].message.content.strip()
@@ -421,7 +422,6 @@ def process_document(file_bytes: bytes, content_type: str) -> dict:
     result = {
         # Identification
         "intitule": fields.get("intitule", ""),
-        "type": fields.get("type", ""),
         "mode_renouvellement": fields.get("mode_renouvellement", ""),
 
         # Dates
