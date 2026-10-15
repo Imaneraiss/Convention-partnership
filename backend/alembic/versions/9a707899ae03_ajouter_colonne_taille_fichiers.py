@@ -99,4 +99,4 @@ def downgrade() -> None:
     op.alter_column('comites', 'taches',
                existing_type=postgresql.JSON(astext_type=sa.Text()),
                nullable=True,
-               existing_server_default=sa.text("'[]'::json"))docker exec -it partnership_backend alembic upgrade head
+               existing_server_default=sa.text("'[]'::json"))
