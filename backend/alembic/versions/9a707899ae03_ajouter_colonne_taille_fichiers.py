@@ -30,14 +30,13 @@ def upgrade() -> None:
 
     # 3. Puis seulement supprimer les tables
     op.drop_table('reunions')
-    op.drop_table('comite_destinataires_internes')
-    op.drop_table('comite_destinataires_externes')
+    op.execute("DROP TABLE IF EXISTS comite_destinataires_internes")
+    op.execute("DROP TABLE IF EXISTS comite_destinataires_externes")
 
     # 4. Le reste des changements
-    op.alter_column('comites', 'taches',
-               existing_type=postgresql.JSON(astext_type=sa.Text()),
-               nullable=False,
-               existing_server_default=sa.text("'[]'::json"))
+    op.execute("ALTER TABLE comites ADD COLUMN IF NOT EXISTS taches JSON DEFAULT '[]'::json")
+    op.execute("UPDATE comites SET taches = '[]'::json WHERE taches IS NULL")
+    op.execute("ALTER TABLE comites ALTER COLUMN taches SET NOT NULL")
     op.add_column('fichiers', sa.Column('taille', sa.Integer(), nullable=True))
     op.alter_column('fichiers', 'chemin',
                existing_type=sa.VARCHAR(),
@@ -96,7 +95,4 @@ def downgrade() -> None:
                type_=sa.VARCHAR(),
                existing_nullable=False)
     op.drop_column('fichiers', 'taille')
-    op.alter_column('comites', 'taches',
-               existing_type=postgresql.JSON(astext_type=sa.Text()),
-               nullable=True,
-               existing_server_default=sa.text("'[]'::json"))
+    op.execute("ALTER TABLE comites DROP COLUMN IF EXISTS taches")
