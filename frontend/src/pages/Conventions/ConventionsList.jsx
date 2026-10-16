@@ -403,8 +403,9 @@ export default function ConventionsList() {
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.signatureDate')}</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.expirationDate')}</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.status')}</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.signed')}</th>
-                </tr>
+                  {!isSG && (
+                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('conventions.signed')}</th>
+                  )}                </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {conventionsFiltrees.length === 0 ? (
