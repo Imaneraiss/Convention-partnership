@@ -5,9 +5,18 @@ Revises: 3dec9455f168
 Create Date: 2026-10-16 07:38:32.639153
 
 """
+from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import text
+
+# ═══════════════════════════════════════════════════════════
+# IDENTIFIANTS ALEMBIC (⚠️ NE PAS SUPPRIMER)
+# ═══════════════════════════════════════════════════════════
+revision: str = '71a0f93d1025'
+down_revision: Union[str, Sequence[str], None] = '3dec9455f168'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
